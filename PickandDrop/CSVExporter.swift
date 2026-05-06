@@ -1,9 +1,3 @@
-//
-//  CSVExporter.swift
-//  PickandDrop
-//
-//  Created by Ronald Thayer Jr on 5/2/26.
-//
 import SwiftUI
 import Foundation
 
@@ -16,7 +10,11 @@ struct CSVExporter {
         isFinal: Bool = false
     ) -> URL {
         
-        var csv = "Date,Time,Driver,Truck,PickupCompany,PickupTicket,PickupTons,DeliveryCompany,DeliveryTicket,DeliveryTons,Fuel Total\n"
+        func csvSafe(_ value: String) -> String {
+            "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
+        }
+        
+        var csv = "Date,Time,Driver,Truck,Pickup Ticket,Pickup Tons,Delivery Ticket,Delivery Tons,PickedUp,Delivered,Fuel Total\n"
         
         let safeName = driver.name
             .replacingOccurrences(of: "[^a-zA-Z0-9_-]", with: "_", options: .regularExpression)
@@ -31,12 +29,12 @@ struct CSVExporter {
             $0.createdAt < $1.createdAt
         }
         
-        let dateFormatterForFile = DateFormatter()
-        dateFormatterForFile.dateFormat = "yyyy-MM-dd_HH-mm"
+        let fileFormatter = DateFormatter()
+        fileFormatter.dateFormat = "yyyy-MM-dd_HH-mm"
         
         let suffix = isFinal
-        ? "FINAL-\(dateFormatterForFile.string(from: Date()))"
-        : "ACTIVE"
+            ? "FINAL-\(fileFormatter.string(from: Date()))"
+            : "ACTIVE"
         
         let fileName = "\(safeName)-Truck\(driver.truckNumber)-\(suffix).csv"
         
@@ -45,17 +43,26 @@ struct CSVExporter {
             let date = dateFormatter.string(from: load.createdAt)
             let time = timeFormatter.string(from: load.createdAt)
             
-            let fuel = (index == sortedLoads.count - 1)
-            ? (activeShift?.fuelTotal ?? 0)
-            : 0
+            let isLast = index == sortedLoads.indices.last
+            let fuel = isLast ? (activeShift?.fuelTotal ?? 0) : 0
             
-            csv += "\(date),\(time),\(driver.name),\(driver.truckNumber),\(load.pickupCompany),\(load.pickupTicketNumber),\(load.pickupTons),\(load.deliveryCompany),\(load.deliveryTicketNumber),\(load.deliveryTons),\(fuel)\n"
+            let PickupTons = String(format: "%.2f", load.pickupTons)
+
+            let deliveryTons = String(format: "%.2f", load.deliveryTons)
+            let fuelString = String(format: "%.2f", fuel)
+            
+            // 🔥 Format timestamps safely
+            let pickedUp = load.pickedUpAt?
+                .formatted(date: .abbreviated, time: .shortened)
+                ?? "Not picked up"
+            
+            let delivered = load.deliveredAt?
+                .formatted(date: .omitted, time: .shortened) ?? ""
+            
+            csv += "\(date),\(time),\(csvSafe(driver.name)),\(driver.truckNumber),\(csvSafe(load.pickupTicketNumber)),\(String(format: "%.2f", load.pickupTons)),\(csvSafe(load.deliveryTicketNumber)),\(String(format: "%.2f", load.deliveryTons)),\(pickedUp),\(delivered),\(fuelString)\n"
         }
         
-        _ = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        
         let folder = StorageManager.truckReportsFolder()
-        
         let url = folder.appendingPathComponent(fileName)
         
         do {
@@ -64,7 +71,7 @@ struct CSVExporter {
             }
             
             try csv.write(to: url, atomically: true, encoding: .utf8)
-            print("✅ CSV updated:", url)
+            print("✅ CSV written:", url)
             
         } catch {
             print("❌ CSV write failed:", error)
@@ -73,5 +80,4 @@ struct CSVExporter {
         return url
     }
 }
-
 

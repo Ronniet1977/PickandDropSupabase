@@ -22,12 +22,13 @@ struct AdminDashboardView: View {
     @Query var drivers: [DriverProfile]
     @Query var loads: [LoadItem]
     @Query var shifts: [Shift]
-
+    @Query(sort: \LoadItem.createdAt, order: .reverse)
+    var allLoads: [LoadItem]
+    
     @AppStorage("hasSetup") var hasSetup = true
     @AppStorage("currentDriverName") var currentDriverName: String = ""
     
-    @State private var allLoads: [ReportLoadItem] = []
-    @State private var selectedLoad: ReportLoadItem?
+    @State private var selectedLoad: LoadItem?
     @State private var selectedDriver: DriverSummary?
     @State private var exportURL: URL?
     @State private var showImporter = false
@@ -41,77 +42,107 @@ struct AdminDashboardView: View {
     
     @State private var selectedFilter: AdminLoadFilter = .all
     
+    @State private var showBossReport = false
+    @State private var bossReportText = ""
+    
     var combinedReports: [DriverSummary] {
-        let grouped = Dictionary(grouping: allLoads) { $0.driverName }
-        
-        return grouped.map { (driverName, driverLoads) in
-            let totalTons = driverLoads.reduce(0.0) { $0 + $1.pickupTons }
-            
-            let shift = shifts.first(where: { $0.driverName == driverName })
+
+        let grouped = Dictionary(grouping: allLoads) {
+            $0.driverName
+        }
+
+        return grouped.map { (driverName, loads) in
+
+            let driverProfile = drivers.first {
+                $0.name == driverName
+            }
+
+            let shift = shifts.first {
+                $0.driverName == driverName
+            }
 
             return DriverSummary(
                 name: driverName,
-                truck: driverLoads.first?.truck ?? "Unknown",
-                loads: driverLoads.count,
-                tons: totalTons,
+                truck: driverProfile?.truckNumber ?? "Unknown",
+
+                loads: loads.count,
+
+                pickupTons: loads.reduce(0.0) {
+                    $0 + $1.pickupTons
+                },
+
+                deliveryTons: loads.reduce(0.0) {
+                    $0 + $1.deliveryTons
+                },
+
                 fuel: shift?.fuelTotal ?? 0,
-                status: shift?.status ?? "unknown"
+                status: shift?.status ?? "unknown",
+
+                isFinished: shift?.status == "finished"
             )
         }
-        .sorted { $0.name < $1.name }
     }
     
     var driverSummaries: [DriverSummary] {
         
         var dict: [String: DriverSummary] = [:]
         
-        // Build from loads
         for load in allLoads {
+            
             if dict[load.driverName] == nil {
+                
+                let driverProfile = drivers.first {
+                    $0.name == load.driverName
+                }
+                
                 dict[load.driverName] = DriverSummary(
                     name: load.driverName,
-                    truck: load.truck,
+                    truck: "N/A",
+
                     loads: 0,
-                    tons: 0,
+
+                    pickupTons: 0,
+                    deliveryTons: 0,
+
                     fuel: 0,
-                    status: "unknown"
+                    status: "unknown",
+
+                    isFinished: false
                 )
             }
             
             dict[load.driverName]?.loads += 1
-            dict[load.driverName]?.tons += load.pickupTons
-        }
-        
-        // Merge in shift data (fuel + status)
-        for shift in shifts {
-            if dict[shift.driverName] != nil {
-                dict[shift.driverName]?.fuel = shift.fuelTotal
-                dict[shift.driverName]?.status = shift.status
-            }
+            dict[load.driverName]?.pickupTons += load.pickupTons
+            dict[load.driverName]?.deliveryTons += load.deliveryTons
         }
         
         return Array(dict.values)
     }
+    
     var totalLoads: Int {
         filteredLoads.count
     }
     
     //Filter Tabs
-    var filteredLoads: [ReportLoadItem] {
+    var filteredLoads: [LoadItem] {
         switch selectedFilter {
+            
         case .all:
             return allLoads
+            
         case .pickedUp:
             return allLoads.filter {
-                $0.deliveryTicketNumber.isEmpty
+                $0.isPickedUp && !$0.isDelivered
             }
+            
         case .delivered:
             return allLoads.filter {
-                !$0.deliveryTicketNumber.isEmpty
+                $0.isDelivered
             }
+            
         case .open:
             return allLoads.filter {
-                $0.deliveryTicketNumber.isEmpty
+                !$0.isPickedUp
             }
         }
     }
@@ -120,13 +151,28 @@ struct AdminDashboardView: View {
         let grouped = Dictionary(grouping: filteredLoads) { $0.driverName }
         
         return grouped.map { driverName, loads in
-            DriverSummary(
+            
+            let driverProfile = drivers.first {
+                $0.name == driverName
+            }
+            
+            return DriverSummary(
                 name: driverName,
-                truck: loads.first?.truck ?? "Unknown",
+                truck: driverProfile?.truckNumber ?? "—",
                 loads: loads.count,
-                tons: loads.reduce(0.0) { $0 + $1.pickupTons },
+
+                pickupTons: loads.reduce(0.0) {
+                    $0 + $1.pickupTons
+                },
+
+                deliveryTons: loads.reduce(0.0) {
+                    $0 + $1.deliveryTons
+                },
+
                 fuel: 0,
-                status: "active"
+                status: "active",
+                
+                isFinished: false
             )
         }
         .sorted { $0.name < $1.name }
@@ -134,19 +180,24 @@ struct AdminDashboardView: View {
     
     //Boss Sumary
     var deliveredLoads: Int {
-        allLoads.filter { !$0.deliveryTicketNumber.isEmpty }.count
+        allLoads.filter { $0.deliveredAt != nil }.count
     }
     
     var openLoads: Int {
-        allLoads.filter { $0.deliveryTicketNumber.isEmpty }.count
+        allLoads.filter { $0.pickedUpAt == nil }.count
     }
     
     var totalPickupTons: Double {
-        allLoads.reduce(0.0) { $0 + $1.pickupTons }
+        allLoads
+            .filter { $0.isPickedUp }
+            .reduce(0.0) { $0 + $1.pickupTons }
     }
     
+    // 🔥 until you track real delivery tons separately:
     var totalDeliveryTons: Double {
-        allLoads.reduce(0.0) { $0 + $1.deliveryTons }
+        allLoads
+            .filter { $0.deliveredAt != nil }
+            .reduce(0.0) { $0 + $1.deliveryTons }
     }
     
     var tonsDifference: Double {
@@ -175,10 +226,6 @@ struct AdminDashboardView: View {
                             Text("Driver Overview")
                                 .foregroundStyle(.secondary)
                             
-                            Text(StorageManager.truckReportsFolder().path)
-                                .font(.caption2)
-                                .foregroundStyle(.red)
-                                .lineLimit(3)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
@@ -309,6 +356,14 @@ struct AdminDashboardView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
+                        bossReportText = makeBossDailyReport()
+                        showBossReport = true
+                    } label: {
+                        Label("Boss Daily Report", systemImage: "doc.text.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    
+                    Button {
                         exportURL = exportBossDailyReport()
                     } label: {
                         Image(systemName: "doc.text.fill")
@@ -349,13 +404,14 @@ struct AdminDashboardView: View {
             .onAppear {
                 requestNotificationPermission()
                 loadFromiCloud()
+                try? context.save()
             }
             .sheet(item: $selectedDriver) { driver in
                 DriverDetailView(
                     driver: driver,
                     loads: allLoads
                         .filter { $0.driverName == driver.name }
-                        .sorted { Int($0.pickupTicketNumber) ?? 0 > Int($1.pickupTicketNumber) ?? 0 }
+                        .sorted { $0.createdAt > $1.createdAt }
                 )
             }
             .sheet(isPresented: Binding(
@@ -366,6 +422,24 @@ struct AdminDashboardView: View {
                     ShareSheet(items: [url])
                 }
             }
+            .sheet(isPresented: $showBossReport) {
+                NavigationStack {
+                    ScrollView {
+                        Text(bossReportText)
+                            .font(.system(.body, design: .monospaced))
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .navigationTitle("Boss Daily Report")
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            ShareLink(item: bossReportText) {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -373,32 +447,70 @@ struct AdminDashboardView: View {
         let deliveredTons = allLoads
             .filter {
                 $0.driverName == driver.name &&
-                !$0.deliveryTicketNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                $0.deliveredAt != nil
             }
             .reduce(0.0) { $0 + $1.deliveryTons }
         
-        let hasMismatch = deliveredTons > 0 && abs(driver.tons - deliveredTons) > 0.01
+        let hasMismatch = deliveredTons > 0 && abs(driver.pickupTons - driver.deliveryTons) > 0.01
         
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(driver.name)
-                    .font(.headline)
-                
+
+                VStack(alignment: .leading, spacing: 4) {
+
+                    Text(driver.name)
+                        .font(.headline)
+
+                    if driver.isFinished {
+
+                        Text("✅ Finished")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+
+                    } else {
+
+                        Text("🟢 Active")
+                            .font(.caption)
+                            .foregroundStyle(.blue)
+                    }
+                }
+
                 Spacer()
-                
-                Text("Truck \(driver.truck)")
-                    .font(.caption)
-                    .padding(6)
-                    .background(.gray.opacity(0.2))
-                    .clipShape(Capsule())
+
+                HStack(spacing: 12) {
+
+                    Text("Truck \(driver.truck)")
+                        .font(.caption)
+                        .padding(6)
+                        .background(.gray.opacity(0.2))
+                        .clipShape(Capsule())
+
+                    Button(role: .destructive) {
+
+                        deleteDriverActiveFile(driver)
+
+                    } label: {
+
+                        Image(systemName: "trash")
+                    }
+                }
             }
             
             Divider()
             
             HStack {
+                
                 Label("\(driver.loads)", systemImage: "shippingbox.fill")
+                
                 Spacer()
-                Label("\(driver.tons, specifier: "%.0f") tons", systemImage: "scalemass.fill")
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    
+                    Text("Pickup: \(driver.pickupTons, specifier: "%.0f")")
+                    
+                    Text("Delivered: \(driver.deliveryTons, specifier: "%.0f")")
+                }
+                .font(.caption)
             }
             .foregroundStyle(.secondary)
             
@@ -417,6 +529,39 @@ struct AdminDashboardView: View {
         }
     }
     
+    func deleteDriverActiveFile(_ driver: DriverSummary) {
+
+        let safeName = driver.name
+            .replacingOccurrences(
+                of: "[^a-zA-Z0-9_-]",
+                with: "_",
+                options: .regularExpression
+            )
+
+        let fileName =
+            "\(safeName)-Truck\(driver.truck)-ACTIVE.csv"
+
+        let url = StorageManager
+            .truckReportsFolder()
+            .appendingPathComponent(fileName)
+
+        do {
+
+            if FileManager.default.fileExists(atPath: url.path) {
+
+                try FileManager.default.removeItem(at: url)
+
+                print("🧹 Deleted:", fileName)
+
+                loadFromiCloud()
+            }
+
+        } catch {
+
+            print("❌ Delete failed:", error)
+        }
+    }
+    
     func relativeTimeString(from date: Date) -> String {
         let seconds = Int(Date().timeIntervalSince(date))
         
@@ -429,29 +574,104 @@ struct AdminDashboardView: View {
         return date.formatted(date: .omitted, time: .shortened)
     }
     
+    func makeBossDailyReport() -> String {
+        let dateText = Date().formatted(date: .abbreviated, time: .omitted)
+        
+        let totalLoads = driverSummaries.reduce(0) { $0 + $1.loads }
+        let totalPickupTons = driverSummaries.reduce(0.0) {
+            $0 + $1.pickupTons
+        }
+        let totalDeliveryTons = driverSummaries.reduce(0.0) {
+            $0 + $1.deliveryTons
+        }
+        let totalFuel = driverSummaries.reduce(0.0) { $0 + $1.fuel }
+        
+        var report = """
+    📋 BOSS DAILY REPORT
+    Date: \(dateText)
+    
+    TOTALS
+    Loads: \(totalLoads)
+    Pickup Tons: \(String(format: "%.2f", totalPickupTons))
+    Delivery Tons: \(String(format: "%.2f", totalDeliveryTons))
+    Fuel: \(String(format: "%.2f", totalFuel))
+    
+    -------------------------
+    
+    """
+        
+        for driver in driverSummaries.sorted(by: { $0.name < $1.name }) {
+            
+            let driverLoads = allLoads.filter {
+                $0.driverName == driver.name
+            }
+            
+            report += """
+    👤 \(driver.name)
+    Truck: \(driver.truck)
+    Loads: \(driver.loads)
+    Pickup Tons: \(String(format: "%.2f", driver.pickupTons))
+    Delivered Tons: \(String(format: "%.2f", driver.deliveryTons))
+    
+    """
+            
+            for load in driverLoads {
+                report += """
+      • Ticket: \(load.pickupTicketNumber)
+        Pickup Tons: \(String(format: "%.2f", load.pickupTons))
+        Delivery Tons: \(String(format: "%.2f", load.deliveryTons))
+    
+    """
+            }
+            
+            report += "-------------------------\n\n"
+        }
+        
+        return report
+    }
+    
     func exportBossDailyReport() -> URL {
         var csv = "Driver,Truck,Loads,Pickup Tons,Delivery Tons,Open Loads,Delivered Loads,Difference\n"
         
         let grouped = Dictionary(grouping: allLoads) { $0.driverName }
         
         for (driverName, driverLoads) in grouped.sorted(by: { $0.key < $1.key }) {
-            let truck = driverLoads.first?.truck ?? "Unknown"
+            let driverProfile = drivers.first {
+                $0.name == driverName
+            }
+            
+            let truck = driverProfile?.truckNumber ?? "—"
             let loads = driverLoads.count
             
             let pickupTons = driverLoads.reduce(0.0) { $0 + $1.pickupTons }
-            let deliveryTons = driverLoads.reduce(0.0) { $0 + $1.deliveryTons }
+            
+            // 🔥 Until you add real delivery tons
+            let deliveryTons = driverLoads.reduce(0.0) {
+                $0 + $1.deliveryTons
+            }
             
             let delivered = driverLoads.filter {
-                !$0.deliveryTicketNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                $0.deliveredAt != nil
             }.count
             
             let open = loads - delivered
+            
             let difference = pickupTons - deliveryTons
             
-            csv += "\(driverName),\(truck),\(loads),\(pickupTons),\(deliveryTons),\(open),\(delivered),\(difference)\n"
+            let pickupString = String(format: "%.2f", pickupTons)
+            let deliveryString = String(format: "%.2f", deliveryTons)
+            let differenceString = String(format: "%.2f", difference)
+            
+            csv += "\(driverName),\(truck),\(loads),\(pickupString),\(deliveryString),\(open),\(delivered),\(differenceString)\n"
         }
         
         csv += "\n"
+        
+        // 🔥 TOTALS (aligned correctly)
+        let totalDeliveryTons = allLoads
+            .filter { $0.isDelivered }
+            .reduce(0.0) { $0 + $1.deliveryTons }
+        
         csv += "TOTALS,,\(totalLoads),\(totalPickupTons),\(totalDeliveryTons),\(openLoads),\(deliveredLoads),\(tonsDifference)\n"
         
         let formatter = DateFormatter()
@@ -470,21 +690,26 @@ struct AdminDashboardView: View {
         return url
     }
     
+    
     func count(for filter: AdminLoadFilter) -> Int {
         switch filter {
+            
         case .all:
             return allLoads.count
+            
         case .pickedUp:
             return allLoads.filter {
-                $0.deliveryTicketNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                $0.isPickedUp && !$0.isDelivered
             }.count
+            
         case .delivered:
             return allLoads.filter {
-                !$0.deliveryTicketNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                $0.isDelivered
             }.count
+            
         case .open:
             return allLoads.filter {
-                $0.deliveryTicketNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                !$0.isPickedUp
             }.count
         }
     }
@@ -507,12 +732,11 @@ struct AdminDashboardView: View {
         
         UNUserNotificationCenter.current().add(request)
     }
-
+    
     func logout() {
         currentDriverName = ""   // if using AppStorage
         
         hasSetup = false
-        allLoads = []
         selectedDriver = nil
         
         print("Logged out")
@@ -520,7 +744,6 @@ struct AdminDashboardView: View {
     // 🔥 IMPORT
     func importCSVs(urls: [URL]) async {
         var summaryDict: [String: DriverSummary] = [:]
-        var tempLoads: [ReportLoadItem] = []
         
         for url in urls {
             do {
@@ -529,64 +752,89 @@ struct AdminDashboardView: View {
                 
                 for row in rows where !row.trimmingCharacters(in: .whitespaces).isEmpty {
                     let columns = row.components(separatedBy: ",")
-                    if columns.count < 10 { continue }
+                    if columns.count < 11 { continue }
                     
-                    let driverName = columns[2].trimmed()
-                    let truck = columns[3].trimmed()
+                    let driverName = columns[2].cleanedCSV()
+                    let truck = columns[3].cleanedCSV()
                     
-                    let pickupCompany = columns[4].trimmed()
-                    let pickupTicket = columns[5].trimmed()
-                    let pickupTons = Double(columns[6].trimmed()) ?? 0
+                    let pickupTicket = columns[4].cleanedCSV()
+                    let pickupTons = Double(columns[5].trimmed()) ?? 0
+
+                    let deliveryTicket = columns[6].cleanedCSV()
+                    let deliveryTons = Double(columns[7].trimmed()) ?? 0
                     
-                    let deliveryCompany = columns[7].trimmed()
-                    let deliveryTicket = columns[8].trimmed()
-                    let deliveryTons = Double(columns[9].trimmed()) ?? 0
+                    let pickedUpString = columns[8].trimmed()
+                    let deliveredString = columns[9].trimmed()
+                    let fuel = columns[10].trimmed()
                     
                     if summaryDict[driverName] == nil {
                         summaryDict[driverName] = DriverSummary(
                             name: driverName,
                             truck: truck,
                             loads: 0,
-                            tons: 0,
+
+                            pickupTons: 0,
+                            deliveryTons: 0,
+
                             fuel: 0,
-                            status: "unknown"
+                            status: "unknown",
+                            
+                            isFinished: false
                         )
                     }
                     
                     summaryDict[driverName]?.loads += 1
-                    summaryDict[driverName]?.tons += pickupTons
+                    summaryDict[driverName]?.pickupTons += pickupTons
+                    summaryDict[driverName]?.deliveryTons += deliveryTons
                     
-                    tempLoads.append(
-                        ReportLoadItem(
-                            driverName: driverName,
-                            truck: truck,
-                            pickupCompany: pickupCompany,
-                            pickupTicketNumber: pickupTicket,
-                            pickupTons: pickupTons,
-                            deliveryCompany: deliveryCompany,
-                            deliveryTicketNumber: deliveryTicket,
-                            deliveryTons: deliveryTons
-                        )
-                    )
+                    let newLoad = LoadItem()
+
+                    newLoad.driverName = driverName
+                    newLoad.pickupTicketNumber = pickupTicket
+                    newLoad.pickupTons = pickupTons
+
+                    newLoad.deliveryTicketNumber = deliveryTicket
+                    newLoad.deliveryTons = deliveryTons
+
+                    newLoad.createdAt = Date()
+
+                    if pickedUpString != "Not picked up" {
+                        newLoad.pickedUpAt = Date()
+                    }
+
+                    if !deliveredString.isEmpty {
+                        newLoad.deliveredAt = Date()
+                    }
+
+                    summaryDict[driverName]?.fuel = Double(fuel) ?? 0
+
+                    context.insert(newLoad)
                 }
             } catch {
                 print(error)
             }
         }
-        
-        allLoads = tempLoads
     }
     
     // 🔥 EXPORT
     func exportCombinedCSV() -> URL {
-        var csv = "Driver,Truck,Loads,Tons\n"
-        
+
+        var csv = "Driver,Truck,Loads,Pickup Tons,Delivery Tons\n"
+
         for d in combinedReports {
-            csv += "\(d.name),\(d.truck),\(d.loads),\(d.tons)\n"
+
+            let pickupString = String(format: "%.2f", d.pickupTons)
+            let deliveryString = String(format: "%.2f", d.deliveryTons)
+
+            csv += "\(d.name),\(d.truck),\(d.loads),\(pickupString),\(deliveryString)\n"
         }
-        
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("Report.csv")
+
+        let url = FileManager.default
+            .temporaryDirectory
+            .appendingPathComponent("Report.csv")
+
         try? csv.write(to: url, atomically: true, encoding: .utf8)
+
         return url
     }
     
@@ -611,7 +859,6 @@ struct AdminDashboardView: View {
                 print("📄 Found files:", files.map { $0.lastPathComponent })
                 
                 var summaryDict: [String: DriverSummary] = [:]
-                var tempLoads: [ReportLoadItem] = []
                 
                 for file in files {
                     
@@ -628,58 +875,76 @@ struct AdminDashboardView: View {
                     for row in rows where !row.trimmingCharacters(in: .whitespaces).isEmpty {
                         
                         let columns = row.components(separatedBy: ",")
-                        if columns.count < 10 { continue }
+                        if columns.count < 11 { continue }
                         
-                        let driverName = columns[2].trimmed()
-                        let truck = columns[3].trimmed()
+                        let driverName = columns[2].cleanedCSV()
+                        let truck = columns[3].cleanedCSV()
                         
-                        let pickupCompany = columns[4].trimmed()
-                        let pickupTicket = columns[5].trimmed()
-                        let pickupTons = Double(columns[6].trimmed()) ?? 0
+                        let pickupTicket = columns[4].cleanedCSV()
+                        let pickupTons = Double(columns[5].trimmed()) ?? 0
+
+                        let deliveryTicket = columns[6].cleanedCSV()
+                        let deliveryTons = Double(columns[7].trimmed()) ?? 0
                         
-                        let deliveryCompany = columns[7].trimmed()
-                        let deliveryTicket = columns[8].trimmed()
-                        let deliveryTons = Double(columns[9].trimmed()) ?? 0
+                        let pickedUpString = columns[8].trimmed()
+                        let deliveredString = columns[9].trimmed()
+                        let fuel = columns[10].trimmed()
                         
                         if summaryDict[driverName] == nil {
                             summaryDict[driverName] = DriverSummary(
                                 name: driverName,
                                 truck: truck,
                                 loads: 0,
-                                tons: 0,
+
+                                pickupTons: 0,
+                                deliveryTons: 0,
+
                                 fuel: 0,
-                                status: "unknown"
+                                status: "unknown",
+                                
+                                isFinished: false
                             )
                         }
                         
                         summaryDict[driverName]?.loads += 1
-                        summaryDict[driverName]?.tons += pickupTons
+                        summaryDict[driverName]?.pickupTons += pickupTons
+                        summaryDict[driverName]?.deliveryTons += deliveryTons
                         
-                        tempLoads.append(
-                            ReportLoadItem(
-                                driverName: driverName,
-                                truck: truck,
-                                pickupCompany: pickupCompany,
-                                pickupTicketNumber: pickupTicket,
-                                pickupTons: pickupTons,
-                                deliveryCompany: deliveryCompany,
-                                deliveryTicketNumber: deliveryTicket,
-                                deliveryTons: deliveryTons
-                            )
-                        )
+                        let newLoad = LoadItem()
+
+                        newLoad.driverName = driverName
+                        newLoad.pickupTicketNumber = pickupTicket
+                        newLoad.pickupTons = pickupTons
+
+                        newLoad.deliveryTicketNumber = deliveryTicket
+                        newLoad.deliveryTons = deliveryTons
+
+                        newLoad.createdAt = Date()
+
+                        if pickedUpString != "Not picked up" {
+                            newLoad.pickedUpAt = Date()
+                        }
+
+                        if !deliveredString.isEmpty {
+                            newLoad.deliveredAt = Date()
+                        }
+
+                        summaryDict[driverName]?.fuel = Double(fuel) ?? 0
+
+                        context.insert(newLoad)
                     }
                 }
                 
                 // 🔥 Move CSV write OFF main thread too
                 DispatchQueue.global(qos: .background).async {
-                    generateAdminActiveCSV(from: tempLoads)
+                    generateAdminActiveCSV(from: allLoads)
                 }
                 
                 // ✅ UI update safely
                 await MainActor.run {
                     
-                    let deliveredCount = tempLoads.filter {
-                        !$0.deliveryTicketNumber.isEmpty
+                    let deliveredCount = allLoads.filter {
+                        $0.deliveredAt != nil
                     }.count
                     
                     if deliveredCount > lastDeliveredCount {
@@ -693,7 +958,6 @@ struct AdminDashboardView: View {
                     lastDeliveredCount = deliveredCount
                     
                     withAnimation {
-                        allLoads = tempLoads
                     }
                     
                     lastUpdated = Date()
@@ -709,108 +973,125 @@ struct AdminDashboardView: View {
             }
         }
     }
-
     
-    func generateAdminActiveCSV(from loads: [ReportLoadItem]) {
-
+    
+    func generateAdminActiveCSV(from loads: [LoadItem]) {
+        
         var csv = "Last Updated,\(Date())\n\n"
-
-        // 🔥 BUILD SUMMARY FROM LOADS (no external dependency)
+        
+        // SUMMARY
         var summaryDict: [String: DriverSummary] = [:]
-
+        
         for load in loads {
-
+            
             if summaryDict[load.driverName] == nil {
+                
+                let driverProfile = drivers.first {
+                    $0.name == load.driverName
+                }
+                
                 summaryDict[load.driverName] = DriverSummary(
                     name: load.driverName,
-                    truck: load.truck,
+                    truck: driverProfile?.truckNumber ?? "—",
                     loads: 0,
-                    tons: 0,
+                    
+                    pickupTons: 0,
+                    deliveryTons: 0,
+                    
                     fuel: 0,
-                    status: "active"
+                    status: "active",
+                    
+                    isFinished: false
                 )
             }
-
+            
             summaryDict[load.driverName]?.loads += 1
-            summaryDict[load.driverName]?.tons += load.pickupTons
+            summaryDict[load.driverName]?.pickupTons += load.pickupTons
+            summaryDict[load.driverName]?.deliveryTons += load.deliveryTons
         }
-
+        
         let summaries = Array(summaryDict.values)
-
-        // 🔥 SUMMARY SECTION
-        csv += "Driver,Truck,Loads,Tons,Fuel,Status\n"
-
+        
+        // SUMMARY CSV
+        csv += "Driver,Truck,Loads,Pickup Tons,Delivery Tons,Fuel,Status\n"
+        
         for d in summaries {
-            csv += "\(d.name),\(d.truck),\(d.loads),\(d.tons),\(d.fuel),\(d.status)\n"
+            
+            let pickupString = String(format: "%.2f", d.pickupTons)
+            let deliveryString = String(format: "%.2f", d.deliveryTons)
+            
+            csv += "\(d.name),\(d.truck),\(d.loads),\(pickupString),\(deliveryString),\(d.fuel),\(d.status)\n"
         }
-
+        
         csv += "\n\n"
-
-        // 🔥 DETAILED LOADS SECTION
-        csv += "Date,Time,Driver,Truck,PickupCompany,PickupTicket,PickupTons,DeliveryCompany,DeliveryTicket,DeliveryTons\n"
-
+        
+        // LOAD DETAILS
+        csv += "Date,Time,Driver,Truck,Pickup Ticket,Pickup Tons,Delivery Ticket,Delivery Tons\n"
+        
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
-
+        
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "HH:mm"
-
+        
         for load in loads {
-            let date = dateFormatter.string(from: Date()) // upgrade later if you store date
-            let time = timeFormatter.string(from: Date())
-
-            csv += "\(date),\(time),\(load.driverName),\(load.truck),\(load.pickupCompany),\(load.pickupTicketNumber),\(load.pickupTons),\(load.deliveryCompany),\(load.deliveryTicketNumber),\(load.deliveryTons)\n"
+            
+            let date = dateFormatter.string(from: load.createdAt)
+            let time = timeFormatter.string(from: load.createdAt)
+            
+            let pickupString = String(format: "%.2f", load.pickupTons)
+            let deliveryString = String(format: "%.2f", load.deliveryTons)
+            
+            csv += "\(date),\(time),\(load.driverName),—,\(load.pickupTicketNumber),\(pickupString),\(load.deliveryTicketNumber),\(deliveryString)\n"
         }
-
+        
         let fileName = "ADMIN-ACTIVE.csv"
-
-        // ✅ ALWAYS WRITE LOCAL (FAST — NO FREEZE)
+        
         let folder = StorageManager.truckReportsFolder()
-
         let fileURL = folder.appendingPathComponent(fileName)
-
+        
         do {
+            
             if FileManager.default.fileExists(atPath: fileURL.path) {
                 try FileManager.default.removeItem(at: fileURL)
             }
-
+            
             try csv.write(to: fileURL, atomically: true, encoding: .utf8)
+            
             print("✅ ADMIN ACTIVE (LOCAL):", fileURL)
-
+            
         } catch {
             print("❌ Failed:", error)
         }
-
-        // ☁️ OPTIONAL: Sync to iCloud (non-blocking)
-        
     }
-    //Boss Summary card
-    struct BossSummaryCard: View {
-        let title: String
-        let value: String
-        let subtitle: String
-        let systemImage: String
-        
-        var body: some View {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: systemImage)
-                    Text(title)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                
-                Text(value)
-                    .font(.title2.bold())
-                
-                Text(subtitle)
-                    .font(.caption2)
+}
+
+//Boss Summary card
+struct BossSummaryCard: View {
+    let title: String
+    let value: String
+    let subtitle: String
+    let systemImage: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: systemImage)
+                Text(title)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
+            
+            Text(value)
+                .font(.title2.bold())
+            
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
     }
 }

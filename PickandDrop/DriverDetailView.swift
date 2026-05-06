@@ -1,13 +1,13 @@
 import SwiftUI
 
 struct DriverDetailView: View {
-    @State private var selectedLoad: ReportLoadItem?
-    
+    @State private var selectedLoad: LoadItem?
+
     let driver: DriverSummary
-    let loads: [ReportLoadItem]
+    let loads: [LoadItem]
     
-    var grouped: [String: [ReportLoadItem]] {
-        Dictionary(grouping: loads, by: { $0.pickupCompany })
+    var grouped: [String: [LoadItem]] {
+        ["Loads": loads]
     }
     
     var sortedCompanies: [String] {
@@ -29,6 +29,20 @@ struct DriverDetailView: View {
                         VStack(alignment: .leading) {
                             Text(driver.name)
                                 .font(.title.bold())
+                            
+                            if driver.isFinished {
+
+                                Text("✅ Finished")
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+
+                            } else {
+
+                                Text("🟢 Active")
+                                    .font(.caption)
+                                    .foregroundStyle(.blue)
+                            }
+                            
                             Text("Truck \(driver.truck)")
                                 .foregroundStyle(.secondary)
                         }
@@ -80,15 +94,22 @@ struct DriverDetailView: View {
                 NavigationStack {
                     Form {
                         Section("Pickup") {
-                            LabeledContent("Company", value: load.pickupCompany)
                             LabeledContent("Ticket", value: load.pickupTicketNumber)
                             LabeledContent("Tons", value: String(format: "%.2f", load.pickupTons))
                         }
-                        
+
                         Section("Delivery") {
-                            LabeledContent("Company", value: load.deliveryCompany)
-                            LabeledContent("Ticket", value: load.deliveryTicketNumber.isEmpty ? "Not delivered yet" : load.deliveryTicketNumber)
-                            LabeledContent("Tons", value: String(format: "%.2f", load.deliveryTons))
+                            LabeledContent(
+                                "Ticket",
+                                value: load.deliveryTicketNumber.isEmpty
+                                ? "Not delivered yet"
+                                : load.deliveryTicketNumber
+                            )
+
+                            LabeledContent(
+                                "Tons",
+                                value: String(format: "%.2f", load.deliveryTons)
+                            )
                         }
                         
                         Section("Driver") {
@@ -107,3 +128,12 @@ extension String {
         trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
+extension String {
+    func cleanedCSV() -> String {
+        self
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+    }
+}
+

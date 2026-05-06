@@ -33,6 +33,19 @@ struct DriverDashboardView: View {
                 Text(driver.name)
                     .font(.largeTitle)
                 
+                if activeShift?.status == "finished" {
+
+                    Text("✅ Finished")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+
+                } else {
+
+                    Text("🟢 Active")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+                
                 Text("Truck \(driver.truckNumber)")
                     .font(.title3)
                 

@@ -20,23 +20,25 @@ struct LoadListView: View {
                     .foregroundStyle(.secondary)
             }
             
-            ForEach(shiftLoads) { load in
+            ForEach(shiftLoads, id: \.id) { load in
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Pickup: \(load.pickupCompany)")
+                    
+                    Text("Ticket: \(load.pickupTicketNumber)")
                         .font(.headline)
                     
-                    Text("BRC Ticket: \(load.pickupTicketNumber)")
-                    
-                    Text("Pickup Tons: \(String(format: "%.2f", load.pickupTons))")
+                    Text("Tons: \(String(format: "%.2f", load.pickupTons))")
                         .foregroundStyle(.secondary)
                     
-                    if !load.deliveryTicketNumber.isEmpty {
-                        Text("HoneyGo Ticket: \(load.deliveryTicketNumber)")
+                    if let picked = load.pickedUpAt {
+                        Text("Picked up: \(picked.formatted(date: .omitted, time: .shortened))")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
                     }
                     
-                    if load.deliveryTons > 0 {
-                        Text("Delivery Tons: \(String(format: "%.2f", load.deliveryTons))")
-                            .foregroundStyle(.secondary)
+                    if let delivered = load.deliveredAt {
+                        Text("Delivered: \(delivered.formatted(date: .omitted, time: .shortened))")
+                            .font(.caption)
+                            .foregroundStyle(.green)
                     }
                 }
             }

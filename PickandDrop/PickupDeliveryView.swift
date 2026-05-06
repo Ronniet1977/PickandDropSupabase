@@ -38,16 +38,29 @@ struct PickupDeliveryView: View {
                     
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Pickup: \(load.pickupCompany)")
+                            
+                            // ✅ Ticket (correct field)
+                            Text("Ticket: \(load.pickupTicketNumber)")
                                 .font(.headline)
                             
-                            Text("BRC Ticket: \(load.pickupTicketNumber)")
+                            // ✅ Tons
+                            Text("Tons: \(String(format: "%.2f", load.pickupTons))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             
-                            Text("Deliver: \(load.deliveryCompany)")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                            // ✅ Picked up time
+                            if let picked = load.pickedUpAt {
+                                Text("Picked up: \(picked.formatted(date: .omitted, time: .shortened))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            }
+                            
+                            // ✅ Delivered time
+                            if let delivered = load.deliveredAt {
+                                Text("Delivered: \(delivered.formatted(date: .omitted, time: .shortened))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.green)
+                            }
                         }
                         
                         Spacer()
@@ -60,39 +73,14 @@ struct PickupDeliveryView: View {
                             .clipShape(Capsule())
                     }
                     
-                    Text("Pickup Tons: \(String(format: "%.2f", load.pickupTons))")
-                        .foregroundStyle(.secondary)
-                    
-                    if !load.deliveryTicketNumber.isEmpty {
-                        Text("HoneyGo Ticket: \(load.deliveryTicketNumber)")
-                            .font(.caption)
-                    }
-                    
-                    if load.deliveryTons > 0 {
-                        Text("Delivery Tons: \(String(format: "%.2f", load.deliveryTons))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    if let picked = load.pickedUpAt {
-                        Text("Picked up: \(picked.formatted(date: .omitted, time: .shortened))")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                    
-                    if let delivered = load.deliveredAt {
-                        Text("Delivered: \(delivered.formatted(date: .omitted, time: .shortened))")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                    }
-                    
+                    // 🔥 ACTION BUTTONS
                     HStack {
                         Button("Pickup (BRC)") {
                             markPickedUp(load)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.blue)
-                        .disabled(load.status != "new")
+                        .disabled(load.pickedUpAt != nil)
                         
                         Button("Deliver (HoneyGo)") {
                             deliveryTicket = ""
@@ -101,7 +89,7 @@ struct PickupDeliveryView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.green)
-                        .disabled(load.status != "pickedUp")
+                        .disabled(load.pickedUpAt == nil || load.deliveredAt != nil)
                     }
                 }
                 .padding(.vertical, 8)
@@ -171,10 +159,13 @@ struct PickupDeliveryView: View {
     func completeDelivery(_ load: LoadItem) {
         guard let tonsValue = Double(deliveryTons) else { return }
         
-        load.deliveryTicketNumber = deliveryTicket
-        load.deliveryTons = tonsValue
+        // ✅ Mark delivered
         load.deliveredAt = Date()
         load.status = "delivered"
+        load.deliveryTicketNumber = deliveryTicket
+        
+        // ✅ Optional: update tons if you want
+        load.deliveryTons = tonsValue
         
         sendDeliveryNotification(for: load)
         
@@ -225,4 +216,4 @@ struct PickupDeliveryView: View {
         default: return .gray
         }
     }
-    }
+}

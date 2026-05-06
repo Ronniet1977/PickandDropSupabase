@@ -18,9 +18,6 @@ struct FinishDayView: View {
         
         return grouped.map { (driverName, driverLoads) in
             
-            let totalTons =
-            driverLoads.reduce(0.0) { $0 + $1.pickupTons }
-            
             let shift = shifts.first(where: {
                 $0.driverName == driverName
             })
@@ -33,8 +30,17 @@ struct FinishDayView: View {
             return DriverSummary(
                 name: driverName,
                 truck: driverProfile?.truckNumber ?? "Unknown",
+
                 loads: driverLoads.count,
-                tons: totalTons,
+
+                pickupTons: driverLoads.reduce(0.0) {
+                    $0 + $1.pickupTons
+                },
+
+                deliveryTons: driverLoads.reduce(0.0) {
+                    $0 + $1.deliveryTons
+                },
+
                 fuel: shift?.fuelTotal ?? 0,
                 status: shift?.status ?? "unknown"
             )
@@ -52,7 +58,7 @@ struct FinishDayView: View {
     }
     
     var totalTons: Double {
-        shiftLoads.reduce(0.0) { $0 + $1.pickupTons }
+        shiftLoads.reduce(0.0) { $0 + $1.deliveryTons }
     }
     
     var body: some View {
@@ -140,10 +146,10 @@ struct FinishDayView: View {
     
     // 🔥 EXPORT
     func exportCombinedCSV() -> URL {
-        var csv = "Driver,Truck,Loads,Tons\n"
+        var csv = "Driver,Truck,Loads,Pickup Tons,Delivery Tons\n"
         
         for d in combinedReports {
-            csv += "\(escapeCSV(d.name)),\(escapeCSV(d.truck)),\(d.loads),\(d.tons)\n"
+            csv += "\(escapeCSV(d.name)),\(escapeCSV(d.truck)),\(d.loads),\(String(format: "%.2f", d.pickupTons)),\(String(format: "%.2f", d.deliveryTons))\n"
         }
         
         let formatter = DateFormatter()

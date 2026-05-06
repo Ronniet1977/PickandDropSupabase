@@ -18,8 +18,14 @@ struct AddLoadView: View {
     
     var activeShift: Shift? {
         shifts.first(where: {
-            $0.driverName == driver.name && $0.status == "active"
+            $0.driverName == driver.name &&
+            $0.status.lowercased() == "active"
         })
+    }
+    
+    var isValidLoad: Bool {
+        let cleanTicket = pickupTicket.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !cleanTicket.isEmpty && Double(pickupTons) != nil
     }
     
     var shiftLoads: [LoadItem] {
@@ -39,41 +45,50 @@ struct AddLoadView: View {
                     
                     TextField("BRC Tons", text: $pickupTons)
                         .keyboardType(.decimalPad)
+                    
+                    if !pickupTons.isEmpty && Double(pickupTons) == nil {
+                        Text("Enter a valid number for tons")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
                 }
                 
                 Button("Save Load") {
                     saveLoad()
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(!isValidLoad || activeShift == nil)
             }
         }
         .navigationTitle("Add Load")
     }
     
     func saveLoad() {
-        guard let tonsValue = Double(pickupTons) else {
-            print("Invalid tons")
-            return
-        }
+        guard let tonsValue = Double(pickupTons) else { return }
+        
+        let cleanTicket = pickupTicket.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTicket.isEmpty else { return }
         
         let newLoad = LoadItem()
         newLoad.driverName = driver.name
-        
-        newLoad.pickupTicketNumber = pickupTicket
+        newLoad.pickupTicketNumber = cleanTicket   // ✅ ticket
         newLoad.pickupTons = tonsValue
-        newLoad.status = "new"
+        
+        newLoad.status = "pickedUp"                // ✅ FIXED
+        newLoad.createdAt = Date()
+        newLoad.pickedUpAt = Date()               // ✅ timestamp
+        
+        if let shift = activeShift {
+            newLoad.shift = shift
+        }
         
         context.insert(newLoad)
         
         do {
             try context.save()
-            print("✅ Pickup created")
-            
             dismiss()
-            
         } catch {
             print("❌ Save failed:", error)
         }
     }
 }
-
