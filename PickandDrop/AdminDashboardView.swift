@@ -914,6 +914,14 @@ struct AdminDashboardView: View {
                         summaryDict[driverName]?.pickupTons += pickupTons
                         summaryDict[driverName]?.deliveryTons += deliveryTons
                         
+                        let alreadyExists = allLoads.contains {
+                            $0.pickupTicketNumber == pickupTicket &&
+                            $0.driverName == driverName
+                        }
+
+                        if alreadyExists {
+                            continue
+                        }
                         let newLoad = LoadItem()
 
                         newLoad.driverName = driverName
