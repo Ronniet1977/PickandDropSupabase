@@ -84,38 +84,42 @@ struct AdminDashboardView: View {
     }
     
     var driverSummaries: [DriverSummary] {
-        
+
         var dict: [String: DriverSummary] = [:]
-        
+
         for load in allLoads {
-            
+
             if dict[load.driverName] == nil {
-                
+
                 let driverProfile = drivers.first {
                     $0.name == load.driverName
                 }
-                
+
+                let shift = shifts.first {
+                    $0.driverName == load.driverName
+                }
+
                 dict[load.driverName] = DriverSummary(
                     name: load.driverName,
-                    truck: "N/A",
+                    truck: driverProfile?.truckNumber ?? "N/A",
 
                     loads: 0,
 
                     pickupTons: 0,
                     deliveryTons: 0,
 
-                    fuel: 0,
-                    status: "unknown",
+                    fuel: shift?.fuelTotal ?? 0,
+                    status: shift?.status ?? "unknown",
 
-                    isFinished: false
+                    isFinished: shift?.status == "finished"
                 )
             }
-            
+
             dict[load.driverName]?.loads += 1
             dict[load.driverName]?.pickupTons += load.pickupTons
             dict[load.driverName]?.deliveryTons += load.deliveryTons
         }
-        
+
         return Array(dict.values)
     }
     

@@ -46,7 +46,7 @@ struct CSVExporter {
             let isLast = index == sortedLoads.indices.last
             let fuel = isLast ? (activeShift?.fuelTotal ?? 0) : 0
             
-            let PickupTons = String(format: "%.2f", load.pickupTons)
+            let pickupTons = String(format: "%.2f", load.pickupTons)
 
             let deliveryTons = String(format: "%.2f", load.deliveryTons)
             let fuelString = String(format: "%.2f", fuel)
@@ -59,7 +59,7 @@ struct CSVExporter {
             let delivered = load.deliveredAt?
                 .formatted(date: .omitted, time: .shortened) ?? ""
             
-            csv += "\(date),\(time),\(csvSafe(driver.name)),\(driver.truckNumber),\(csvSafe(load.pickupTicketNumber)),\(String(format: "%.2f", load.pickupTons)),\(csvSafe(load.deliveryTicketNumber)),\(String(format: "%.2f", load.deliveryTons)),\(pickedUp),\(delivered),\(fuelString)\n"
+            csv += "\(date),\(time),\(csvSafe(driver.name)),\(driver.truckNumber),\(csvSafe(load.pickupTicketNumber)),\(pickupTons),\(csvSafe(load.deliveryTicketNumber)),\(deliveryTons),\(pickedUp),\(delivered),\(fuelString)\n"
         }
         
         let folder = StorageManager.truckReportsFolder()

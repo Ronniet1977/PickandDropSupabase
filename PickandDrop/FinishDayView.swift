@@ -42,7 +42,9 @@ struct FinishDayView: View {
                 },
 
                 fuel: shift?.fuelTotal ?? 0,
-                status: shift?.status ?? "unknown"
+                status: shift?.status ?? "unknown",
+                
+                isFinished: shift?.status == "finished"
             )
         }
     }
