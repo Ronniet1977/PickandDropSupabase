@@ -13,42 +13,6 @@ struct FinishDayView: View {
     
     @State private var didFinish = false
     
-    var combinedReports: [DriverSummary] {
-        let grouped = Dictionary(grouping: loads) { $0.driverName }
-        
-        return grouped.map { (driverName, driverLoads) in
-            
-            let shift = shifts.first(where: {
-                $0.driverName == driverName
-            })
-            
-            let driverProfile =
-            drivers.first(where: {
-                $0.name == driverName
-            })
-            
-            return DriverSummary(
-                name: driverName,
-                truck: driverProfile?.truckNumber ?? "Unknown",
-
-                loads: driverLoads.count,
-
-                pickupTons: driverLoads.reduce(0.0) {
-                    $0 + $1.pickupTons
-                },
-
-                deliveryTons: driverLoads.reduce(0.0) {
-                    $0 + $1.deliveryTons
-                },
-
-                fuel: shift?.fuelTotal ?? 0,
-                status: shift?.status ?? "unknown",
-                
-                isFinished: shift?.status == "finished"
-            )
-        }
-    }
-
     var activeShift: Shift? {
         shifts.first(where: {
             $0.driverName == driver.name && $0.status == "active"
@@ -144,38 +108,5 @@ struct FinishDayView: View {
         } catch {
             print("❌ Failed to finish day:", error)
         }
-    }
-    
-    // 🔥 EXPORT
-    func exportCombinedCSV() -> URL {
-        var csv = "Driver,Truck,Loads,Pickup Tons,Delivery Tons\n"
-        
-        for d in combinedReports {
-            csv += "\(escapeCSV(d.name)),\(escapeCSV(d.truck)),\(d.loads),\(String(format: "%.2f", d.pickupTons)),\(String(format: "%.2f", d.deliveryTons))\n"
-        }
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm"
-        
-        let fileName = "Admin-DriverReport-\(formatter.string(from: Date())).csv"
-        
-        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let fileURL = documentsURL.appendingPathComponent(fileName)
-        
-        do {
-            try csv.write(to: fileURL, atomically: true, encoding: .utf8)
-            print("✅ Admin report saved:", fileURL)
-        } catch {
-            print("❌ Save failed:", error)
-        }
-        
-        return fileURL
-    }
-    
-    func escapeCSV(_ text: String) -> String {
-        if text.contains(",") || text.contains("\"") || text.contains("\n") {
-            return "\"\(text.replacingOccurrences(of: "\"", with: "\"\""))\""
-        }
-        return text
     }
 }

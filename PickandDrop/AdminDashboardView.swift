@@ -44,6 +44,8 @@ struct AdminDashboardView: View {
     
     @State private var showBossReport = false
     @State private var bossReportText = ""
+    @State private var dismissedDrivers: Set<String> = []
+    
     
     var combinedReports: [DriverSummary] {
 
@@ -60,18 +62,22 @@ struct AdminDashboardView: View {
             let shift = shifts.first {
                 $0.driverName == driverName
             }
+            
+            let driverLoads = allLoads.filter {
+                $0.driverName == driverName
+            }
 
             return DriverSummary(
                 name: driverName,
                 truck: driverProfile?.truckNumber ?? "Unknown",
 
-                loads: loads.count,
+                loads: driverLoads.count,
 
-                pickupTons: loads.reduce(0.0) {
+                pickupTons: driverLoads.reduce(0.0) {
                     $0 + $1.pickupTons
                 },
 
-                deliveryTons: loads.reduce(0.0) {
+                deliveryTons: driverLoads.reduce(0.0) {
                     $0 + $1.deliveryTons
                 },
 
@@ -98,6 +104,9 @@ struct AdminDashboardView: View {
                 let shift = shifts.first {
                     $0.driverName == load.driverName
                 }
+                
+                let hasOpenLoads = loads.contains { !$0.isDelivered }
+                let status = hasOpenLoads ? "active" : "finished"
 
                 dict[load.driverName] = DriverSummary(
                     name: load.driverName,
@@ -109,9 +118,8 @@ struct AdminDashboardView: View {
                     deliveryTons: 0,
 
                     fuel: shift?.fuelTotal ?? 0,
-                    status: shift?.status ?? "unknown",
-
-                    isFinished: shift?.status == "finished"
+                    status: status,
+                    isFinished: !hasOpenLoads
                 )
             }
 
@@ -160,28 +168,33 @@ struct AdminDashboardView: View {
                 $0.name == driverName
             }
             
+            let shift = shifts.first {
+                $0.driverName == driverName
+            }
+
+            let isFinished = shift?.status == "finished"
+            let status = isFinished ? "finished" : "active"
+
             return DriverSummary(
                 name: driverName,
                 truck: driverProfile?.truckNumber ?? "—",
                 loads: loads.count,
-
-                pickupTons: loads.reduce(0.0) {
-                    $0 + $1.pickupTons
-                },
-
-                deliveryTons: loads.reduce(0.0) {
-                    $0 + $1.deliveryTons
-                },
-
+                pickupTons: loads.reduce(0.0) { $0 + $1.pickupTons },
+                deliveryTons: loads.reduce(0.0) { $0 + $1.deliveryTons },
                 fuel: 0,
-                status: "active",
-                
-                isFinished: false
+                status: status,
+                isFinished: isFinished
             )
         }
         .sorted { $0.name < $1.name }
     }
     
+    var visibleDriverSummaries: [DriverSummary] {
+        driverSummaries.filter {
+            !dismissedDrivers.contains($0.name)
+        }
+    }
+
     //Boss Sumary
     var deliveredLoads: Int {
         allLoads.filter { $0.deliveredAt != nil }.count
@@ -324,7 +337,7 @@ struct AdminDashboardView: View {
                             VStack(alignment: .leading) {
                                 Text("Drivers")
                                     .font(.caption)
-                                Text("\(filteredDriverSummaries.count)")
+                                Text("\(visibleDriverSummaries.count)")
                                     .font(.title.bold())
                                 Text("\(filteredLoads.count) loads shown")
                                     .font(.caption)
@@ -346,7 +359,7 @@ struct AdminDashboardView: View {
                         
                         
                         // 🔥 DRIVER CARDS
-                        ForEach(filteredDriverSummaries) { driver in
+                        ForEach(visibleDriverSummaries) { driver in
                             driverCard(driver)
                         }
                     }
@@ -489,13 +502,16 @@ struct AdminDashboardView: View {
                         .background(.gray.opacity(0.2))
                         .clipShape(Capsule())
 
-                    Button(role: .destructive) {
+                    if driver.isFinished {
 
-                        deleteDriverActiveFile(driver)
+                        Button(role: .destructive) {
 
-                    } label: {
+                            dismissedDrivers.insert(driver.name)
 
-                        Image(systemName: "trash")
+                        } label: {
+
+                            Image(systemName: "trash")
+                        }
                     }
                 }
             }
@@ -542,27 +558,35 @@ struct AdminDashboardView: View {
                 options: .regularExpression
             )
 
-        let fileName =
-            "\(safeName)-Truck\(driver.truck)-ACTIVE.csv"
-
-        let url = StorageManager
-            .truckReportsFolder()
-            .appendingPathComponent(fileName)
+        let folder = StorageManager.truckReportsFolder()
 
         do {
 
-            if FileManager.default.fileExists(atPath: url.path) {
+            let files = try FileManager.default.contentsOfDirectory(
+                at: folder,
+                includingPropertiesForKeys: nil
+            )
 
-                try FileManager.default.removeItem(at: url)
+            for file in files {
 
-                print("🧹 Deleted:", fileName)
+                let name = file.lastPathComponent
 
-                loadFromiCloud()
+                if name == "\(safeName)-Truck\(driver.truck)-ACTIVE.csv" {
+
+                    print("🔍 Looking for:", "\(safeName)-Truck\(driver.truck)-ACTIVE.csv")
+                    print("📄 Checking:", name)
+
+                    try FileManager.default.removeItem(at: file)
+
+                    print("🗑 Deleted ACTIVE:", name)
+                }
             }
+
+            loadFromiCloud()
 
         } catch {
 
-            print("❌ Delete failed:", error)
+            print("❌ Failed deleting ACTIVE file:", error)
         }
     }
     
@@ -781,9 +805,9 @@ struct AdminDashboardView: View {
                             deliveryTons: 0,
 
                             fuel: 0,
-                            status: "unknown",
-                            
-                            isFinished: false
+                            status: deliveredString.isEmpty ? "active" : "finished",
+
+                            isFinished: !deliveredString.isEmpty
                         )
                     }
                     
@@ -904,9 +928,9 @@ struct AdminDashboardView: View {
                                 deliveryTons: 0,
 
                                 fuel: 0,
-                                status: "unknown",
-                                
-                                isFinished: false
+                                status: deliveredString.isEmpty ? "active" : "finished",
+
+                                isFinished: !deliveredString.isEmpty
                             )
                         }
                         
@@ -997,23 +1021,30 @@ struct AdminDashboardView: View {
         for load in loads {
             
             if summaryDict[load.driverName] == nil {
-                
+
                 let driverProfile = drivers.first {
                     $0.name == load.driverName
                 }
-                
+
+                let shift = shifts.first {
+                    $0.driverName == load.driverName
+                }
+
+                let isFinished = shift?.status == "finished"
+
                 summaryDict[load.driverName] = DriverSummary(
                     name: load.driverName,
                     truck: driverProfile?.truckNumber ?? "—",
                     loads: 0,
-                    
+
                     pickupTons: 0,
                     deliveryTons: 0,
-                    
+
                     fuel: 0,
-                    status: "active",
-                    
-                    isFinished: false
+
+                    status: isFinished ? "finished" : "active",
+
+                    isFinished: isFinished
                 )
             }
             
