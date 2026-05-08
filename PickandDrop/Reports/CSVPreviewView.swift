@@ -10,6 +10,8 @@ import SwiftUI
 struct CSVPreviewView: View {
 
     let fileURL: URL
+    let generatePickupInvoice: (URL) -> Void
+    let generateDeliveryInvoice: (URL) -> Void
 
     @State private var loads: [CSVLoad] = []
 
@@ -21,7 +23,7 @@ struct CSVPreviewView: View {
 
                 summaryCard
 
-                ForEach(loads) { load in
+                ForEach(loads, id: \.id) { load in
 
                     VStack(alignment: .leading, spacing: 10) {
 
@@ -41,33 +43,93 @@ struct CSVPreviewView: View {
                             if load.isDelivered {
 
                                 Text("✅ Delivered")
+                                    .fontWeight(.bold)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(.green.opacity(0.15))
                                     .foregroundStyle(.green)
+                                    .clipShape(Capsule())
 
                             } else {
 
                                 Text("🟠 Picked Up")
+                                    .fontWeight(.bold)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(.orange.opacity(0.15))
                                     .foregroundStyle(.orange)
+                                    .clipShape(Capsule())
                             }
                         }
 
                         Divider()
 
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 8) {
 
                             Text("Driver: \(load.driverName)")
+                                .fontWeight(.medium)
+
                             Text("Truck: \(load.truck)")
+                                .foregroundStyle(.secondary)
+                            Text("BRC → HoneyGo")
+                                .font(.caption.bold())
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(.blue.opacity(0.15))
+                                .foregroundStyle(.blue)
+                                .clipShape(Capsule())
+
+                            Divider()
+
+                            Text("BRC Ticket: \(load.pickupTicket)")
+                                .foregroundStyle(.secondary)
 
                             if load.isDelivered {
 
                                 Text("HoneyGo Ticket: \(load.deliveryTicket)")
                                     .foregroundStyle(.secondary)
 
+                                let duration = durationText(
+                                    pickup: load.pickedUp,
+                                    delivered: load.delivered
+                                )
+
+                                let pickupText = formattedTimestamp(load.pickedUp)
+                                let deliveredText = formattedTimestamp(load.delivered)
+
+                                Text("Picked Up: \(pickupText)")
+                                    .foregroundStyle(.secondary)
+
+                                Text("Delivered: \(deliveredText)")
+                                    .foregroundStyle(.secondary)
+
+                                Text("Duration: \(duration)")
+                                    .foregroundStyle(.blue)
+                                    .fontWeight(.semibold)
+                                
+                                HStack {
+
+                                    Button("BRC Invoice") {
+                                        generatePickupInvoice(fileURL)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.blue)
+
+                                    Button("HoneyGo Invoice") {
+                                        generateDeliveryInvoice(fileURL)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.green)
+                                }
+                                .padding(.top, 6)
+
                             } else {
 
                                 Text("Not delivered yet")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.orange)
                             }
                         }
+                        .font(.subheadline)
                     }
                     .padding()
                     .background(.white.opacity(0.9))
@@ -130,10 +192,11 @@ struct CSVPreviewView: View {
 
                 VStack(alignment: .leading) {
 
-                    Text("Delivered")
+                    Text("Delivered Tons")
+                        .font(.caption)
 
                     Text(
-                        "\(loads.filter { $0.isDelivered }.count)"
+                        "\(loads.filter { $0.isDelivered }.reduce(0) { $0 + $1.deliveryTons }, specifier: "%.0f")"
                     )
                     .font(.title.bold())
                 }
@@ -142,6 +205,81 @@ struct CSVPreviewView: View {
         .padding()
         .background(.white.opacity(0.95))
         .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+    
+    func formatTime(_ value: String) -> String {
+
+        if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "-"
+        }
+
+        return value
+    }
+    
+    func calculateDuration(
+        pickup: String,
+        delivered: String
+    ) -> String {
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+
+        let cleanedPickup = pickup
+            .replacingOccurrences(of: " ", with: " ")
+
+        let cleanedDelivered = delivered
+            .replacingOccurrences(of: " ", with: " ")
+
+        guard
+            let pickupDate = formatter.date(from: cleanedPickup),
+            let deliveredDate = formatter.date(from: cleanedDelivered)
+        else {
+            return "-"
+        }
+
+        let seconds = deliveredDate.timeIntervalSince(pickupDate)
+
+        let hours = Int(seconds) / 3600
+        let minutes = (Int(seconds) % 3600) / 60
+
+        return "\(hours)h \(minutes)m"
+    }
+    
+    func durationText(
+        pickup: String,
+        delivered: String
+    ) -> String {
+
+        let formatter = ISO8601DateFormatter()
+
+        guard
+            let pickupDate = formatter.date(from: pickup),
+            let deliveredDate = formatter.date(from: delivered)
+        else {
+            return "Unknown"
+        }
+
+        let seconds = deliveredDate.timeIntervalSince(pickupDate)
+
+        let hours = Int(seconds) / 3600
+        let minutes = (Int(seconds) % 3600) / 60
+
+        return "\(hours)h \(minutes)m"
+    }
+    
+    func formattedTimestamp(_ value: String) -> String {
+
+        let isoFormatter = ISO8601DateFormatter()
+
+        guard let date = isoFormatter.date(from: value) else {
+            return value
+        }
+
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .medium
+
+        return formatter.string(from: date)
     }
 
     func parseCSV() {

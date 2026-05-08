@@ -22,42 +22,39 @@ struct ReportsView: View {
             List {
                 ForEach(reportFiles, id: \.self) { file in
                     
-                    NavigationLink {
-                        
-                        CSVPreviewView(fileURL: file)
-                        
-                    } label: {
-                        
-                        VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 8) {
 
-                            Text(file.lastPathComponent)
-                                .font(.headline)
+                        NavigationLink {
 
-                            if file.lastPathComponent.contains("FINAL") {
+                            CSVPreviewView(
+                                fileURL: file,
+                                generatePickupInvoice: generatePickupInvoice,
+                                generateDeliveryInvoice: generateDeliveryInvoice
+                            )
 
-                                Text("✅ Final Report")
-                                    .font(.caption)
-                                    .foregroundStyle(.green)
+                        } label: {
 
-                            } else {
+                            VStack(alignment: .leading, spacing: 4) {
 
-                                Text("🟢 Active Report")
-                                    .font(.caption)
-                                    .foregroundStyle(.blue)
-                            }
+                                Text(file.lastPathComponent)
+                                    .font(.headline)
 
-                            HStack {
+                                if file.lastPathComponent.contains("FINAL") {
 
-                                Button("BRC Pickup Invoice") {
-                                    generatePickupInvoice(from: file)
-                                }
+                                    Text("✅ Final Report")
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
 
-                                Button("HoneyGo Delivery Invoice") {
-                                    generateDeliveryInvoice(from: file)
+                                } else {
+
+                                    Text("🟢 Active Report")
+                                        .font(.caption)
+                                        .foregroundStyle(.blue)
                                 }
                             }
                         }
                     }
+                    .padding(.vertical, 4)
                 }
             }
             .navigationTitle("Reports")
