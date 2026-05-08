@@ -14,37 +14,252 @@ struct LoadListView: View {
     }
     
     var body: some View {
-        List {
-            if shiftLoads.isEmpty {
-                Text("No loads yet")
-                    .foregroundStyle(.secondary)
-            }
-            
-            ForEach(shiftLoads, id: \.id) { load in
-                VStack(alignment: .leading, spacing: 6) {
-                    
-                    Text("Ticket: \(load.pickupTicketNumber)")
-                        .font(.headline)
-                    
-                    Text("Tons: \(String(format: "%.2f", load.pickupTons))")
-                        .foregroundStyle(.secondary)
-                    
-                    if let picked = load.pickedUpAt {
-                        Text("Picked up: \(picked.formatted(date: .omitted, time: .shortened))")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
+
+        ZStack {
+
+            LinearGradient(
+                colors: [
+                    Color(red: 0.08, green: 0.11, blue: 0.18),
+                    Color(red: 0.15, green: 0.22, blue: 0.35),
+                    Color.black.opacity(0.95)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            ScrollView {
+
+                VStack(spacing: 24) {
+
+                    // HEADER CARD
+
+                    VStack(alignment: .leading, spacing: 18) {
+
+                        Text(driver.name)
+                            .font(.largeTitle.bold())
+                            .foregroundStyle(.white)
+
+                        Text("Truck \(driver.truckNumber)")
+                            .foregroundStyle(.white.opacity(0.7))
+
+                        Divider()
+
+                        let pickupTons = shiftLoads.reduce(0) {
+                            $0 + $1.pickupTons
+                        }
+
+                        let deliveredTons = shiftLoads.reduce(0) {
+                            $0 + $1.deliveryTons
+                        }
+
+                        let remainingTons = pickupTons - deliveredTons
+
+                        HStack {
+
+                            loadStat(
+                                title: "Loads",
+                                value: "\(shiftLoads.count)"
+                            )
+
+                            Spacer()
+
+                            loadStat(
+                                title: "Pickup",
+                                value: String(format: "%.0f", pickupTons)
+                            )
+
+                            Spacer()
+
+                            loadStat(
+                                title: "Delivered",
+                                value: String(format: "%.0f", deliveredTons)
+                            )
+
+                            Spacer()
+
+                            loadStat(
+                                title: "Remaining",
+                                value: String(format: "%.0f", remainingTons)
+                            )
+                        }
                     }
-                    
-                    if let delivered = load.deliveredAt {
-                        Text("Delivered: \(delivered.formatted(date: .omitted, time: .shortened))")
-                            .font(.caption)
-                            .foregroundStyle(.green)
+                    .padding(24)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 30))
+
+                    // EMPTY STATE
+
+                    if shiftLoads.isEmpty {
+
+                        VStack(spacing: 16) {
+
+                            Image(systemName: "shippingbox")
+                                .font(.system(size: 54))
+                                .foregroundStyle(.gray)
+
+                            Text("No Loads Yet")
+                                .font(.title2.bold())
+                                .foregroundStyle(.white)
+
+                            Text("Loads added during your shift will appear here.")
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                        .padding(.top, 80)
+                    }
+
+                    // LOAD CARDS
+
+                    ForEach(shiftLoads, id: \.id) { load in
+
+                        VStack(alignment: .leading, spacing: 16) {
+
+                            HStack {
+
+                                VStack(alignment: .leading, spacing: 6) {
+
+                                    Text("Ticket \(load.pickupTicketNumber)")
+                                        .font(.title3.bold())
+                                        .foregroundStyle(.white)
+
+                                    HStack(spacing: 14) {
+
+                                        Label(
+                                            "\(String(format: "%.2f", load.pickupTons)) Picked Up Tons",
+                                            systemImage: "arrow.up.circle.fill"
+                                        )
+                                        .foregroundStyle(.blue)
+
+                                        if load.isDelivered {
+
+                                            Label(
+                                                "\(String(format: "%.2f", load.deliveryTons)) Delivered Tons",
+                                                systemImage: "arrow.down.circle.fill"
+                                            )
+                                            .foregroundStyle(.orange)
+                                        }
+                                    }
+                                    .font(.subheadline.bold())
+                                }
+
+                                Spacer()
+
+                                Text(load.isDelivered ? "Delivered" : "Picked Up")
+                                    .font(.caption.bold())
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        load.isDelivered
+                                        ? .green.opacity(0.2)
+                                        : .orange.opacity(0.2)
+                                    )
+                                    .foregroundStyle(
+                                        load.isDelivered
+                                        ? .green
+                                        : .orange
+                                    )
+                                    .clipShape(Capsule())
+                            }
+
+                            Text("BRC → HoneyGo")
+                                .font(.caption.bold())
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(.blue.opacity(0.15))
+                                .foregroundStyle(.blue)
+                                .clipShape(Capsule())
+
+                            Divider()
+
+                            VStack(alignment: .leading, spacing: 8) {
+
+                                if let picked = load.pickedUpAt {
+
+                                    Label(
+                                        picked.formatted(
+                                            date: .omitted,
+                                            time: .shortened
+                                        ),
+                                        systemImage: "clock.fill"
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                }
+
+                                if let delivered = load.deliveredAt {
+
+                                    Label(
+                                        delivered.formatted(
+                                            date: .omitted,
+                                            time: .shortened
+                                        ),
+                                        systemImage: "checkmark.circle.fill"
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+                                }
+
+                                if let picked = load.pickedUpAt,
+                                   let delivered = load.deliveredAt {
+
+                                    let duration = delivered.timeIntervalSince(picked)
+
+                                    let hours = Int(duration) / 3600
+                                    let minutes = (Int(duration) % 3600) / 60
+
+                                    Text("Duration: \(hours)h \(minutes)m")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+                        .padding(22)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 28))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 28)
+                                .stroke(.white.opacity(0.08))
+                        )
+                        .contextMenu {
+
+                            Button(role: .destructive) {
+
+                                context.delete(load)
+                                try? context.save()
+
+                            } label: {
+
+                                Label(
+                                    "Delete Load",
+                                    systemImage: "trash"
+                                )
+                            }
+                        }
                     }
                 }
+                .padding()
             }
-            .onDelete(perform: deleteLoad)
         }
-        .navigationTitle("Loads")
+        .navigationTitle("Today's Loads")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
+    }
+    
+    func loadStat(
+        title: String,
+        value: String
+    ) -> some View {
+
+        VStack(alignment: .leading, spacing: 4) {
+
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+
+            Text(value)
+                .font(.title.bold())
+                .foregroundStyle(.white)
+        }
     }
     
     func deleteLoad(at offsets: IndexSet) {

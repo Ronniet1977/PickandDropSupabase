@@ -27,94 +27,240 @@ struct PickupDeliveryView: View {
     }
     
     var body: some View {
-        List {
-            if driverLoads.isEmpty {
-                Text("No loads yet")
-                    .foregroundStyle(.secondary)
-            }
-            
-            ForEach(driverLoads) { load in
-                VStack(alignment: .leading, spacing: 10) {
-                    
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            
-                            // ✅ Ticket (correct field)
-                            Text("Ticket: \(load.pickupTicketNumber)")
-                                .font(.headline)
-                            
-                            // ✅ Tons
-                            Text("Tons: \(String(format: "%.2f", load.pickupTons))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            
-                            // ✅ Picked up time
-                            if let picked = load.pickedUpAt {
-                                Text("Picked up: \(picked.formatted(date: .omitted, time: .shortened))")
-                                    .font(.caption2)
-                                    .foregroundStyle(.orange)
-                            }
-                            
-                            // ✅ Delivered time
-                            if let delivered = load.deliveredAt {
-                                Text("Delivered: \(delivered.formatted(date: .omitted, time: .shortened))")
-                                    .font(.caption2)
-                                    .foregroundStyle(.green)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        Text(statusText(load.status))
-                            .font(.caption.bold())
-                            .padding(6)
-                            .background(statusColor(load.status).opacity(0.2))
-                            .foregroundStyle(statusColor(load.status))
-                            .clipShape(Capsule())
+
+        ZStack {
+
+            LinearGradient(
+                colors: [
+                    Color(red: 0.08, green: 0.11, blue: 0.18),
+                    Color(red: 0.15, green: 0.22, blue: 0.35),
+                    Color.black.opacity(0.95)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            ScrollView {
+
+                LazyVStack(spacing: 20) {
+
+                    if driverLoads.isEmpty {
+
+                        Text("No loads yet")
+                            .foregroundStyle(.white.opacity(0.7))
+                            .padding(.top, 40)
                     }
-                    
-                    // 🔥 ACTION BUTTONS
-                    HStack {
-                        Button("Pickup (BRC)") {
-                            markPickedUp(load)
+
+                    ForEach(driverLoads) { load in
+
+                        VStack(alignment: .leading, spacing: 14) {
+
+                            HStack(alignment: .top) {
+
+                                VStack(alignment: .leading, spacing: 6) {
+
+                                    Text("Ticket: \(load.pickupTicketNumber)")
+                                        .font(.title3.bold())
+                                        .foregroundStyle(.white)
+
+                                    Text("Tons: \(String(format: "%.2f", load.pickupTons))")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.white.opacity(0.7))
+
+                                    if let picked = load.pickedUpAt {
+
+                                        Text(
+                                            "Picked up: \(picked.formatted(date: .omitted, time: .shortened))"
+                                        )
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                    }
+
+                                    if let delivered = load.deliveredAt {
+
+                                        Text(
+                                            "Delivered: \(delivered.formatted(date: .omitted, time: .shortened))"
+                                        )
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                    }
+                                }
+
+                                Spacer()
+
+                                Text(statusText(load.status))
+                                    .font(.caption.bold())
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        statusColor(load.status).opacity(0.2)
+                                    )
+                                    .foregroundStyle(statusColor(load.status))
+                                    .clipShape(Capsule())
+                            }
+
+                            HStack(spacing: 14) {
+
+                                Button("Pickup (BRC)") {
+                                    markPickedUp(load)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.blue)
+                                .disabled(load.pickedUpAt != nil)
+
+                                Button("Deliver (HoneyGo)") {
+
+                                    deliveryTicket = ""
+                                    deliveryTons = ""
+                                    selectedLoad = load
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.green)
+                                .disabled(
+                                    load.pickedUpAt == nil ||
+                                    load.deliveredAt != nil
+                                )
+                            }
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.blue)
-                        .disabled(load.pickedUpAt != nil)
-                        
-                        Button("Deliver (HoneyGo)") {
-                            deliveryTicket = ""
-                            deliveryTons = ""
-                            selectedLoad = load
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.green)
-                        .disabled(load.pickedUpAt == nil || load.deliveredAt != nil)
+                        .padding(20)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 28))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 28)
+                                .stroke(.white.opacity(0.08))
+                        )
                     }
                 }
-                .padding(.vertical, 8)
+                .padding()
             }
         }
         .navigationTitle("Pickup / Deliver")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {
             requestNotificationPermission()
         }
         .sheet(item: $selectedLoad) { load in
+
             NavigationStack {
-                Form {
-                    Section("Delivery (HoneyGo)") {
-                        TextField("HoneyGo Ticket Number", text: $deliveryTicket)
-                        
-                        TextField("HoneyGo Tons", text: $deliveryTons)
-                            .keyboardType(.decimalPad)
+
+                ZStack {
+
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.08, green: 0.11, blue: 0.18),
+                            Color(red: 0.15, green: 0.22, blue: 0.35),
+                            Color.black.opacity(0.95)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .ignoresSafeArea()
+
+                    VStack(spacing: 28) {
+
+                        Spacer()
+
+                        VStack(spacing: 18) {
+
+                            ZStack {
+
+                                Circle()
+                                    .fill(.green.opacity(0.15))
+                                    .frame(width: 110, height: 110)
+
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 58))
+                                    .foregroundStyle(.green)
+                            }
+
+                            Text("Complete Delivery")
+                                .font(.system(size: 34, weight: .bold))
+                                .foregroundStyle(.white)
+
+                            Text("Ticket \(load.pickupTicketNumber)")
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+
+                        VStack(spacing: 18) {
+
+                            VStack(alignment: .leading, spacing: 8) {
+
+                                Text("HoneyGo Ticket")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.white.opacity(0.7))
+
+                                TextField(
+                                    "Enter Ticket Number",
+                                    text: $deliveryTicket
+                                )
+                                .textFieldStyle(.plain)
+                                .padding()
+                                .background(.white.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                .foregroundStyle(.white)
+                            }
+
+                            VStack(alignment: .leading, spacing: 8) {
+
+                                Text("Delivered Tons")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.white.opacity(0.7))
+
+                                TextField(
+                                    "Enter Tons",
+                                    text: $deliveryTons
+                                )
+                                .keyboardType(.decimalPad)
+                                .textFieldStyle(.plain)
+                                .padding()
+                                .background(.white.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                .foregroundStyle(.white)
+                            }
+                        }
+                        .padding(24)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 30))
+                        .padding(.horizontal)
+
+                        Button {
+
+                            completeDelivery(load)
+
+                        } label: {
+
+                            HStack {
+
+                                Image(systemName: "checkmark.circle.fill")
+
+                                Text("Complete Delivery")
+                                    .fontWeight(.bold)
+                            }
+                            .font(.title3)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(.green.gradient)
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                        }
+                        .padding(.horizontal)
+
+                        Spacer()
                     }
-                    
-                    Button("Complete Delivery") {
-                        completeDelivery(load)
-                    }
-                    .buttonStyle(.borderedProminent)
+                    .padding()
                 }
-                .navigationTitle("Deliver Load")
+                .toolbar {
+
+                    ToolbarItem(placement: .topBarTrailing) {
+
+                        Button("Close") {
+                            selectedLoad = nil
+                        }
+                        .foregroundStyle(.white)
+                    }
+                }
             }
         }
     }

@@ -190,7 +190,13 @@ struct AdminDashboardView: View {
                 isFinished: isFinished
             )
         }
-        .sorted { $0.name < $1.name }
+        .sorted {
+            if $0.isFinished != $1.isFinished {
+                return !$0.isFinished
+            }
+            
+            return $0.name < $1.name
+        }
     }
     
     var visibleDriverSummaries: [DriverSummary] {
@@ -206,6 +212,10 @@ struct AdminDashboardView: View {
     
     var openLoads: Int {
         allLoads.filter { $0.pickedUpAt == nil }.count
+    }
+    
+    var totalFuel: Double {
+        driverSummaries.reduce(0.0) { $0 + $1.fuel }
     }
     
     var totalPickupTons: Double {
@@ -248,7 +258,11 @@ struct AdminDashboardView: View {
             ZStack {
                 // 🔥 BACKGROUND
                 LinearGradient(
-                    colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
+                    colors: [
+                        Color(red: 0.05, green: 0.08, blue: 0.16),
+                        Color(red: 0.10, green: 0.16, blue: 0.28),
+                        Color.black
+                    ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -309,6 +323,13 @@ struct AdminDashboardView: View {
                                 )
                                 
                                 BossSummaryCard(
+                                    title: "Fuel",
+                                    value: "$\(String(format: "%.0f", totalFuel))",
+                                    subtitle: "Shift fuel",
+                                    systemImage: "fuelpump.fill"
+                                )
+                                
+                                BossSummaryCard(
                                     title: "Open",
                                     value: "\(openLoads)",
                                     subtitle: "Not delivered",
@@ -351,6 +372,7 @@ struct AdminDashboardView: View {
                                 }
                             }
                             .pickerStyle(.segmented)
+                            .animation(.spring(duration: 0.35), value: filteredLoads.count)
                             .padding(.vertical, 4)
                         }
                         
@@ -378,6 +400,7 @@ struct AdminDashboardView: View {
                         .padding()
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .animation(.spring(duration: 0.35), value: filteredLoads.count)
                         
                         
                         // 🔥 DRIVER CARDS
@@ -394,31 +417,13 @@ struct AdminDashboardView: View {
             .navigationTitle("Admin")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button {
+                    
+                    Button("Boss Report") {
+
                         bossReportText = makeBossDailyReport()
                         showBossReport = true
-                    } label: {
-                        Label("Boss Daily Report", systemImage: "doc.text.fill")
                     }
-                    .buttonStyle(.borderedProminent)
-                    
-                    Button {
-                        exportURL = exportBossDailyReport()
-                    } label: {
-                        Image(systemName: "doc.text.fill")
-                    }
-                    
-                    Button {
-                        showImporter = true
-                    } label: {
-                        Image(systemName: "tray.and.arrow.down")
-                    }
-                    
-                    Button {
-                        exportURL = exportCombinedCSV()
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                    }
+                    .foregroundStyle(.white)
                     
                     Button {
                         loadFromiCloud()
@@ -426,8 +431,31 @@ struct AdminDashboardView: View {
                         Image(systemName: "arrow.clockwise")
                     }
                     
-                    Button("Log Out") {
-                        logout()
+                    Menu {
+                        
+                        Button {
+                            showImporter = true
+                        } label: {
+                            Label(
+                                "Import CSV",
+                                systemImage: "tray.and.arrow.down"
+                            )
+                        }
+                        
+                        Divider()
+                        
+                        Button(role: .destructive) {
+                            logout()
+                        } label: {
+                            Label(
+                                "Log Out",
+                                systemImage: "rectangle.portrait.and.arrow.right"
+                            )
+                        }
+                        
+                    } label: {
+                        
+                        Image(systemName: "ellipsis.circle.fill")
                     }
                 }
             }
@@ -462,18 +490,58 @@ struct AdminDashboardView: View {
                 }
             }
             .sheet(isPresented: $showBossReport) {
+
                 NavigationStack {
-                    ScrollView {
-                        Text(bossReportText)
-                            .font(.system(.body, design: .monospaced))
+
+                    ZStack {
+
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.08, green: 0.11, blue: 0.18),
+                                Color(red: 0.15, green: 0.22, blue: 0.35),
+                                Color.black.opacity(0.95)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .ignoresSafeArea()
+
+                        ScrollView {
+
+                            VStack(alignment: .leading, spacing: 20) {
+
+                                Text("Boss Daily Report")
+                                    .font(.largeTitle.bold())
+                                    .foregroundStyle(.white)
+
+                                Text(bossReportText)
+                                    .font(.body.monospaced())
+                                    .foregroundStyle(.white.opacity(0.9))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding()
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                            }
                             .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
-                    .navigationTitle("Boss Daily Report")
+                    .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
+
                         ToolbarItem(placement: .topBarTrailing) {
+
+                            Button("Done") {
+                                showBossReport = false
+                            }
+                            .foregroundStyle(.white)
+                        }
+
+                        ToolbarItem(placement: .topBarLeading) {
+
                             ShareLink(item: bossReportText) {
-                                Label("Share", systemImage: "square.and.arrow.up")
+
+                                Image(systemName: "square.and.arrow.up")
+                                    .foregroundStyle(.white)
                             }
                         }
                     }
@@ -563,7 +631,11 @@ struct AdminDashboardView: View {
             }
         }
         .padding()
-        .background(hasMismatch ? Color.red.opacity(0.15) : Color(.systemGray6).opacity(0.25))
+        .background(
+            hasMismatch
+            ? Color.red.opacity(0.18)
+            : Color.green.opacity(0.12)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
         .onTapGesture {

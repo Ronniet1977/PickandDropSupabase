@@ -33,34 +33,161 @@ struct AddLoadView: View {
     }
     
     var body: some View {
-        Form {
-            if activeShift == nil {
-                Section {
-                    Text("No active shift. Start Day first.")
-                        .foregroundStyle(.red)
-                }
-            } else {
-                Section("Pickup (BRC)") {
-                    TextField("BRC Ticket Number", text: $pickupTicket)
-                    
-                    TextField("BRC Tons", text: $pickupTons)
-                        .keyboardType(.decimalPad)
-                    
-                    if !pickupTons.isEmpty && Double(pickupTons) == nil {
-                        Text("Enter a valid number for tons")
-                            .font(.caption)
-                            .foregroundStyle(.red)
+
+        ZStack {
+
+            LinearGradient(
+                colors: [
+                    Color(red: 0.08, green: 0.11, blue: 0.18),
+                    Color(red: 0.15, green: 0.22, blue: 0.35),
+                    Color.black.opacity(0.95)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            ScrollView {
+
+                VStack(spacing: 28) {
+
+                    Spacer(minLength: 20)
+
+                    VStack(spacing: 18) {
+
+                        ZStack {
+
+                            Circle()
+                                .fill(.blue.opacity(0.15))
+                                .frame(width: 120, height: 120)
+
+                            Image(systemName: "shippingbox.fill")
+                                .font(.system(size: 58))
+                                .foregroundStyle(.blue)
+                        }
+
+                        Text("Add Load")
+                            .font(.system(size: 38, weight: .bold))
+                            .foregroundStyle(.white)
+
+                        Text(driver.name)
+                            .foregroundStyle(.white.opacity(0.7))
+
+                        Text("Truck \(driver.truckNumber)")
+                            .foregroundStyle(.white.opacity(0.5))
                     }
+
+                    if activeShift == nil {
+
+                        VStack(spacing: 14) {
+
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.largeTitle)
+                                .foregroundStyle(.red)
+
+                            Text("No Active Shift")
+                                .font(.title2.bold())
+                                .foregroundStyle(.white)
+
+                            Text("Start your day before adding loads.")
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(28)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 30))
+                        .padding(.horizontal)
+
+                    } else {
+
+                        VStack(spacing: 22) {
+
+                            VStack(alignment: .leading, spacing: 8) {
+
+                                Text("BRC Ticket Number")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.white.opacity(0.7))
+
+                                TextField(
+                                    "Enter Ticket Number",
+                                    text: $pickupTicket
+                                )
+                                .textFieldStyle(.plain)
+                                .padding()
+                                .background(.white.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                .foregroundStyle(.white)
+                            }
+
+                            VStack(alignment: .leading, spacing: 8) {
+
+                                Text("Pickup Tons")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.white.opacity(0.7))
+
+                                TextField(
+                                    "Enter Tons",
+                                    text: $pickupTons
+                                )
+                                .keyboardType(.decimalPad)
+                                .textFieldStyle(.plain)
+                                .padding()
+                                .background(.white.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                .foregroundStyle(.white)
+                            }
+
+                            if !pickupTons.isEmpty &&
+                                Double(pickupTons) == nil {
+
+                                HStack {
+
+                                    Image(systemName: "exclamationmark.circle.fill")
+
+                                    Text("Enter a valid number for tons")
+                                }
+                                .font(.caption.bold())
+                                .foregroundStyle(.red)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        .padding(26)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 30))
+                        .padding(.horizontal)
+
+                        Button {
+
+                            saveLoad()
+
+                        } label: {
+
+                            HStack(spacing: 14) {
+
+                                Image(systemName: "plus.circle.fill")
+
+                                Text("Save Load")
+                                    .fontWeight(.bold)
+                            }
+                            .font(.title3)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(.blue.gradient)
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                            .shadow(color: .blue.opacity(0.4), radius: 14)
+                        }
+                        .padding(.horizontal)
+                        .disabled(!isValidLoad || activeShift == nil)
+                    }
+
+                    Spacer(minLength: 40)
                 }
-                
-                Button("Save Load") {
-                    saveLoad()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!isValidLoad || activeShift == nil)
+                .padding()
             }
         }
-        .navigationTitle("Add Load")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
     }
     
     func saveLoad() {

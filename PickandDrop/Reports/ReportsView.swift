@@ -16,52 +16,185 @@ struct ReportsView: View {
     @State private var invoiceURL: URL?
 
     var body: some View {
-        
+
         NavigationStack {
-            
-            List {
-                ForEach(reportFiles, id: \.self) { file in
-                    
-                    VStack(alignment: .leading, spacing: 8) {
 
-                        NavigationLink {
+            ZStack {
 
-                            CSVPreviewView(
-                                fileURL: file,
-                                generatePickupInvoice: generatePickupInvoice,
-                                generateDeliveryInvoice: generateDeliveryInvoice
-                            )
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.08, green: 0.11, blue: 0.18),
+                        Color(red: 0.15, green: 0.22, blue: 0.35),
+                        Color.black.opacity(0.95)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
 
-                        } label: {
+                ScrollView {
 
-                            VStack(alignment: .leading, spacing: 4) {
+                    VStack(spacing: 22) {
 
-                                Text(file.lastPathComponent)
-                                    .font(.headline)
+                        // HEADER
 
-                                if file.lastPathComponent.contains("FINAL") {
+                        VStack(alignment: .leading, spacing: 14) {
 
-                                    Text("✅ Final Report")
-                                        .font(.caption)
-                                        .foregroundStyle(.green)
+                            Text("Reports")
+                                .font(.system(size: 38, weight: .bold))
+                                .foregroundStyle(.white)
 
-                                } else {
+                            Text("Invoices & Shift Reports")
+                                .foregroundStyle(.white.opacity(0.7))
 
-                                    Text("🟢 Active Report")
-                                        .font(.caption)
-                                        .foregroundStyle(.blue)
+                            Divider()
+
+                            HStack {
+
+                                reportStat(
+                                    title: "Reports",
+                                    value: "\(reportFiles.count)"
+                                )
+
+                                Spacer()
+
+                                reportStat(
+                                    title: "Final",
+                                    value: "\(reportFiles.filter { $0.lastPathComponent.contains("FINAL") }.count)"
+                                )
+
+                                Spacer()
+
+                                reportStat(
+                                    title: "Active",
+                                    value: "\(reportFiles.filter { !$0.lastPathComponent.contains("FINAL") }.count)"
+                                )
+                            }
+                        }
+                        .padding(24)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 30))
+
+                        // EMPTY STATE
+
+                        if reportFiles.isEmpty {
+
+                            VStack(spacing: 16) {
+
+                                Image(systemName: "doc.text.magnifyingglass")
+                                    .font(.system(size: 58))
+                                    .foregroundStyle(.gray)
+
+                                Text("No Reports Yet")
+                                    .font(.title2.bold())
+                                    .foregroundStyle(.white)
+
+                                Text("Generated reports will appear here.")
+                                    .foregroundStyle(.white.opacity(0.7))
+                            }
+                            .padding(.top, 80)
+                        }
+
+                        // REPORT CARDS
+
+                        ForEach(reportFiles, id: \.self) { file in
+                            
+                            VStack(alignment: .leading, spacing: 18) {
+                                
+                                NavigationLink {
+                                    
+                                    CSVPreviewView(
+                                        fileURL: file,
+                                        generatePickupInvoice: generatePickupInvoice,
+                                        generateDeliveryInvoice: generateDeliveryInvoice
+                                    )
+                                    
+                                } label: {
+                                    
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        
+                                        HStack {
+                                            
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                
+                                                Text(file.lastPathComponent)
+                                                    .font(.headline)
+                                                    .foregroundStyle(.white)
+                                                    .multilineTextAlignment(.leading)
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                
+                                                Text(
+                                                    file.lastPathComponent.contains("FINAL")
+                                                    ? "Completed Shift Report"
+                                                    : "Active Shift Report"
+                                                )
+                                                .font(.caption)
+                                                .foregroundStyle(.white.opacity(0.7))
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            Image(systemName: "chevron.right")
+                                                .foregroundStyle(.white.opacity(0.4))
+                                        }
+                                        
+                                        HStack(spacing: 12) {
+                                            
+                                            Label(
+                                                file.lastPathComponent.contains("FINAL")
+                                                ? "Final"
+                                                : "Active",
+                                                systemImage:
+                                                    file.lastPathComponent.contains("FINAL")
+                                                ? "checkmark.circle.fill"
+                                                : "clock.fill"
+                                            )
+                                            .font(.caption.bold())
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(
+                                                file.lastPathComponent.contains("FINAL")
+                                                ? .green.opacity(0.2)
+                                                : .blue.opacity(0.2)
+                                            )
+                                            .foregroundStyle(
+                                                file.lastPathComponent.contains("FINAL")
+                                                ? .green
+                                                : .blue
+                                            )
+                                            .clipShape(Capsule())
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding()
                 }
             }
-            .navigationTitle("Reports")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .onAppear {
                 loadFiles()
             }
             .quickLookPreview($invoiceURL)
+        }
+    }
+    
+    func reportStat(
+        title: String,
+        value: String
+    ) -> some View {
+
+        VStack(alignment: .leading, spacing: 4) {
+
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+
+            Text(value)
+                .font(.title.bold())
+                .foregroundStyle(.white)
         }
     }
     
