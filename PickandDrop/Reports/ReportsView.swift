@@ -6,26 +6,29 @@
 //
 
 import SwiftUI
+import QuickLook
 
 struct ReportsView: View {
 
+    var allLoads: [LoadItem]
+
     @State private var reportFiles: [URL] = []
+    @State private var invoiceURL: URL?
 
     var body: some View {
-
+        
         NavigationStack {
-
+            
             List {
-
                 ForEach(reportFiles, id: \.self) { file in
-
+                    
                     NavigationLink {
-
+                        
                         CSVPreviewView(fileURL: file)
-
+                        
                     } label: {
-
-                        VStack(alignment: .leading) {
+                        
+                        VStack(alignment: .leading, spacing: 8) {
 
                             Text(file.lastPathComponent)
                                 .font(.headline)
@@ -42,6 +45,20 @@ struct ReportsView: View {
                                     .font(.caption)
                                     .foregroundStyle(.blue)
                             }
+
+                            HStack {
+
+                                Button("PDF Invoice") {
+
+                                    generateInvoice(from: file)
+                                }
+                                .buttonStyle(.borderedProminent)
+
+                                Button("Preview CSV") {
+
+                                }
+                                .buttonStyle(.bordered)
+                            }
                         }
                     }
                 }
@@ -50,8 +67,80 @@ struct ReportsView: View {
             .onAppear {
                 loadFiles()
             }
+            .quickLookPreview($invoiceURL)
         }
     }
+    
+    func generateInvoice(from file: URL) {
+
+        do {
+
+            let text = try String(contentsOf: file, encoding: .utf8)
+
+            let rows = text.components(separatedBy: .newlines)
+            
+            print(rows.first ?? "NO HEADER")
+
+            if rows.count > 1 {
+                print(rows[1])
+            }
+            
+            var csvLoads: [CSVLoad] = []
+
+            for row in rows.dropFirst() {
+
+                if row.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    continue
+                }
+
+                let cleaned = row.replacingOccurrences(of: "\"", with: "")
+
+                let columns = cleaned.components(separatedBy: ",")
+
+                print("COLUMN COUNT:", columns.count)
+                print(columns)
+
+                if columns.count < 11 {
+                    continue
+                }
+
+                let load = CSVLoad(
+                    date: columns[0],
+                    time: columns[1],
+                    driverName: columns[2],
+                    truck: columns[3],
+                    pickupTicket: columns[4],
+                    pickupTons: Double(columns[5]) ?? 0,
+                    deliveryTicket: columns[6],
+                    deliveryTons: Double(columns[7]) ?? 0,
+                    pickedUp: columns[8],
+                    delivered: columns[9]
+                )
+
+                csvLoads.append(load)
+            }
+            
+            print("CSV LOAD COUNT:", csvLoads.count)
+            
+            let deliveredLoads = csvLoads.filter {
+                $0.isDelivered
+            }
+
+            invoiceURL = InvoiceGenerator.createInvoicePDF(
+                driverName: "All Drivers",
+                truckNumber: "Fleet",
+                loads: deliveredLoads,
+                ratePerTon: 7.50
+            )
+
+            print(invoiceURL?.path ?? "NO PDF URL")
+
+        } catch {
+
+            print("Invoice parse error:", error)
+        }
+    }
+            
 
     func loadFiles() {
 

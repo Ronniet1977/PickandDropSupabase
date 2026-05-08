@@ -46,7 +46,6 @@ struct AdminDashboardView: View {
     @State private var bossReportText = ""
     @State private var dismissedDrivers: Set<String> = []
     
-    
     var combinedReports: [DriverSummary] {
 
         let grouped = Dictionary(grouping: allLoads) {
@@ -227,6 +226,24 @@ struct AdminDashboardView: View {
     }
     
     var body: some View {
+
+        TabView {
+
+            dashboardTab
+                .tabItem {
+                    Label("Dashboard", systemImage: "person.3.fill")
+                }
+
+            NavigationStack {
+                ReportsView(allLoads: allLoads)
+            }
+            .tabItem {
+                Label("Reports", systemImage: "doc.text.fill")
+            }
+        }
+    }
+    var dashboardTab: some View {
+
         NavigationStack {
             ZStack {
                 // 🔥 BACKGROUND
