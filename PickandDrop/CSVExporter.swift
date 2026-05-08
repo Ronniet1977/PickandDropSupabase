@@ -52,12 +52,12 @@ struct CSVExporter {
             let fuelString = String(format: "%.2f", fuel)
             
             // 🔥 Format timestamps safely
-            let pickedUp = load.pickedUpAt?
-                .formatted(date: .abbreviated, time: .shortened)
+            let pickedUp = load.pickedUpAt
+                .map { ISO8601DateFormatter().string(from: $0) }
                 ?? "Not picked up"
             
-            let delivered = load.deliveredAt?
-                .formatted(date: .omitted, time: .shortened) ?? ""
+            let delivered = load.deliveredAt
+                .map { ISO8601DateFormatter().string(from: $0) } ?? ""
             
             csv += "\(date),\(time),\(csvSafe(driver.name)),\(driver.truckNumber),\(csvSafe(load.pickupTicketNumber)),\(pickupTons),\(csvSafe(load.deliveryTicketNumber)),\(deliveryTons),\(pickedUp),\(delivered),\(fuelString)\n"
         }
@@ -78,6 +78,28 @@ struct CSVExporter {
         }
         
         return url
+    }
+    
+    static func deleteActiveCSV(driver: DriverProfile) {
+
+        let safeName = driver.name
+            .replacingOccurrences(
+                of: "[^a-zA-Z0-9_-]",
+                with: "_",
+                options: .regularExpression
+            )
+
+        let fileName = "\(safeName)-Truck\(driver.truckNumber)-ACTIVE.csv"
+
+        let folder = StorageManager.truckReportsFolder()
+        let url = folder.appendingPathComponent(fileName)
+
+        if FileManager.default.fileExists(atPath: url.path) {
+
+            try? FileManager.default.removeItem(at: url)
+
+            print("🗑 ACTIVE removed:", fileName)
+        }
     }
 }
 

@@ -179,23 +179,21 @@ struct PickupDeliveryView: View {
     func saveAndUpdateCSV() {
         do {
             try context.save()
-            
+
             let driverLoads = loads.filter {
                 $0.driverName == driver.name
             }
-            
+
             let currentShift = activeShift
-            
-            DispatchQueue.global(qos: .background).async {
-                let _ = CSVExporter.generateCSV(
-                    loads: driverLoads,
-                    driver: driver,
-                    activeShift: currentShift
-                )
-            }
-            
+
+            let _ = CSVExporter.generateCSV(
+                loads: driverLoads,
+                driver: driver,
+                activeShift: currentShift
+            )
+
             print("✅ Pickup/Deliver updated")
-            
+
         } catch {
             print("❌ Pickup/Deliver save failed:", error)
         }

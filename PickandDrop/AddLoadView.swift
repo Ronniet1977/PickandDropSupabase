@@ -65,28 +65,41 @@ struct AddLoadView: View {
     
     func saveLoad() {
         guard let tonsValue = Double(pickupTons) else { return }
-        
+
         let cleanTicket = pickupTicket.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTicket.isEmpty else { return }
-        
+
         let newLoad = LoadItem()
         newLoad.driverName = driver.name
-        newLoad.pickupTicketNumber = cleanTicket   // ✅ ticket
+        newLoad.pickupTicketNumber = cleanTicket
         newLoad.pickupTons = tonsValue
-        
-        newLoad.status = "pickedUp"                // ✅ FIXED
+
+        newLoad.status = "pickedUp"
         newLoad.createdAt = Date()
-        newLoad.pickedUpAt = Date()               // ✅ timestamp
-        
+        newLoad.pickedUpAt = Date()
+
         if let shift = activeShift {
             newLoad.shift = shift
         }
-        
+
         context.insert(newLoad)
-        
+
         do {
             try context.save()
+
+            let driverLoads = self.loads.filter {
+                $0.driverName == driver.name
+            }
+
+            let _ = CSVExporter.generateCSV(
+                loads: driverLoads,
+                driver: driver,
+                activeShift: activeShift,
+                isFinal: false
+            )
+
             dismiss()
+
         } catch {
             print("❌ Save failed:", error)
         }

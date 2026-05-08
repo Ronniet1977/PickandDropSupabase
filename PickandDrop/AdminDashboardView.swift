@@ -59,9 +59,11 @@ struct AdminDashboardView: View {
                 $0.name == driverName
             }
 
-            let shift = shifts.first {
-                $0.driverName == driverName
-            }
+            let shift = shifts
+                .filter { $0.driverName == driverName }
+                .sorted { $0.startedAt > $1.startedAt }
+                .first
+            
             
             let driverLoads = allLoads.filter {
                 $0.driverName == driverName
@@ -101,12 +103,13 @@ struct AdminDashboardView: View {
                     $0.name == load.driverName
                 }
 
-                let shift = shifts.first {
-                    $0.driverName == load.driverName
-                }
+                let shift = shifts
+                    .filter { $0.driverName == load.driverName }
+                    .sorted { $0.startedAt > $1.startedAt }
+                    .first
                 
-                let hasOpenLoads = loads.contains { !$0.isDelivered }
-                let status = hasOpenLoads ? "active" : "finished"
+                let isFinished = shift?.status == "finished"
+                let status = isFinished ? "finished" : "active"
 
                 dict[load.driverName] = DriverSummary(
                     name: load.driverName,
@@ -119,7 +122,7 @@ struct AdminDashboardView: View {
 
                     fuel: shift?.fuelTotal ?? 0,
                     status: status,
-                    isFinished: !hasOpenLoads
+                    isFinished: isFinished
                 )
             }
 
@@ -168,9 +171,11 @@ struct AdminDashboardView: View {
                 $0.name == driverName
             }
             
-            let shift = shifts.first {
-                $0.driverName == driverName
-            }
+            let shift = shifts
+                .filter { $0.driverName == driverName }
+                .sorted { $0.startedAt > $1.startedAt }
+                .first
+            
 
             let isFinished = shift?.status == "finished"
             let status = isFinished ? "finished" : "active"
@@ -774,6 +779,13 @@ struct AdminDashboardView: View {
         var summaryDict: [String: DriverSummary] = [:]
         
         for url in urls {
+
+            let fileName = url.lastPathComponent
+
+            if !fileName.hasSuffix("-ACTIVE.csv") {
+                continue
+            }
+
             do {
                 let text = try String(contentsOf: url, encoding: .utf8)
                 let rows = text.components(separatedBy: "\n").dropFirst()
@@ -788,7 +800,12 @@ struct AdminDashboardView: View {
                     let pickupTicket = columns[4].cleanedCSV()
                     let pickupTons = Double(columns[5].trimmed()) ?? 0
 
-                    let deliveryTicket = columns[6].cleanedCSV()
+                    let rawDeliveryTicket = columns[6].cleanedCSV()
+
+                    let deliveryTicket =
+                        rawDeliveryTicket == "Not delivered"
+                        ? ""
+                        : rawDeliveryTicket
                     let deliveryTons = Double(columns[7].trimmed()) ?? 0
                     
                     let pickedUpString = columns[8].trimmed()
@@ -796,6 +813,14 @@ struct AdminDashboardView: View {
                     let fuel = columns[10].trimmed()
                     
                     if summaryDict[driverName] == nil {
+
+                        let shift = shifts
+                            .filter { $0.driverName == driverName }
+                            .sorted { $0.startedAt > $1.startedAt }
+                            .first
+
+                        let isFinished = shift?.status == "finished"
+
                         summaryDict[driverName] = DriverSummary(
                             name: driverName,
                             truck: truck,
@@ -805,9 +830,10 @@ struct AdminDashboardView: View {
                             deliveryTons: 0,
 
                             fuel: 0,
-                            status: deliveredString.isEmpty ? "active" : "finished",
 
-                            isFinished: !deliveredString.isEmpty
+                            status: isFinished ? "finished" : "active",
+
+                            isFinished: isFinished
                         )
                     }
                     
@@ -826,14 +852,24 @@ struct AdminDashboardView: View {
 
                     newLoad.createdAt = Date()
 
+                    newLoad.status = "new"
+
                     if pickedUpString != "Not picked up" {
                         newLoad.pickedUpAt = Date()
+                        newLoad.status = "pickedUp"
                     }
 
-                    if !deliveredString.isEmpty {
+                    let cleanedDelivered = deliveredString
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                    if !cleanedDelivered.isEmpty &&
+                       cleanedDelivered != "0" &&
+                       cleanedDelivered != "0.00" {
+
                         newLoad.deliveredAt = Date()
+                        newLoad.status = "delivered"
                     }
-
+                    
                     summaryDict[driverName]?.fuel = Double(fuel) ?? 0
 
                     context.insert(newLoad)
@@ -872,6 +908,8 @@ struct AdminDashboardView: View {
         
         isRefreshing = true
         
+        var activeDriverNames: Set<String> = []
+        
         Task {
             
             let baseURL = StorageManager.truckReportsFolder()
@@ -885,6 +923,12 @@ struct AdminDashboardView: View {
                 )
                 
                 print("📄 Found files:", files.map { $0.lastPathComponent })
+                
+                for load in allLoads {
+                    context.delete(load)
+                }
+
+                try? context.save()
                 
                 var summaryDict: [String: DriverSummary] = [:]
                 
@@ -906,6 +950,7 @@ struct AdminDashboardView: View {
                         if columns.count < 11 { continue }
                         
                         let driverName = columns[2].cleanedCSV()
+                        activeDriverNames.insert(driverName)
                         let truck = columns[3].cleanedCSV()
                         
                         let pickupTicket = columns[4].cleanedCSV()
@@ -928,9 +973,9 @@ struct AdminDashboardView: View {
                                 deliveryTons: 0,
 
                                 fuel: 0,
-                                status: deliveredString.isEmpty ? "active" : "finished",
 
-                                isFinished: !deliveredString.isEmpty
+                                status: "active",
+                                isFinished: false
                             )
                         }
                         
@@ -957,12 +1002,22 @@ struct AdminDashboardView: View {
 
                         newLoad.createdAt = Date()
 
+                        newLoad.status = "new"
+
                         if pickedUpString != "Not picked up" {
                             newLoad.pickedUpAt = Date()
+                            newLoad.status = "pickedUp"
                         }
 
-                        if !deliveredString.isEmpty {
+                        let cleanedDelivered = deliveredString
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                        if !cleanedDelivered.isEmpty &&
+                           cleanedDelivered != "0" &&
+                           cleanedDelivered != "0.00" {
+
                             newLoad.deliveredAt = Date()
+                            newLoad.status = "delivered"
                         }
 
                         summaryDict[driverName]?.fuel = Double(fuel) ?? 0
@@ -972,9 +1027,7 @@ struct AdminDashboardView: View {
                 }
                 
                 // 🔥 Move CSV write OFF main thread too
-                DispatchQueue.global(qos: .background).async {
-                    generateAdminActiveCSV(from: allLoads)
-                }
+                generateAdminActiveCSV(from: allLoads)
                 
                 // ✅ UI update safely
                 await MainActor.run {
@@ -1026,9 +1079,10 @@ struct AdminDashboardView: View {
                     $0.name == load.driverName
                 }
 
-                let shift = shifts.first {
-                    $0.driverName == load.driverName
-                }
+                let shift = shifts
+                    .filter { $0.driverName == load.driverName }
+                    .sorted { $0.startedAt > $1.startedAt }
+                    .first
 
                 let isFinished = shift?.status == "finished"
 
@@ -1085,7 +1139,15 @@ struct AdminDashboardView: View {
             let pickupString = String(format: "%.2f", load.pickupTons)
             let deliveryString = String(format: "%.2f", load.deliveryTons)
             
-            csv += "\(date),\(time),\(load.driverName),—,\(load.pickupTicketNumber),\(pickupString),\(load.deliveryTicketNumber),\(deliveryString)\n"
+            let deliveryTicket = load.isDelivered
+                ? load.deliveryTicketNumber
+                : "Not delivered"
+
+            let deliveryOutput = load.isDelivered
+                ? deliveryString
+                : "Not delivered"
+
+            csv += "\(date),\(time),\(load.driverName),—,\(load.pickupTicketNumber),\(pickupString),\(deliveryTicket),\(deliveryOutput)\n"
         }
         
         let fileName = "ADMIN-ACTIVE.csv"

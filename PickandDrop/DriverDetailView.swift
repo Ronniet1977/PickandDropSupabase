@@ -67,12 +67,25 @@ struct DriverDetailView: View {
                                     VStack(alignment: .leading) {
                                         HStack {
                                             Text("Ticket \(load.pickupTicketNumber)")
+                                            
+                                            Text("DEBUG deliveredAt: \(String(describing: load.deliveredAt))")
+                                                .font(.caption2)
+                                                .foregroundStyle(.red)
+
+                                            Text("DEBUG isDelivered: \(load.isDelivered.description)")
+                                                .font(.caption2)
+                                                .foregroundStyle(.orange)
+
+                                            Text("DEBUG deliveryTicket: \(load.deliveryTicketNumber)")
+                                                .font(.caption2)
+                                                .foregroundStyle(.blue)
+                                            
                                             Spacer()
                                             Text("\(load.pickupTons, specifier: "%.0f") tons")
                                                 .foregroundStyle(.blue)
                                         }
                                         
-                                        if !load.deliveryTicketNumber.isEmpty {
+                                        if load.isDelivered {
                                             Text("HoneyGo Ticket \(load.deliveryTicketNumber)")
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
@@ -99,17 +112,26 @@ struct DriverDetailView: View {
                         }
 
                         Section("Delivery") {
-                            LabeledContent(
-                                "Ticket",
-                                value: load.deliveryTicketNumber.isEmpty
-                                ? "Not delivered yet"
-                                : load.deliveryTicketNumber
-                            )
 
-                            LabeledContent(
-                                "Tons",
-                                value: String(format: "%.2f", load.deliveryTons)
-                            )
+                            if load.isDelivered {
+
+                                LabeledContent(
+                                    "Ticket",
+                                    value: load.deliveryTicketNumber
+                                )
+
+                                LabeledContent(
+                                    "Tons",
+                                    value: String(format: "%.2f", load.deliveryTons)
+                                )
+
+                            } else {
+
+                                LabeledContent(
+                                    "Status",
+                                    value: "Not delivered yet"
+                                )
+                            }
                         }
                         
                         Section("Driver") {

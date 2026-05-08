@@ -39,27 +39,28 @@ struct AddFuelView: View {
     
     func saveFuel() {
         guard let shift = activeShift else { return }
-        
+
         let amount = Double(fuelAmount) ?? 0
         shift.fuelTotal += amount
-        
+
         do {
             try context.save()
             print("✅ Fuel saved")
-            
-            let driverLoads = loads.filter { $0.driverName == driver.name }
-            let currentShift = shift
-            
-            DispatchQueue.global(qos: .background).async {
-                _ = CSVExporter.generateCSV(
-                    loads: driverLoads,
-                    driver: driver,
-                    activeShift: currentShift
-                )
+
+            let driverLoads = loads.filter {
+                $0.driverName == driver.name
             }
-            
+
+            let currentShift = shift
+
+            _ = CSVExporter.generateCSV(
+                loads: driverLoads,
+                driver: driver,
+                activeShift: currentShift
+            )
+
             dismiss()
-            
+
         } catch {
             print("❌ Fuel save failed:", error)
         }

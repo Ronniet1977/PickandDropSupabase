@@ -71,40 +71,30 @@ struct FinishDayView: View {
     
     func finishDay() {
         guard let shift = activeShift else { return }
-        
+
         shift.status = "finished"
-        
+
         do {
             try context.save()
             print("✅ Shift finished")
-            
+
             let driverLoads = loads.filter {
                 $0.driverName == driver.name
             }
-            
-            DispatchQueue.global(qos: .background).async {
-                // ✅ FINAL export
-                let _ = CSVExporter.generateCSV(
-                    loads: driverLoads,
-                    driver: driver,
-                    activeShift: shift,
-                    isFinal: true
-                )
-                
-                // ✅ RESET ACTIVE
-                let _ = CSVExporter.generateCSV(
-                    loads: [],
-                    driver: driver,
-                    activeShift: nil,
-                    isFinal: false
-                )
-                
-                // ✅ Back to main thread
-                DispatchQueue.main.async {
-                    didFinish = true   // 👈 triggers dismiss
-                }
-            }
-            
+
+            // ✅ FINAL export
+            let _ = CSVExporter.generateCSV(
+                loads: driverLoads,
+                driver: driver,
+                activeShift: shift,
+                isFinal: true
+            )
+
+            // ✅ REMOVE ACTIVE FILE
+            CSVExporter.deleteActiveCSV(driver: driver)
+
+            didFinish = true
+
         } catch {
             print("❌ Failed to finish day:", error)
         }

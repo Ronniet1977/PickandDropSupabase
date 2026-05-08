@@ -46,31 +46,27 @@ struct StartShiftView: View {
     func startShift() {
         let newShift = Shift()
         newShift.driverName = driver.name
-        
+
         context.insert(newShift)
-        
+
         do {
             try context.save()
             print("✅ Shift started")
-            
-            // ✅ Capture data BEFORE background thread
+
             let driverLoads = loads.filter {
                 $0.driverName == driver.name
             }
-            
+
             let currentShift = newShift
-            
-            // ✅ RUN EXPORT OFF MAIN THREAD
-            DispatchQueue.global(qos: .background).async {
-                _ = CSVExporter.generateCSV(
-                    loads: driverLoads,
-                    driver: driver,
-                    activeShift: currentShift
-                )
-            }
-            
+
+            _ = CSVExporter.generateCSV(
+                loads: driverLoads,
+                driver: driver,
+                activeShift: currentShift
+            )
+
             dismiss()
-            
+
         } catch {
             print("❌ Failed to start shift:", error)
         }
