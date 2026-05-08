@@ -68,18 +68,6 @@ struct DriverDetailView: View {
                                         HStack {
                                             Text("Ticket \(load.pickupTicketNumber)")
                                             
-                                            Text("DEBUG deliveredAt: \(String(describing: load.deliveredAt))")
-                                                .font(.caption2)
-                                                .foregroundStyle(.red)
-
-                                            Text("DEBUG isDelivered: \(load.isDelivered.description)")
-                                                .font(.caption2)
-                                                .foregroundStyle(.orange)
-
-                                            Text("DEBUG deliveryTicket: \(load.deliveryTicketNumber)")
-                                                .font(.caption2)
-                                                .foregroundStyle(.blue)
-                                            
                                             Spacer()
                                             Text("\(load.pickupTons, specifier: "%.0f") tons")
                                                 .foregroundStyle(.blue)

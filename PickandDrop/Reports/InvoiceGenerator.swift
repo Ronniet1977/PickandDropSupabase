@@ -23,7 +23,10 @@ struct InvoiceGenerator {
         let pageHeight: CGFloat = 792
         let pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
         
-        let fileName = "Invoice_\(driverName.replacingOccurrences(of: " ", with: "_")).pdf"
+        let safeDriver = driverName.replacingOccurrences(of: " ", with: "_")
+        let safeTruck = truckNumber.replacingOccurrences(of: " ", with: "_")
+
+        let fileName = "Invoice_\(safeDriver)_Truck_\(safeTruck).pdf"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect)

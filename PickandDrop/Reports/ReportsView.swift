@@ -48,16 +48,13 @@ struct ReportsView: View {
 
                             HStack {
 
-                                Button("PDF Invoice") {
-
-                                    generateInvoice(from: file)
+                                Button("BRC Pickup Invoice") {
+                                    generatePickupInvoice(from: file)
                                 }
-                                .buttonStyle(.borderedProminent)
 
-                                Button("Preview CSV") {
-
+                                Button("HoneyGo Delivery Invoice") {
+                                    generateDeliveryInvoice(from: file)
                                 }
-                                .buttonStyle(.bordered)
                             }
                         }
                     }
@@ -127,8 +124,8 @@ struct ReportsView: View {
             }
 
             invoiceURL = InvoiceGenerator.createInvoicePDF(
-                driverName: "All Drivers",
-                truckNumber: "Fleet",
+                driverName: deliveredLoads.first?.driverName ?? "Unknown",
+                truckNumber: deliveredLoads.first?.truck ?? "Unknown",
                 loads: deliveredLoads,
                 ratePerTon: 7.50
             )
@@ -138,6 +135,130 @@ struct ReportsView: View {
         } catch {
 
             print("Invoice parse error:", error)
+        }
+    }
+    
+    func generatePickupInvoice(from file: URL) {
+
+        do {
+
+            let text = try String(contentsOf: file, encoding: .utf8)
+
+            let rows = text.components(separatedBy: .newlines)
+
+            var csvLoads: [CSVLoad] = []
+
+            for row in rows.dropFirst() {
+
+                if row.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    continue
+                }
+
+                let cleaned = row.replacingOccurrences(of: "\"", with: "")
+
+                let columns = cleaned.components(separatedBy: ",")
+
+                if columns.count < 11 {
+                    continue
+                }
+
+                let load = CSVLoad(
+                    date: columns[0],
+                    time: columns[1],
+                    driverName: columns[2],
+                    truck: columns[3],
+                    pickupTicket: columns[4],
+                    pickupTons: Double(columns[5]) ?? 0,
+                    deliveryTicket: columns[6],
+                    deliveryTons: Double(columns[7]) ?? 0,
+                    pickedUp: columns[8],
+                    delivered: columns[9]
+                )
+
+                csvLoads.append(load)
+            }
+
+            // ✅ PICKUP FILTER
+            let pickupLoads = csvLoads.filter {
+                !$0.pickupTicket.isEmpty
+            }
+
+            invoiceURL = InvoiceGenerator.createInvoicePDF(
+                companyName: "BRC",
+                invoiceTitle: "Pickup Invoice",
+                driverName: pickupLoads.first?.driverName ?? "Unknown",
+                truckNumber: pickupLoads.first?.truck ?? "Unknown",
+                loads: pickupLoads,
+                ratePerTon: 7.50
+            )
+
+            print(invoiceURL?.path ?? "NO PDF URL")
+
+        } catch {
+
+            print("Pickup invoice parse error:", error)
+        }
+    }
+    
+    func generateDeliveryInvoice(from file: URL) {
+
+        do {
+
+            let text = try String(contentsOf: file, encoding: .utf8)
+
+            let rows = text.components(separatedBy: .newlines)
+
+            var csvLoads: [CSVLoad] = []
+
+            for row in rows.dropFirst() {
+
+                if row.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    continue
+                }
+
+                let cleaned = row.replacingOccurrences(of: "\"", with: "")
+
+                let columns = cleaned.components(separatedBy: ",")
+
+                if columns.count < 11 {
+                    continue
+                }
+
+                let load = CSVLoad(
+                    date: columns[0],
+                    time: columns[1],
+                    driverName: columns[2],
+                    truck: columns[3],
+                    pickupTicket: columns[4],
+                    pickupTons: Double(columns[5]) ?? 0,
+                    deliveryTicket: columns[6],
+                    deliveryTons: Double(columns[7]) ?? 0,
+                    pickedUp: columns[8],
+                    delivered: columns[9]
+                )
+
+                csvLoads.append(load)
+            }
+
+            // ✅ DELIVERY FILTER
+            let deliveryLoads = csvLoads.filter {
+                $0.isDelivered
+            }
+
+            invoiceURL = InvoiceGenerator.createInvoicePDF(
+                companyName: "HoneyGo",
+                invoiceTitle: "Delivery Invoice",
+                driverName: deliveryLoads.first?.driverName ?? "Unknown",
+                truckNumber: deliveryLoads.first?.truck ?? "Unknown",
+                loads: deliveryLoads,
+                ratePerTon: 7.50
+            )
+
+            print(invoiceURL?.path ?? "NO PDF URL")
+
+        } catch {
+
+            print("Delivery invoice parse error:", error)
         }
     }
             
