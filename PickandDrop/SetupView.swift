@@ -109,6 +109,10 @@ struct SetupView: View {
                             let driver = DriverProfile()
                             driver.name = driverName
                             driver.truckNumber = truckNumber
+                            
+                            driver.username = driverName.lowercased()
+                            driver.password = "1234"
+                            
                             driver.role = role
                             
                             currentDriverName = driver.name

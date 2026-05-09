@@ -257,7 +257,7 @@ struct ReportsView: View {
                 driverName: deliveredLoads.first?.driverName ?? "Unknown",
                 truckNumber: deliveredLoads.first?.truck ?? "Unknown",
                 loads: deliveredLoads,
-                ratePerTon: 7.50
+                ratePerTon: 11.00
             )
 
             print(invoiceURL?.path ?? "NO PDF URL")
@@ -319,7 +319,7 @@ struct ReportsView: View {
                 driverName: pickupLoads.first?.driverName ?? "Unknown",
                 truckNumber: pickupLoads.first?.truck ?? "Unknown",
                 loads: pickupLoads,
-                ratePerTon: 7.50
+                ratePerTon: 11.00
             )
 
             print(invoiceURL?.path ?? "NO PDF URL")
@@ -381,7 +381,7 @@ struct ReportsView: View {
                 driverName: deliveryLoads.first?.driverName ?? "Unknown",
                 truckNumber: deliveryLoads.first?.truck ?? "Unknown",
                 loads: deliveryLoads,
-                ratePerTon: 7.50
+                ratePerTon: 11.00
             )
 
             print(invoiceURL?.path ?? "NO PDF URL")

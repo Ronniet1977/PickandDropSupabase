@@ -14,139 +14,233 @@ struct CSVPreviewView: View {
     let generateDeliveryInvoice: (URL) -> Void
 
     @State private var loads: [CSVLoad] = []
+    @State private var selectedLoad: CSVLoad?
+    @State private var editedPickupTicket = ""
+    @State private var editedPickupTons = ""
+    @State private var editedDeliveryTons = ""
 
     var body: some View {
 
-        ScrollView {
+        ZStack {
 
-            VStack(spacing: 16) {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.08, green: 0.11, blue: 0.18),
+                    Color(red: 0.15, green: 0.22, blue: 0.35),
+                    Color.black.opacity(0.95)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-                summaryCard
+            ScrollView {
 
-                ForEach(loads, id: \.id) { load in
+                VStack(spacing: 16) {
+                    
+                    summaryCard
+                    
+                    ForEach(loads, id: \.id) { load in
+                        
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("Ticket \(load.pickupTicket)")
+                                        .font(.headline)
+                                    
+                                    HStack(spacing: 12) {
 
-                    VStack(alignment: .leading, spacing: 10) {
+                                        Text("BRC: \(load.pickupTons, specifier: "%.0f") Tons")
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(.blue)
 
-                        HStack {
-
-                            VStack(alignment: .leading) {
-
-                                Text("Ticket \(load.pickupTicket)")
-                                    .font(.headline)
-
-                                Text("\(load.pickupTons, specifier: "%.0f") tons")
-                                    .foregroundStyle(.blue)
-                            }
-
-                            Spacer()
-
-                            if load.isDelivered {
-
-                                Text("✅ Delivered")
-                                    .fontWeight(.bold)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 4)
-                                    .background(.green.opacity(0.15))
-                                    .foregroundStyle(.green)
-                                    .clipShape(Capsule())
-
-                            } else {
-
-                                Text("🟠 Picked Up")
-                                    .fontWeight(.bold)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 4)
-                                    .background(.orange.opacity(0.15))
-                                    .foregroundStyle(.orange)
-                                    .clipShape(Capsule())
-                            }
-                        }
-
-                        Divider()
-
-                        VStack(alignment: .leading, spacing: 8) {
-
-                            Text("Driver: \(load.driverName)")
-                                .fontWeight(.medium)
-
-                            Text("Truck: \(load.truck)")
-                                .foregroundStyle(.secondary)
-                            Text("BRC → HoneyGo")
-                                .font(.caption.bold())
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(.blue.opacity(0.15))
-                                .foregroundStyle(.blue)
-                                .clipShape(Capsule())
-
-                            Divider()
-
-                            Text("BRC Ticket: \(load.pickupTicket)")
-                                .foregroundStyle(.secondary)
-
-                            if load.isDelivered {
-
-                                Text("HoneyGo Ticket: \(load.deliveryTicket)")
-                                    .foregroundStyle(.secondary)
-
-                                let duration = durationText(
-                                    pickup: load.pickedUp,
-                                    delivered: load.delivered
-                                )
-
-                                let pickupText = formattedTimestamp(load.pickedUp)
-                                let deliveredText = formattedTimestamp(load.delivered)
-
-                                Text("Picked Up: \(pickupText)")
-                                    .foregroundStyle(.secondary)
-
-                                Text("Delivered: \(deliveredText)")
-                                    .foregroundStyle(.secondary)
-
-                                Text("Duration: \(duration)")
-                                    .foregroundStyle(.blue)
-                                    .fontWeight(.semibold)
-                                
-                                HStack {
-
-                                    Button("BRC Invoice") {
-                                        generatePickupInvoice(fileURL)
+                                        Text("HoneyGo: \(load.deliveryTons, specifier: "%.0f") Tons")
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(.orange)
                                     }
-                                    .buttonStyle(.borderedProminent)
-                                    .tint(.blue)
-
-                                    Button("HoneyGo Invoice") {
-                                        generateDeliveryInvoice(fileURL)
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .tint(.green)
+                                    .font(.subheadline)
                                 }
-                                .padding(.top, 6)
-
-                            } else {
-
-                                Text("Not delivered yet")
-                                    .foregroundStyle(.orange)
+                                
+                                Spacer()
+                                
+                                if load.isDelivered {
+                                    
+                                    Text("✅ Delivered")
+                                        .fontWeight(.bold)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 4)
+                                        .background(.green.opacity(0.15))
+                                        .foregroundStyle(.green)
+                                        .clipShape(Capsule())
+                                    
+                                } else {
+                                    
+                                    Text("🟠 Picked Up")
+                                        .fontWeight(.bold)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 4)
+                                        .background(.orange.opacity(0.15))
+                                        .foregroundStyle(.orange)
+                                        .clipShape(Capsule())
+                                }
                             }
+                            
+                            Divider()
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Driver: \(load.driverName)")
+                                    .fontWeight(.medium)
+                                
+                                Text("Truck: \(load.truck)")
+                                    .foregroundStyle(.secondary)
+                                Text("BRC → HoneyGo")
+                                    .font(.caption.bold())
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(.blue.opacity(0.15))
+                                    .foregroundStyle(.blue)
+                                    .clipShape(Capsule())
+                                
+                                Divider()
+                                
+                                Text("BRC Ticket: \(load.pickupTicket)")
+                                    .foregroundStyle(.secondary)
+                                
+                                if load.isDelivered {
+                                    
+                                    Text("HoneyGo Ticket: \(load.deliveryTicket)")
+                                        .foregroundStyle(.secondary)
+                                    
+                                    let duration = durationText(
+                                        pickup: load.pickedUp,
+                                        delivered: load.delivered
+                                    )
+                                    
+                                    let pickupText = formattedTimestamp(load.pickedUp)
+                                    let deliveredText = formattedTimestamp(load.delivered)
+                                    
+                                    Text("Picked Up: \(pickupText)")
+                                        .foregroundStyle(.secondary)
+                                    
+                                    Text("Delivered: \(deliveredText)")
+                                        .foregroundStyle(.secondary)
+                                    
+                                    Text("Duration: \(duration)")
+                                        .foregroundStyle(.blue)
+                                        .fontWeight(.semibold)
+                                    
+                                    HStack {
+                                        
+                                        Button("BRC Invoice") {
+                                            generatePickupInvoice(fileURL)
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        .tint(.blue)
+                                        
+                                        Button("HoneyGo Invoice") {
+                                            generateDeliveryInvoice(fileURL)
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        .tint(.green)
+                                    }
+                                    .padding(.top, 6)
+                                    
+                                } else {
+                                    
+                                    Text("Not delivered yet")
+                                        .foregroundStyle(.orange)
+                                }
+                            }
+                            .font(.subheadline)
                         }
-                        .font(.subheadline)
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .onTapGesture {
+                            selectedLoad = load
+                        }
                     }
-                    .padding()
-                    .background(.white.opacity(0.9))
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
                 }
             }
             .padding()
         }
-        .background(
-            LinearGradient(
-                colors: [.blue.opacity(0.3), .black.opacity(0.1)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-        )
         .navigationTitle(fileURL.lastPathComponent)
+        .sheet(item: $selectedLoad) { load in
+
+            NavigationStack {
+                ZStack {
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.08, green: 0.11, blue: 0.18),
+                            Color(red: 0.15, green: 0.22, blue: 0.35),
+                            Color.black.opacity(0.95)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .ignoresSafeArea()
+
+                    VStack(spacing: 24) {
+                        Text("Edit Load")
+                            .font(.largeTitle.bold())
+                            .foregroundStyle(.white)
+
+                        VStack(spacing: 18) {
+
+                            TextField(
+                                "Pickup Ticket",
+                                text: $editedPickupTicket
+                            )
+
+                            TextField(
+                                "Pickup Tons",
+                                text: $editedPickupTons
+                            )
+
+                            TextField(
+                                "Delivery Tons",
+                                text: $editedDeliveryTons
+                            )
+                        }
+                        .textFieldStyle(.roundedBorder)
+                        .padding()
+
+                        Button("Save Changes") {
+
+                            if let index = loads.firstIndex(where: {
+                                $0.id == load.id
+                            }) {
+
+                                loads[index].pickupTicket = editedPickupTicket
+
+                                loads[index].pickupTons =
+                                    Double(editedPickupTons) ?? 0
+
+                                loads[index].deliveryTons =
+                                    Double(editedDeliveryTons) ?? 0
+                            }
+
+                            selectedLoad = nil
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.green)
+
+                        Spacer()
+                    }
+                    .padding()
+                }
+                .onAppear {
+
+                    editedPickupTicket = load.pickupTicket
+
+                    editedPickupTons =
+                        String(format: "%.2f", load.pickupTons)
+
+                    editedDeliveryTons =
+                        String(format: "%.2f", load.deliveryTons)
+                }
+            }
+        }
         .onAppear {
             parseCSV()
         }
@@ -203,7 +297,7 @@ struct CSVPreviewView: View {
             }
         }
         .padding()
-        .background(.white.opacity(0.95))
+        .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 24))
     }
     

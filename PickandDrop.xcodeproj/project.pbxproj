@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8749487B2FAEC7E2006E0BFB /* DriverManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8749487A2FAEC7DE006E0BFB /* DriverManagerView.swift */; };
 		8751679C2FAD689800E8B528 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 875167882FAD689800E8B528 /* Assets.xcassets */; };
 		8751679E2FAD689800E8B528 /* AddFuelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875167852FAD689800E8B528 /* AddFuelView.swift */; };
 		8751679F2FAD689800E8B528 /* AddLoadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875167862FAD689800E8B528 /* AddLoadView.swift */; };
@@ -27,6 +28,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		8749487A2FAEC7DE006E0BFB /* DriverManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverManagerView.swift; sourceTree = "<group>"; };
 		875167852FAD689800E8B528 /* AddFuelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFuelView.swift; sourceTree = "<group>"; };
 		875167862FAD689800E8B528 /* AddLoadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddLoadView.swift; sourceTree = "<group>"; };
 		875167872FAD689800E8B528 /* AdminDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminDashboardView.swift; sourceTree = "<group>"; };
@@ -50,6 +52,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		874948682FAEBC7D006E0BFB /* Login */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Login;
+			sourceTree = "<group>";
+		};
 		875167B02FAD68AB00E8B528 /* Reports */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Reports;
@@ -78,6 +85,7 @@
 				875167892FAD689800E8B528 /* CSVExporter.swift */,
 				8751678B2FAD689800E8B528 /* DriverDashboardView.swift */,
 				8751678C2FAD689800E8B528 /* DriverDetailView.swift */,
+				8749487A2FAEC7DE006E0BFB /* DriverManagerView.swift */,
 				8751678D2FAD689800E8B528 /* FinishDayView.swift */,
 				8751678E2FAD689800E8B528 /* Info.plist */,
 				8751678F2FAD689800E8B528 /* LoadListView.swift */,
@@ -90,6 +98,7 @@
 				875167972FAD689800E8B528 /* ShareSheet.swift */,
 				875167982FAD689800E8B528 /* StartShiftView.swift */,
 				875167992FAD689800E8B528 /* StorageManager.swift */,
+				874948682FAEBC7D006E0BFB /* Login */,
 				875167B02FAD68AB00E8B528 /* Reports */,
 			);
 			path = PickandDrop;
@@ -127,6 +136,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				874948682FAEBC7D006E0BFB /* Login */,
 				875167B02FAD68AB00E8B528 /* Reports */,
 			);
 			name = PickandDrop;
@@ -199,6 +209,7 @@
 				875167A92FAD689800E8B528 /* PickupDeliveryView.swift in Sources */,
 				875167AB2FAD689800E8B528 /* RootView.swift in Sources */,
 				875167AC2FAD689800E8B528 /* SetupView.swift in Sources */,
+				8749487B2FAEC7E2006E0BFB /* DriverManagerView.swift in Sources */,
 				875167AD2FAD689800E8B528 /* ShareSheet.swift in Sources */,
 				875167AE2FAD689800E8B528 /* StartShiftView.swift in Sources */,
 				875167AF2FAD689800E8B528 /* StorageManager.swift in Sources */,

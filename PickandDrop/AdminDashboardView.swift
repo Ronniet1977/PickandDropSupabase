@@ -46,6 +46,8 @@ struct AdminDashboardView: View {
     @State private var bossReportText = ""
     @State private var dismissedDrivers: Set<String> = []
     
+    @State private var showResetAlert = false
+    
     var combinedReports: [DriverSummary] {
 
         let grouped = Dictionary(grouping: allLoads) {
@@ -241,14 +243,34 @@ struct AdminDashboardView: View {
 
             dashboardTab
                 .tabItem {
-                    Label("Dashboard", systemImage: "person.3.fill")
+                    Label(
+                        "Dashboard",
+                        systemImage: "chart.bar.fill"
+                    )
                 }
 
             NavigationStack {
-                ReportsView(allLoads: allLoads)
+
+                DriverManagerView()
+
             }
             .tabItem {
-                Label("Reports", systemImage: "doc.text.fill")
+                Label(
+                    "Drivers",
+                    systemImage: "person.3.fill"
+                )
+            }
+
+            NavigationStack {
+
+                ReportsView(allLoads: allLoads)
+
+            }
+            .tabItem {
+                Label(
+                    "Reports",
+                    systemImage: "doc.text.fill"
+                )
             }
         }
     }
@@ -416,23 +438,24 @@ struct AdminDashboardView: View {
             }
             .navigationTitle("Admin")
             .toolbar {
+
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    
+
                     Button("Boss Report") {
 
                         bossReportText = makeBossDailyReport()
                         showBossReport = true
                     }
                     .foregroundStyle(.white)
-                    
+
                     Button {
                         loadFromiCloud()
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
-                    
+
                     Menu {
-                        
+
                         Button {
                             showImporter = true
                         } label: {
@@ -441,9 +464,20 @@ struct AdminDashboardView: View {
                                 systemImage: "tray.and.arrow.down"
                             )
                         }
-                        
+
                         Divider()
-                        
+
+                        Button(role: .destructive) {
+                            showResetAlert = true
+                        } label: {
+                            Label(
+                                "Archive & Reset",
+                                systemImage: "trash.fill"
+                            )
+                        }
+
+                        Divider()
+
                         Button(role: .destructive) {
                             logout()
                         } label: {
@@ -452,9 +486,9 @@ struct AdminDashboardView: View {
                                 systemImage: "rectangle.portrait.and.arrow.right"
                             )
                         }
-                        
+
                     } label: {
-                        
+
                         Image(systemName: "ellipsis.circle.fill")
                     }
                 }
@@ -547,6 +581,75 @@ struct AdminDashboardView: View {
                     }
                 }
             }
+            .alert(
+                "Archive & Reset?",
+                isPresented: $showResetAlert
+            ) {
+
+                Button("Cancel", role: .cancel) { }
+
+                Button("Reset", role: .destructive) {
+                    archiveAndReset()
+                }
+
+            } message: {
+
+                Text(
+                    "This will clear active loads and shifts but keep FINAL reports."
+                )
+            }
+        }
+    }
+    
+    func archiveAndReset() {
+
+        print("🔥 RESET BUTTON PRESSED")
+
+        do {
+
+            let loadCount = loads.count
+            let shiftCount = shifts.count
+
+            print("Loads:", loadCount)
+            print("Shifts:", shiftCount)
+
+            try context.delete(model: LoadItem.self)
+            try context.delete(model: Shift.self)
+
+            try context.save()
+
+            print("✅ SwiftData deleted")
+
+            // DELETE ACTIVE CSV FILES
+            let docs = FileManager.default.urls(
+                for: .documentDirectory,
+                in: .userDomainMask
+            ).first!
+
+            let reportsFolder = docs.appendingPathComponent("Truck Reports")
+
+            let files = try FileManager.default.contentsOfDirectory(
+                at: reportsFolder,
+                includingPropertiesForKeys: nil
+            )
+
+            for file in files {
+
+                print("📄 Found file:", file.lastPathComponent)
+
+                if file.lastPathComponent.contains("ACTIVE") {
+
+                    try? FileManager.default.removeItem(at: file)
+
+                    print("🗑 Deleted ACTIVE file")
+                }
+            }
+
+            print("✅ Archive & Reset complete")
+
+        } catch {
+
+            print("❌ Reset failed:", error)
         }
     }
     

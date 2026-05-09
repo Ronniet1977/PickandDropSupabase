@@ -17,11 +17,11 @@ struct CSVLoad: Identifiable {
     let driverName: String
     let truck: String
 
-    let pickupTicket: String
-    let pickupTons: Double
+    var pickupTicket: String
+    var pickupTons: Double
 
-    let deliveryTicket: String
-    let deliveryTons: Double
+    var deliveryTicket: String
+    var deliveryTons: Double
 
     let pickedUp: String
     let delivered: String

@@ -19,11 +19,20 @@ struct DriverSummary: Identifiable {
 
 @Model
 class DriverProfile {
+
     var name: String = ""
     var truckNumber: String = ""
-    var role: String = "driver"
+
+    var username: String = ""
+    var password: String = ""
     
-    init() {}   // ✅ REQUIRED
+    var role: String = "driver"
+
+    var isActive: Bool = true
+    
+    var mustChangePassword: Bool = true
+
+    init() {}
 }
 
 @Model
