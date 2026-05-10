@@ -27,6 +27,7 @@
 		875167AF2FAD689800E8B528 /* StorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875167992FAD689800E8B528 /* StorageManager.swift */; };
 		8789BB032FB04408004400C5 /* CompanySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB022FB04403004400C5 /* CompanySettings.swift */; };
 		8789BB052FB06063004400C5 /* CompanySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB042FB0604F004400C5 /* CompanySetupView.swift */; };
+		87CBD10A2FB1083E0038E416 /* SharedFolderSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87CBD1092FB1083B0038E416 /* SharedFolderSetupView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +53,7 @@
 		875167992FAD689800E8B528 /* StorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageManager.swift; sourceTree = "<group>"; };
 		8789BB022FB04403004400C5 /* CompanySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySettings.swift; sourceTree = "<group>"; };
 		8789BB042FB0604F004400C5 /* CompanySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySetupView.swift; sourceTree = "<group>"; };
+		87CBD1092FB1083B0038E416 /* SharedFolderSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFolderSetupView.swift; sourceTree = "<group>"; };
 		87DE09572FA52A09007E9268 /* PickandDrop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PickandDrop.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -82,6 +84,7 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				87CBD1092FB1083B0038E416 /* SharedFolderSetupView.swift */,
 				8789BB042FB0604F004400C5 /* CompanySetupView.swift */,
 				8789BB022FB04403004400C5 /* CompanySettings.swift */,
 				875167852FAD689800E8B528 /* AddFuelView.swift */,
@@ -217,6 +220,7 @@
 				875167AB2FAD689800E8B528 /* RootView.swift in Sources */,
 				875167AC2FAD689800E8B528 /* SetupView.swift in Sources */,
 				8749487B2FAEC7E2006E0BFB /* DriverManagerView.swift in Sources */,
+				87CBD10A2FB1083E0038E416 /* SharedFolderSetupView.swift in Sources */,
 				875167AD2FAD689800E8B528 /* ShareSheet.swift in Sources */,
 				875167AE2FAD689800E8B528 /* StartShiftView.swift in Sources */,
 				875167AF2FAD689800E8B528 /* StorageManager.swift in Sources */,

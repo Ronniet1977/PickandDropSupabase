@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct CompanySetupView: View {
     
@@ -21,6 +22,10 @@ struct CompanySetupView: View {
     
     @State private var adminUsername = "admin"
     @State private var adminPassword = ""
+    
+    @State private var showFolderPicker = false
+    @State private var selectedFolderName = ""
+    @State private var errorText = ""
     
     var body: some View {
         
@@ -96,6 +101,37 @@ struct CompanySetupView: View {
                         )
                     }
                     
+                    Section("Shared Reports Folder") {
+
+                        Button {
+
+                            showFolderPicker = true
+
+                        } label: {
+
+                            Label(
+                                selectedFolderName.isEmpty
+                                ? "Select Shared Folder"
+                                : selectedFolderName,
+                                systemImage: "folder.fill"
+                            )
+                        }
+
+                        if !selectedFolderName.isEmpty {
+
+                            Text("Shared folder connected")
+                                .foregroundStyle(.green)
+                                .font(.caption)
+                        }
+                    }
+                    
+                    if !errorText.isEmpty {
+
+                        Text(errorText)
+                            .foregroundStyle(.red)
+                    }
+                    
+                    
                     Button("Create Company") {
                         guard !truckingCompany.trimmingCharacters(
                             in: .whitespacesAndNewlines
@@ -116,6 +152,13 @@ struct CompanySetupView: View {
                         }
                         
                         guard adminPassword.count >= 6 else {
+                            return
+                        }
+                        
+                        guard !selectedFolderName.isEmpty else {
+
+                            errorText = "Please select a shared folder"
+
                             return
                         }
                         
@@ -164,6 +207,15 @@ struct CompanySetupView: View {
                             
                             print("✅ Company setup complete")
                             
+                            UserDefaults.standard.set(
+                                admin.name,
+                                forKey: "currentDriverName"
+                            )
+
+                            UserDefaults.standard.set(
+                                true,
+                                forKey: "isLoggedIn"
+                            )
                             dismiss()
                             
                         } catch {
@@ -175,6 +227,36 @@ struct CompanySetupView: View {
                 .scrollContentBackground(.hidden)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
+                .fileImporter(
+                    isPresented: $showFolderPicker,
+                    allowedContentTypes: [.folder]
+                ) { result in
+
+                    switch result {
+
+                    case .success(let url):
+
+                        let didAccess =
+                            url.startAccessingSecurityScopedResource()
+
+                        if didAccess {
+
+                            StorageManager.saveTruckReportsFolder(url)
+
+                            selectedFolderName =
+                                url.lastPathComponent
+
+                            print("✅ Shared folder selected:",
+                                  url.path)
+
+                            url.stopAccessingSecurityScopedResource()
+                        }
+
+                    case .failure(let error):
+
+                        print("❌ Folder picker failed:", error)
+                    }
+                }
             }
         }
     }

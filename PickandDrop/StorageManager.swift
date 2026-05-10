@@ -74,4 +74,11 @@ struct StorageManager {
 
         return folder
     }
+    
+    static func hasSharedFolder() -> Bool {
+
+        UserDefaults.standard.data(
+            forKey: folderBookmarkKey
+        ) != nil
+    }
 }

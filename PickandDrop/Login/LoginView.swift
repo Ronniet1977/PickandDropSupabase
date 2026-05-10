@@ -98,70 +98,10 @@ struct LoginView: View {
                 .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 28))
                 .padding(.horizontal)
-                .onAppear {
-                    createDefaultAdminIfNeeded()
-                }
 
                 Spacer()
             }
             .padding()
-        }
-    }
-    
-    func createDefaultAdminIfNeeded() {
-        if companySettings.isEmpty {
-
-            let settings = CompanySettings()
-
-            settings.truckingCompanyName =
-                "Ronnie Trucking"
-
-            settings.pickupCompanyName =
-                "Pickup"
-
-            settings.dropoffCompanyName =
-                "Dropoff"
-
-            settings.ratePerTon = 0
-
-            context.insert(settings)
-
-            do {
-                try context.save()
-            } catch {
-                print("❌ Failed saving settings:", error)
-            }
-        }
-
-        let adminExists = drivers.contains {
-            $0.role == "admin"
-        }
-
-        if !adminExists {
-
-            let admin = DriverProfile()
-
-            admin.name = "Administrator"
-            admin.truckNumber = "ADMIN"
-
-            admin.username = "admin"
-            admin.password = "1234"
-            admin.mustChangePassword = true
-
-            admin.role = "admin"
-
-            context.insert(admin)
-
-            do {
-
-                try context.save()
-
-                print("✅ Default admin created")
-
-            } catch {
-
-                print("❌ Failed creating admin:", error)
-            }
         }
     }
 

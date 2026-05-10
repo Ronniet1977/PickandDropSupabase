@@ -26,7 +26,12 @@ struct RootView: View {
 
             CompanySetupView()
 
-        } else if isLoggedIn,
+        }
+        else if !StorageManager.hasSharedFolder() {
+
+            SharedFolderSetupView()
+        }
+        else if isLoggedIn,
                   let driver = drivers.first(where: {
                       $0.name == currentDriverName
                   }) {
