@@ -27,7 +27,8 @@ struct CSVLoad: Identifiable {
     let delivered: String
 
     var isDelivered: Bool {
-        !deliveryTicket.isEmpty &&
-        deliveryTicket != "Not delivered"
+        !deliveryTicket.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        ).isEmpty
     }
 }

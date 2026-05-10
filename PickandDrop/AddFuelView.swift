@@ -8,8 +8,13 @@ struct AddFuelView: View {
     @Environment(\.dismiss) private var dismiss
     @Query var shifts: [Shift]
     @Query var loads: [LoadItem]
+    @Query var companySettings: [CompanySettings]
     
     @State private var fuelAmount = ""
+    
+    var settings: CompanySettings? {
+        companySettings.first
+    }
     
     var activeShift: Shift? {
         shifts.first(where: {
@@ -176,7 +181,8 @@ struct AddFuelView: View {
             _ = CSVExporter.generateCSV(
                 loads: driverLoads,
                 driver: driver,
-                activeShift: currentShift
+                activeShift: currentShift,
+                settings: settings
             )
 
             dismiss()

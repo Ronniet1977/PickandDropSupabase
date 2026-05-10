@@ -4,6 +4,8 @@ import SwiftData
 struct RootView: View {
 
     @Query var drivers: [DriverProfile]
+    @Query var companySettings: [CompanySettings]
+    
 
     @AppStorage("currentDriverName")
     var currentDriverName: String = ""
@@ -13,13 +15,21 @@ struct RootView: View {
 
     @AppStorage("isLoggedIn")
     var isLoggedIn = false
+    
+    var settings: CompanySettings? {
+        companySettings.first
+    }
 
     var body: some View {
 
-        if isLoggedIn,
-           let driver = drivers.first(where: {
-               $0.name == currentDriverName
-           }) {
+        if settings == nil {
+
+            CompanySetupView()
+
+        } else if isLoggedIn,
+                  let driver = drivers.first(where: {
+                      $0.name == currentDriverName
+                  }) {
 
             if mustChangePassword {
 
@@ -40,6 +50,16 @@ struct RootView: View {
         } else {
 
             LoginView()
+                .onAppear {
+
+                    if drivers.first(where: {
+                        $0.name == currentDriverName
+                    }) == nil {
+
+                        currentDriverName = ""
+                        isLoggedIn = false
+                    }
+                }
         }
     }
 }

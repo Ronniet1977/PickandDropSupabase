@@ -10,8 +10,13 @@ struct DriverDashboardView: View {
     @Query var drivers: [DriverProfile]
     @Query var shifts: [Shift]
     @Query var loads: [LoadItem]
+    @Query var companySettings: [CompanySettings]
     
     let driver: DriverProfile
+    
+    var settings: CompanySettings? {
+        companySettings.first
+    }
     
     var activeShift: Shift? {
         shifts.first(where: {
@@ -94,12 +99,29 @@ struct DriverDashboardView: View {
                                             )
                                     }
 
+                                    Text(
+                                        settings?.truckingCompanyName
+                                        ?? "Trucking Company"
+                                    )
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.blue)
+
                                     Text(driver.name)
                                         .font(.largeTitle.bold())
                                         .foregroundStyle(.white)
 
                                     Text("Truck \(driver.truckNumber)")
                                         .foregroundStyle(.white.opacity(0.7))
+                                    
+                                    Text(
+                                        "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                                    )
+                                    .font(.caption.bold())
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(.blue.opacity(0.15))
+                                    .foregroundStyle(.blue)
+                                    .clipShape(Capsule())
 
                                     TimelineView(.periodic(from: .now, by: 1)) { context in
 
@@ -165,7 +187,7 @@ struct DriverDashboardView: View {
                                 }
 
                                 dashboardStat(
-                                    title: "Tons",
+                                    title: "\(settings?.pickupCompanyName ?? "Pickup") Tons",
                                     value: String(
                                         format: "%.0f",
                                         totalTons
@@ -179,7 +201,7 @@ struct DriverDashboardView: View {
                                 }.count
 
                                 dashboardStat(
-                                    title: "Delivered",
+                                    title: "\(settings?.dropoffCompanyName ?? "Dropoff")",
                                     value: "\(deliveredCount)"
                                 )
                             }

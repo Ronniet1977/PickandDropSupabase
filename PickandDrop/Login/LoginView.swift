@@ -12,6 +12,7 @@ struct LoginView: View {
     @Environment(\.modelContext) private var context
 
     @Query var drivers: [DriverProfile]
+    @Query var companySettings: [CompanySettings]
 
     @AppStorage("currentDriverName")
     var currentDriverName = ""
@@ -51,11 +52,16 @@ struct LoginView: View {
                         .font(.system(size: 70))
                         .foregroundStyle(.white)
 
-                    Text("Pick & Drop")
+                    Text(
+                        companySettings.first?.truckingCompanyName
+                        ?? "Pick & Drop"
+                    )
                         .font(.largeTitle.bold())
                         .foregroundStyle(.white)
 
-                    Text("Fleet Operations")
+                    Text(
+                        "\(companySettings.first?.pickupCompanyName ?? "Pickup") → \(companySettings.first?.dropoffCompanyName ?? "Dropoff")"
+                    )
                         .foregroundStyle(.white.opacity(0.7))
                 }
 
@@ -103,6 +109,29 @@ struct LoginView: View {
     }
     
     func createDefaultAdminIfNeeded() {
+        if companySettings.isEmpty {
+
+            let settings = CompanySettings()
+
+            settings.truckingCompanyName =
+                "Ronnie Trucking"
+
+            settings.pickupCompanyName =
+                "Pickup"
+
+            settings.dropoffCompanyName =
+                "Dropoff"
+
+            settings.ratePerTon = 0
+
+            context.insert(settings)
+
+            do {
+                try context.save()
+            } catch {
+                print("❌ Failed saving settings:", error)
+            }
+        }
 
         let adminExists = drivers.contains {
             $0.role == "admin"
@@ -117,6 +146,7 @@ struct LoginView: View {
 
             admin.username = "admin"
             admin.password = "1234"
+            admin.mustChangePassword = true
 
             admin.role = "admin"
 
@@ -137,11 +167,18 @@ struct LoginView: View {
 
     func login() {
         for driver in drivers {
+            do {
+                try context.save()
+            } catch {
+                print("❌ Failed saving migrated users:", error)
+            }
 
             if driver.username.isEmpty {
 
                 driver.username = driver.name.lowercased()
-                driver.password = "1234"
+                if driver.password.isEmpty {
+                    driver.password = "1234"
+                }
             }
         }
         

@@ -40,6 +40,7 @@ class Shift {
     var id: UUID = UUID()
     
     var driverName: String = ""
+    var companyName: String = ""
     var startedAt: Date = Date()
     var endedAt: Date? = nil
     
@@ -74,6 +75,10 @@ class LoadItem {
     // ✅ Computed (clean + safe)
     var isPickedUp: Bool { pickedUpAt != nil }
     var isDelivered: Bool { deliveredAt != nil }
+    
+    var truckingCompanyName: String = ""
+    var pickupCompanyName: String = ""
+    var dropoffCompanyName: String = ""
 
     init() {}
 }

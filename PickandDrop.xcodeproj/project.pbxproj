@@ -25,6 +25,8 @@
 		875167AD2FAD689800E8B528 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875167972FAD689800E8B528 /* ShareSheet.swift */; };
 		875167AE2FAD689800E8B528 /* StartShiftView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875167982FAD689800E8B528 /* StartShiftView.swift */; };
 		875167AF2FAD689800E8B528 /* StorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875167992FAD689800E8B528 /* StorageManager.swift */; };
+		8789BB032FB04408004400C5 /* CompanySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB022FB04403004400C5 /* CompanySettings.swift */; };
+		8789BB052FB06063004400C5 /* CompanySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB042FB0604F004400C5 /* CompanySetupView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +50,8 @@
 		875167972FAD689800E8B528 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		875167982FAD689800E8B528 /* StartShiftView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartShiftView.swift; sourceTree = "<group>"; };
 		875167992FAD689800E8B528 /* StorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageManager.swift; sourceTree = "<group>"; };
+		8789BB022FB04403004400C5 /* CompanySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySettings.swift; sourceTree = "<group>"; };
+		8789BB042FB0604F004400C5 /* CompanySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySetupView.swift; sourceTree = "<group>"; };
 		87DE09572FA52A09007E9268 /* PickandDrop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PickandDrop.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -78,6 +82,8 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				8789BB042FB0604F004400C5 /* CompanySetupView.swift */,
+				8789BB022FB04403004400C5 /* CompanySettings.swift */,
 				875167852FAD689800E8B528 /* AddFuelView.swift */,
 				875167862FAD689800E8B528 /* AddLoadView.swift */,
 				875167872FAD689800E8B528 /* AdminDashboardView.swift */,
@@ -196,6 +202,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8789BB052FB06063004400C5 /* CompanySetupView.swift in Sources */,
 				8751679E2FAD689800E8B528 /* AddFuelView.swift in Sources */,
 				8751679F2FAD689800E8B528 /* AddLoadView.swift in Sources */,
 				875167A02FAD689800E8B528 /* AdminDashboardView.swift in Sources */,
@@ -213,6 +220,7 @@
 				875167AD2FAD689800E8B528 /* ShareSheet.swift in Sources */,
 				875167AE2FAD689800E8B528 /* StartShiftView.swift in Sources */,
 				875167AF2FAD689800E8B528 /* StorageManager.swift in Sources */,
+				8789BB032FB04408004400C5 /* CompanySettings.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -5,9 +5,12 @@ struct SetupView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query var drivers: [DriverProfile]
+    @Query var companySettings: [CompanySettings]
     
     @AppStorage("hasSetup") private var hasSetup = false
     @AppStorage("currentDriverName") var currentDriverName: String = ""
+    @AppStorage("isLoggedIn")
+    var isLoggedIn = false
     
     @State private var driverName = ""
     @State private var truckNumber = ""
@@ -49,11 +52,16 @@ struct SetupView: View {
                                 .foregroundStyle(.blue)
                         }
                         
-                        Text("Pick & Drop")
+                        Text(
+                            companySettings.first?.truckingCompanyName
+                            ?? "Pick & Drop"
+                        )
                             .font(.system(size: 40, weight: .bold))
                             .foregroundStyle(.white)
                         
-                        Text("Fleet Operations")
+                        Text(
+                            "\(companySettings.first?.pickupCompanyName ?? "Pickup") → \(companySettings.first?.dropoffCompanyName ?? "Dropoff")"
+                        )
                             .foregroundStyle(.white.opacity(0.7))
                     }
                     
@@ -115,6 +123,8 @@ struct SetupView: View {
                             
                             driver.role = role
                             
+                            driver.mustChangePassword = true
+                            
                             currentDriverName = driver.name
                             context.insert(driver)
                             
@@ -125,6 +135,7 @@ struct SetupView: View {
                                 print("✅ SAVE SUCCESS")
                                 
                                 hasSetup = true
+                                isLoggedIn = true
                                 
                             } catch {
                                 

@@ -24,6 +24,8 @@ struct AdminDashboardView: View {
     @Query var shifts: [Shift]
     @Query(sort: \LoadItem.createdAt, order: .reverse)
     var allLoads: [LoadItem]
+    @Query var companySettings: [CompanySettings]
+    
     
     @AppStorage("hasSetup") var hasSetup = true
     @AppStorage("currentDriverName") var currentDriverName: String = ""
@@ -47,6 +49,10 @@ struct AdminDashboardView: View {
     @State private var dismissedDrivers: Set<String> = []
     
     @State private var showResetAlert = false
+    
+    var settings: CompanySettings? {
+        companySettings.first
+    }
     
     var combinedReports: [DriverSummary] {
 
@@ -263,7 +269,7 @@ struct AdminDashboardView: View {
 
             NavigationStack {
 
-                ReportsView(allLoads: allLoads)
+                ReportsView()
 
             }
             .tabItem {
@@ -361,14 +367,14 @@ struct AdminDashboardView: View {
                             
                             HStack(spacing: 12) {
                                 BossSummaryCard(
-                                    title: "BRC Tons",
+                                    title: "\(settings?.pickupCompanyName ?? "Pickup") Tons",
                                     value: String(format: "%.0f", totalPickupTons),
                                     subtitle: "Pickup tons",
                                     systemImage: "arrow.up.circle.fill"
                                 )
                                 
                                 BossSummaryCard(
-                                    title: "HoneyGo Tons",
+                                    title: "\(settings?.dropoffCompanyName ?? "Drop Off") Tons",
                                     value: String(format: "%.0f", totalDeliveryTons),
                                     subtitle: "Delivery tons",
                                     systemImage: "arrow.down.circle.fill"
@@ -621,12 +627,8 @@ struct AdminDashboardView: View {
             print("✅ SwiftData deleted")
 
             // DELETE ACTIVE CSV FILES
-            let docs = FileManager.default.urls(
-                for: .documentDirectory,
-                in: .userDomainMask
-            ).first!
-
-            let reportsFolder = docs.appendingPathComponent("Truck Reports")
+            let reportsFolder =
+                StorageManager.truckReportsFolder()
 
             let files = try FileManager.default.contentsOfDirectory(
                 at: reportsFolder,
@@ -719,9 +721,13 @@ struct AdminDashboardView: View {
                 
                 VStack(alignment: .trailing, spacing: 4) {
                     
-                    Text("Pickup: \(driver.pickupTons, specifier: "%.0f")")
+                    Text(
+                        "\(settings?.pickupCompanyName ?? "Pickup"): \(driver.pickupTons, specifier: "%.0f")"
+                    )
                     
-                    Text("Delivered: \(driver.deliveryTons, specifier: "%.0f")")
+                    Text(
+                        "\(settings?.dropoffCompanyName ?? "Dropoff"): \(driver.deliveryTons, specifier: "%.0f")"
+                    )
                 }
                 .font(.caption)
             }
@@ -812,13 +818,13 @@ struct AdminDashboardView: View {
         let totalFuel = driverSummaries.reduce(0.0) { $0 + $1.fuel }
         
         var report = """
-    📋 BOSS DAILY REPORT
+    📋 \(settings?.truckingCompanyName ?? "Trucking Company") DAILY REPORT
     Date: \(dateText)
     
     TOTALS
     Loads: \(totalLoads)
-    Pickup Tons: \(String(format: "%.2f", totalPickupTons))
-    Delivery Tons: \(String(format: "%.2f", totalDeliveryTons))
+    \(settings?.pickupCompanyName ?? "Pickup") Tons: \(String(format: "%.2f", totalPickupTons))
+    \(settings?.dropoffCompanyName ?? "Dropoff") Tons: \(String(format: "%.2f", totalDeliveryTons))
     Fuel: \(String(format: "%.2f", totalFuel))
     
     -------------------------
@@ -835,16 +841,16 @@ struct AdminDashboardView: View {
     👤 \(driver.name)
     Truck: \(driver.truck)
     Loads: \(driver.loads)
-    Pickup Tons: \(String(format: "%.2f", driver.pickupTons))
-    Delivered Tons: \(String(format: "%.2f", driver.deliveryTons))
+    \(settings?.pickupCompanyName ?? "Pickup") Tons: \(String(format: "%.2f", driver.pickupTons))
+    \(settings?.dropoffCompanyName ?? "Dropoff") Tons: \(String(format: "%.2f", driver.deliveryTons))
     
     """
             
             for load in driverLoads {
                 report += """
       • Ticket: \(load.pickupTicketNumber)
-        Pickup Tons: \(String(format: "%.2f", load.pickupTons))
-        Delivery Tons: \(String(format: "%.2f", load.deliveryTons))
+        \(settings?.pickupCompanyName ?? "Pickup") Tons: \(String(format: "%.2f", load.pickupTons))
+        \(settings?.dropoffCompanyName ?? "Dropoff") Tons: \(String(format: "%.2f", load.deliveryTons))
     
     """
             }
@@ -856,7 +862,7 @@ struct AdminDashboardView: View {
     }
     
     func exportBossDailyReport() -> URL {
-        var csv = "Driver,Truck,Loads,Pickup Tons,Delivery Tons,Open Loads,Delivered Loads,Difference\n"
+        var csv = "Driver,Truck,Loads,\(settings?.pickupCompanyName ?? "Pickup") Tons,\(settings?.dropoffCompanyName ?? "Dropoff") Tons,Open Loads,Delivered Loads,Difference\n"
         
         let grouped = Dictionary(grouping: allLoads) { $0.driverName }
         
@@ -1315,7 +1321,7 @@ struct AdminDashboardView: View {
         csv += "\n\n"
         
         // LOAD DETAILS
-        csv += "Date,Time,Driver,Truck,Pickup Ticket,Pickup Tons,Delivery Ticket,Delivery Tons\n"
+        csv += "Date,Time,Driver,Truck,\(settings?.pickupCompanyName ?? "Pickup") Ticket,\(settings?.pickupCompanyName ?? "Pickup") Tons,\(settings?.dropoffCompanyName ?? "Dropoff") Ticket,\(settings?.dropoffCompanyName ?? "Dropoff") Tons\n"
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"

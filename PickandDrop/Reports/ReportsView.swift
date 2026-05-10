@@ -6,14 +6,19 @@
 //
 
 import SwiftUI
+import SwiftData
 import QuickLook
 
 struct ReportsView: View {
-
-    var allLoads: [LoadItem]
-
+    
+    @Query var companySettings: [CompanySettings]
     @State private var reportFiles: [URL] = []
     @State private var invoiceURL: URL?
+    
+    
+    var settings: CompanySettings? {
+        companySettings.first
+    }
 
     var body: some View {
 
@@ -43,6 +48,19 @@ struct ReportsView: View {
                             Text("Reports")
                                 .font(.system(size: 38, weight: .bold))
                                 .foregroundStyle(.white)
+                            
+                            Text(
+                                settings?.truckingCompanyName
+                                ?? "Trucking Company"
+                            )
+                            .font(.headline)
+                            .foregroundStyle(.blue)
+                            
+                            Text(
+                                "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
 
                             Text("Invoices & Shift Reports")
                                 .foregroundStyle(.white.opacity(0.7))
@@ -254,10 +272,15 @@ struct ReportsView: View {
             }
 
             invoiceURL = InvoiceGenerator.createInvoicePDF(
+                companyName: settings?.truckingCompanyName ?? "Trucking Company",
+                pickupCompany: settings?.pickupCompanyName ?? "Pickup",
+                dropoffCompany: settings?.dropoffCompanyName ?? "Dropoff",
+                invoiceTitle: "Invoice",
                 driverName: deliveredLoads.first?.driverName ?? "Unknown",
                 truckNumber: deliveredLoads.first?.truck ?? "Unknown",
                 loads: deliveredLoads,
-                ratePerTon: 11.00
+                ratePerTon: settings?.ratePerTon ?? 0,
+                useDeliveryTons: true
             )
 
             print(invoiceURL?.path ?? "NO PDF URL")
@@ -314,12 +337,15 @@ struct ReportsView: View {
             }
 
             invoiceURL = InvoiceGenerator.createInvoicePDF(
-                companyName: "BRC",
-                invoiceTitle: "Pickup Invoice",
+                companyName: settings?.truckingCompanyName ?? "Trucking Company",
+                pickupCompany: settings?.pickupCompanyName ?? "Pickup",
+                dropoffCompany: settings?.dropoffCompanyName ?? "Dropoff",
+                invoiceTitle: "\(settings?.pickupCompanyName ?? "Pickup") Invoice",
                 driverName: pickupLoads.first?.driverName ?? "Unknown",
                 truckNumber: pickupLoads.first?.truck ?? "Unknown",
                 loads: pickupLoads,
-                ratePerTon: 11.00
+                ratePerTon: settings?.ratePerTon ?? 0,
+                useDeliveryTons: false
             )
 
             print(invoiceURL?.path ?? "NO PDF URL")
@@ -376,12 +402,15 @@ struct ReportsView: View {
             }
 
             invoiceURL = InvoiceGenerator.createInvoicePDF(
-                companyName: "HoneyGo",
-                invoiceTitle: "Delivery Invoice",
+                companyName: settings?.truckingCompanyName ?? "Trucking Company",
+                pickupCompany: settings?.pickupCompanyName ?? "Pickup",
+                dropoffCompany: settings?.dropoffCompanyName ?? "Dropoff",
+                invoiceTitle: "\(settings?.dropoffCompanyName ?? "Dropoff") Invoice",
                 driverName: deliveryLoads.first?.driverName ?? "Unknown",
                 truckNumber: deliveryLoads.first?.truck ?? "Unknown",
                 loads: deliveryLoads,
-                ratePerTon: 11.00
+                ratePerTon: settings?.ratePerTon ?? 0,
+                useDeliveryTons: true
             )
 
             print(invoiceURL?.path ?? "NO PDF URL")
@@ -395,7 +424,9 @@ struct ReportsView: View {
 
     func loadFiles() {
 
-        let folder = StorageManager.truckReportsFolder()
+        let folder = StorageManager.companyFolder(
+            settings?.truckingCompanyName ?? "Company"
+        )
 
         do {
 

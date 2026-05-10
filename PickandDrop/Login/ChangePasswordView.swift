@@ -44,6 +44,14 @@ struct ChangePasswordView: View {
                 Text("Change Password")
                     .font(.largeTitle.bold())
                     .foregroundStyle(.white)
+                
+                Text(driver.name)
+                    .font(.headline)
+                    .foregroundStyle(.blue)
+                
+                Text("Temporary password detected")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
 
                 VStack(spacing: 16) {
 
@@ -75,6 +83,13 @@ struct ChangePasswordView: View {
                 .padding()
                 .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 28))
+                .onChange(of: newPassword) {
+                    errorText = ""
+                }
+
+                .onChange(of: confirmPassword) {
+                    errorText = ""
+                }
                 .padding()
 
                 Spacer()
@@ -95,6 +110,12 @@ struct ChangePasswordView: View {
             errorText = "Passwords do not match"
             return
         }
+        
+        guard newPassword.count >= 6 else {
+
+            errorText = "Password must be at least 4 characters"
+            return
+        }
 
         driver.password = newPassword
         driver.mustChangePassword = false
@@ -104,6 +125,9 @@ struct ChangePasswordView: View {
             try context.save()
 
             mustChangePassword = false
+            withAnimation {
+                mustChangePassword = false
+            }
 
             print("✅ Password changed")
 

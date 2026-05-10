@@ -10,8 +10,13 @@ struct FinishDayView: View {
     @Query var drivers: [DriverProfile]
     @Query var loads: [LoadItem]
     @Query var shifts: [Shift]
+    @Query var companySettings: [CompanySettings]
     
     @State private var didFinish = false
+    
+    var settings: CompanySettings? {
+        companySettings.first
+    }
     
     var activeShift: Shift? {
         shifts.first(where: {
@@ -36,7 +41,9 @@ struct FinishDayView: View {
                     .bold()
                 
                 Text("Loads: \(shiftLoads.count)")
-                Text("Total Tons: \(String(format: "%.2f", totalTons))")
+                Text(
+                    "\(settings?.dropoffCompanyName ?? "Dropoff") Tons: \(String(format: "%.2f", totalTons))"
+                )
                 
                 if activeShift == nil {
                     Text("No active shift")
@@ -45,14 +52,37 @@ struct FinishDayView: View {
                     Button {
                         finishDay()
                     } label: {
-                        Text("Finish Day")
+                        VStack(spacing: 6) {
+                            
+                            Text("Finish Day")
+                                .font(.largeTitle)
+                                .bold()
+                            
+                            Text(
+                                settings?.truckingCompanyName
+                                ?? "Trucking Company"
+                            )
+                            .font(.headline)
+                            .foregroundStyle(.blue)
+                            
+                            Text(
+                                "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                        Button {
+                            finishDay()
+                        } label: {
+                            Text("Finish Day")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
                 }
             }
             .padding()
-            .navigationTitle("Finish Day")
+            .navigationTitle(driver.name)
         }
         
         // ✅ ATTACH HERE (outside NavigationStack block)
@@ -87,6 +117,7 @@ struct FinishDayView: View {
                 loads: driverLoads,
                 driver: driver,
                 activeShift: shift,
+                settings: settings,
                 isFinal: true
             )
 

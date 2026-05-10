@@ -15,7 +15,8 @@ struct PickandDrop: App {
             for: [
                 DriverProfile.self,
                 Shift.self,
-                LoadItem.self
+                LoadItem.self,
+                CompanySettings.self
             ],
             inMemory: false,
             isAutosaveEnabled: true,

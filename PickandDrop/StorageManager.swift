@@ -44,6 +44,7 @@ struct StorageManager {
         
         let local = FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("PickandDrop")
             .appendingPathComponent("Truck Reports")
         
         try? FileManager.default.createDirectory(
@@ -53,6 +54,24 @@ struct StorageManager {
         
         return local
     }
-}
+    
+    static func companyFolder(_ company: String) -> URL {
 
-// build refresh 2
+        let safeCompany = company
+            .replacingOccurrences(
+                of: "[^a-zA-Z0-9_-]",
+                with: "_",
+                options: .regularExpression
+            )
+
+        let folder = truckReportsFolder()
+            .appendingPathComponent(safeCompany)
+
+        try? FileManager.default.createDirectory(
+            at: folder,
+            withIntermediateDirectories: true
+        )
+
+        return folder
+    }
+}

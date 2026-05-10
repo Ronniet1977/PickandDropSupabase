@@ -9,6 +9,11 @@ struct StartShiftView: View {
     @Environment(\.dismiss) private var dismiss
     @Query var shifts: [Shift]
     @Query var loads: [LoadItem]
+    @Query var companySettings: [CompanySettings]
+    
+    var settings: CompanySettings? {
+        companySettings.first
+    }
     
     var activeShift: Shift? {
         shifts.first(where: {
@@ -75,6 +80,19 @@ struct StartShiftView: View {
 
                         Text("Truck \(driver.truckNumber)")
                             .foregroundStyle(.white.opacity(0.7))
+                        
+                        Text(
+                            settings?.truckingCompanyName
+                            ?? "Trucking Company"
+                        )
+                        .font(.caption.bold())
+                        .foregroundStyle(.blue)
+
+                        Text(
+                            "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                        )
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.7))
 
                         Text(Date(), style: .time)
                             .font(.caption.monospacedDigit())
@@ -139,7 +157,7 @@ struct StartShiftView: View {
 
                                 Image(systemName: "play.fill")
 
-                                Text("Start Shift")
+                                Text("Start Day")
                                     .fontWeight(.bold)
                             }
                             .font(.title3)
@@ -164,6 +182,8 @@ struct StartShiftView: View {
     func startShift() {
         let newShift = Shift()
         newShift.driverName = driver.name
+        newShift.companyName =
+            settings?.truckingCompanyName ?? ""
 
         context.insert(newShift)
 
@@ -180,7 +200,8 @@ struct StartShiftView: View {
             _ = CSVExporter.generateCSV(
                 loads: driverLoads,
                 driver: driver,
-                activeShift: currentShift
+                activeShift: currentShift,
+                settings: settings
             )
 
             dismiss()

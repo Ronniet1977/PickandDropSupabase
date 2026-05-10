@@ -6,6 +6,11 @@ struct LoadListView: View {
     
     @Environment(\.modelContext) private var context
     @Query var loads: [LoadItem]
+    @Query var companySettings: [CompanySettings]
+    
+    var settings: CompanySettings? {
+        companySettings.first
+    }
     
     var shiftLoads: [LoadItem] {
         loads
@@ -35,6 +40,12 @@ struct LoadListView: View {
                     // HEADER CARD
 
                     VStack(alignment: .leading, spacing: 18) {
+                        Text(
+                            settings?.truckingCompanyName
+                            ?? "Trucking Company"
+                        )
+                        .font(.caption.bold())
+                        .foregroundStyle(.blue)
 
                         Text(driver.name)
                             .font(.largeTitle.bold())
@@ -65,14 +76,14 @@ struct LoadListView: View {
                             Spacer()
 
                             loadStat(
-                                title: "Pickup",
+                                title: settings?.pickupCompanyName ?? "Pickup",
                                 value: String(format: "%.0f", pickupTons)
                             )
 
                             Spacer()
 
                             loadStat(
-                                title: "Delivered",
+                                title: settings?.dropoffCompanyName ?? "Dropoff",
                                 value: String(format: "%.0f", deliveredTons)
                             )
 
@@ -118,14 +129,16 @@ struct LoadListView: View {
 
                                 VStack(alignment: .leading, spacing: 6) {
 
-                                    Text("Ticket \(load.pickupTicketNumber)")
-                                        .font(.title3.bold())
-                                        .foregroundStyle(.white)
+                                    Text(
+                                        "\(settings?.pickupCompanyName ?? "Pickup") Ticket \(load.pickupTicketNumber)"
+                                    )
+                                    .font(.title3.bold())
+                                    .foregroundStyle(.white)
 
                                     HStack(spacing: 14) {
 
                                         Label(
-                                            "\(String(format: "%.2f", load.pickupTons)) Picked Up Tons",
+                                            "\(String(format: "%.2f", load.pickupTons)) \(settings?.pickupCompanyName ?? "Pickup") Tons",
                                             systemImage: "arrow.up.circle.fill"
                                         )
                                         .foregroundStyle(.blue)
@@ -133,7 +146,7 @@ struct LoadListView: View {
                                         if load.isDelivered {
 
                                             Label(
-                                                "\(String(format: "%.2f", load.deliveryTons)) Delivered Tons",
+                                                "\(String(format: "%.2f", load.deliveryTons)) \(settings?.dropoffCompanyName ?? "Dropoff") Tons",
                                                 systemImage: "arrow.down.circle.fill"
                                             )
                                             .foregroundStyle(.orange)
@@ -161,7 +174,9 @@ struct LoadListView: View {
                                     .clipShape(Capsule())
                             }
 
-                            Text("BRC → HoneyGo")
+                            Text(
+                                "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                            )
                                 .font(.caption.bold())
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
@@ -240,7 +255,9 @@ struct LoadListView: View {
                 .padding()
             }
         }
-        .navigationTitle("Today's Loads")
+        .navigationTitle(
+            "\(settings?.pickupCompanyName ?? "Pickup") Loads"
+        )
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
     }

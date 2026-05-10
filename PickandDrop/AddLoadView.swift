@@ -9,12 +9,14 @@ struct AddLoadView: View {
     
     @Query var loads: [LoadItem]
     @Query var shifts: [Shift]
+    @Query var companySettings: [CompanySettings]
     
-    @State private var company = ""
-    @State private var ticket = ""
-    @State private var tons = ""
     @State private var pickupTicket = ""
     @State private var pickupTons = ""
+    
+    var settings: CompanySettings? {
+        companySettings.first
+    }
     
     var activeShift: Shift? {
         shifts.first(where: {
@@ -69,6 +71,16 @@ struct AddLoadView: View {
                         Text("Add Load")
                             .font(.system(size: 38, weight: .bold))
                             .foregroundStyle(.white)
+                        
+                        Text(
+                            "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                        )
+                        .font(.caption.bold())
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(.blue.opacity(0.15))
+                        .foregroundStyle(.blue)
+                        .clipShape(Capsule())
 
                         Text(driver.name)
                             .foregroundStyle(.white.opacity(0.7))
@@ -104,7 +116,7 @@ struct AddLoadView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
 
-                                Text("BRC Ticket Number")
+                                Text("\(settings?.pickupCompanyName ?? "Pickup") Ticket Number")
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
 
@@ -121,7 +133,9 @@ struct AddLoadView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
 
-                                Text("Pickup Tons")
+                                Text(
+                                    "\(settings?.pickupCompanyName ?? "Pickup") Tons"
+                                )
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
 
@@ -222,6 +236,7 @@ struct AddLoadView: View {
                 loads: driverLoads,
                 driver: driver,
                 activeShift: activeShift,
+                settings: settings,
                 isFinal: false
             )
 

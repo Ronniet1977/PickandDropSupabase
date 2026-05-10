@@ -8,10 +8,15 @@ struct PickupDeliveryView: View {
     @Environment(\.modelContext) private var context
     @Query var loads: [LoadItem]
     @Query var shifts: [Shift]
+    @Query var companySettings: [CompanySettings]
     
     @State private var selectedLoad: LoadItem?
     @State private var deliveryTicket = ""
     @State private var deliveryTons = ""
+    
+    var settings: CompanySettings? {
+        companySettings.first
+    }
     
     
     var activeShift: Shift? {
@@ -44,6 +49,22 @@ struct PickupDeliveryView: View {
             ScrollView {
 
                 LazyVStack(spacing: 20) {
+                    VStack(spacing: 6) {
+
+                        Text(
+                            settings?.truckingCompanyName
+                            ?? "Trucking Company"
+                        )
+                        .font(.headline)
+                        .foregroundStyle(.blue)
+
+                        Text(
+                            "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                    .padding(.bottom, 8)
 
                     if driverLoads.isEmpty {
 
@@ -102,17 +123,22 @@ struct PickupDeliveryView: View {
 
                             HStack(spacing: 14) {
 
-                                Button("Pickup (BRC)") {
+                                Button(
+                                    "Pickup (\(settings?.pickupCompanyName ?? "Pickup"))"
+                                ) {
                                     markPickedUp(load)
                                 }
                                 .buttonStyle(.borderedProminent)
                                 .tint(.blue)
                                 .disabled(load.pickedUpAt != nil)
 
-                                Button("Deliver (HoneyGo)") {
+                                Button(
+                                    "Deliver (\(settings?.dropoffCompanyName ?? "Dropoff"))"
+                                ) {
 
                                     deliveryTicket = ""
                                     deliveryTons = ""
+
                                     selectedLoad = load
                                 }
                                 .buttonStyle(.borderedProminent)
@@ -135,7 +161,9 @@ struct PickupDeliveryView: View {
                 .padding()
             }
         }
-        .navigationTitle("Pickup / Deliver")
+        .navigationTitle(
+            "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+        )
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {
@@ -179,17 +207,21 @@ struct PickupDeliveryView: View {
                                 .font(.system(size: 34, weight: .bold))
                                 .foregroundStyle(.white)
 
-                            Text("Ticket \(load.pickupTicketNumber)")
-                                .foregroundStyle(.white.opacity(0.7))
+                            Text(
+                                "\(settings?.pickupCompanyName ?? "Pickup") Ticket \(load.pickupTicketNumber)"
+                            )
+                            .foregroundStyle(.white.opacity(0.7))
                         }
 
                         VStack(spacing: 18) {
 
                             VStack(alignment: .leading, spacing: 8) {
 
-                                Text("HoneyGo Ticket")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.white.opacity(0.7))
+                                Text(
+                                    "\(settings?.dropoffCompanyName ?? "Dropoff") Ticket"
+                                )
+                                .font(.caption.bold())
+                                .foregroundStyle(.white.opacity(0.7))
 
                                 TextField(
                                     "Enter Ticket Number",
@@ -204,8 +236,10 @@ struct PickupDeliveryView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
 
-                                Text("Delivered Tons")
-                                    .font(.caption.bold())
+                                Text(
+                                    "\(settings?.dropoffCompanyName ?? "Dropoff") Tons"
+                                )
+                                .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
 
                                 TextField(
@@ -277,8 +311,10 @@ struct PickupDeliveryView: View {
     
     func sendDeliveryNotification(for load: LoadItem) {
         let content = UNMutableNotificationContent()
-        content.title = "Load Delivered ✅"
-        content.body = "\(driver.name) delivered HoneyGo ticket \(load.deliveryTicketNumber)"
+        content.title =
+            "\(settings?.dropoffCompanyName ?? "Dropoff") Load Delivered ✅"
+        content.body =
+            "\(driver.name) delivered \(settings?.dropoffCompanyName ?? "Dropoff") ticket \(load.deliveryTicketNumber)"
         content.sound = .default
         
         let request = UNNotificationRequest(
@@ -335,7 +371,8 @@ struct PickupDeliveryView: View {
             let _ = CSVExporter.generateCSV(
                 loads: driverLoads,
                 driver: driver,
-                activeShift: currentShift
+                activeShift: currentShift,
+                settings: settings
             )
 
             print("✅ Pickup/Deliver updated")

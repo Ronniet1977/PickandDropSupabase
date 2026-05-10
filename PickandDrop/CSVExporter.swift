@@ -7,6 +7,7 @@ struct CSVExporter {
         loads: [LoadItem],
         driver: DriverProfile,
         activeShift: Shift?,
+        settings: CompanySettings?,
         isFinal: Bool = false
     ) -> URL {
         
@@ -14,7 +15,7 @@ struct CSVExporter {
             "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
         }
         
-        var csv = "Date,Time,Driver,Truck,Pickup Ticket,Pickup Tons,Delivery Ticket,Delivery Tons,PickedUp,Delivered,Fuel Total\n"
+        var csv = "Date,Time,Driver,Truck,\(settings?.pickupCompanyName ?? "Pickup") Ticket,\(settings?.pickupCompanyName ?? "Pickup") Ticket,Pickup Tons,,\(settings?.dropoffCompanyName ?? "Dropoff") Ticket,\(settings?.dropoffCompanyName ?? "Dropoff") Ticket,\(settings?.dropoffCompanyName ?? "Dropoff") Tons,PickedUp,Delivered,Fuel Total\n"
         
         let safeName = driver.name
             .replacingOccurrences(of: "[^a-zA-Z0-9_-]", with: "_", options: .regularExpression)

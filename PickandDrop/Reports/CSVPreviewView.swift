@@ -6,18 +6,24 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct CSVPreviewView: View {
 
     let fileURL: URL
     let generatePickupInvoice: (URL) -> Void
     let generateDeliveryInvoice: (URL) -> Void
-
+    
+    @Query var companySettings: [CompanySettings]
     @State private var loads: [CSVLoad] = []
     @State private var selectedLoad: CSVLoad?
     @State private var editedPickupTicket = ""
     @State private var editedPickupTons = ""
     @State private var editedDeliveryTons = ""
+    
+    var settings: CompanySettings? {
+        companySettings.first
+    }
 
     var body: some View {
 
@@ -50,13 +56,17 @@ struct CSVPreviewView: View {
                                     
                                     HStack(spacing: 12) {
 
-                                        Text("BRC: \(load.pickupTons, specifier: "%.0f") Tons")
-                                            .fontWeight(.semibold)
-                                            .foregroundStyle(.blue)
+                                        Text(
+                                            "\(settings?.pickupCompanyName ?? "Pickup"): \(load.pickupTons, specifier: "%.0f") Tons"
+                                        )
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.blue)
 
-                                        Text("HoneyGo: \(load.deliveryTons, specifier: "%.0f") Tons")
-                                            .fontWeight(.semibold)
-                                            .foregroundStyle(.orange)
+                                        Text(
+                                            "\(settings?.dropoffCompanyName ?? "Dropoff"): \(load.deliveryTons, specifier: "%.0f") Tons"
+                                        )
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.orange)
                                     }
                                     .font(.subheadline)
                                 }
@@ -93,7 +103,9 @@ struct CSVPreviewView: View {
                                 
                                 Text("Truck: \(load.truck)")
                                     .foregroundStyle(.secondary)
-                                Text("BRC → HoneyGo")
+                                Text(
+                                    "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                                )
                                     .font(.caption.bold())
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 4)
@@ -103,13 +115,17 @@ struct CSVPreviewView: View {
                                 
                                 Divider()
                                 
-                                Text("BRC Ticket: \(load.pickupTicket)")
-                                    .foregroundStyle(.secondary)
-                                
+                                Text(
+                                    "\(settings?.pickupCompanyName ?? "Pickup") Ticket: \(load.pickupTicket)"
+                                )
+                                .foregroundStyle(.secondary)
+
                                 if load.isDelivered {
                                     
-                                    Text("HoneyGo Ticket: \(load.deliveryTicket)")
-                                        .foregroundStyle(.secondary)
+                                    Text(
+                                        "\(settings?.dropoffCompanyName ?? "Dropoff") Ticket: \(load.deliveryTicket)"
+                                    )
+                                    .foregroundStyle(.secondary)
                                     
                                     let duration = durationText(
                                         pickup: load.pickedUp,
@@ -131,13 +147,17 @@ struct CSVPreviewView: View {
                                     
                                     HStack {
                                         
-                                        Button("BRC Invoice") {
+                                        Button(
+                                            "\(settings?.pickupCompanyName ?? "Pickup") Invoice"
+                                        ) {
                                             generatePickupInvoice(fileURL)
                                         }
                                         .buttonStyle(.borderedProminent)
                                         .tint(.blue)
                                         
-                                        Button("HoneyGo Invoice") {
+                                        Button(
+                                            "\(settings?.dropoffCompanyName ?? "Dropoff") Invoice"
+                                        ) {
                                             generateDeliveryInvoice(fileURL)
                                         }
                                         .buttonStyle(.borderedProminent)
@@ -188,17 +208,17 @@ struct CSVPreviewView: View {
                         VStack(spacing: 18) {
 
                             TextField(
-                                "Pickup Ticket",
+                                "\(settings?.pickupCompanyName ?? "Pickup") Ticket",
                                 text: $editedPickupTicket
                             )
 
                             TextField(
-                                "Pickup Tons",
+                                "\(settings?.pickupCompanyName ?? "Pickup") Tons",
                                 text: $editedPickupTons
                             )
 
                             TextField(
-                                "Delivery Tons",
+                                "\(settings?.dropoffCompanyName ?? "Dropoff") Tons",
                                 text: $editedDeliveryTons
                             )
                         }
@@ -252,6 +272,13 @@ struct CSVPreviewView: View {
 
             Text(loads.first?.driverName ?? "Unknown")
                 .font(.largeTitle.bold())
+            
+            Text(
+                settings?.truckingCompanyName
+                ?? "Trucking Company"
+            )
+            .font(.headline)
+            .foregroundStyle(.blue)
 
             Text("Truck \(loads.first?.truck ?? "-")")
                 .foregroundStyle(.secondary)
@@ -273,7 +300,9 @@ struct CSVPreviewView: View {
 
                 VStack(alignment: .leading) {
 
-                    Text("Pickup Tons")
+                    Text(
+                        "\(settings?.pickupCompanyName ?? "Pickup") Tons"
+                    )
                         .font(.caption)
 
                     Text(
@@ -286,7 +315,9 @@ struct CSVPreviewView: View {
 
                 VStack(alignment: .leading) {
 
-                    Text("Delivered Tons")
+                    Text(
+                        "\(settings?.dropoffCompanyName ?? "Dropoff") Tons"
+                    )
                         .font(.caption)
 
                     Text(

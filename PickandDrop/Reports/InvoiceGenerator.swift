@@ -11,12 +11,15 @@ import PDFKit
 struct InvoiceGenerator {
     
     static func createInvoicePDF(
-        companyName: String = "PickandDropLLC",
+        companyName: String,
+        pickupCompany: String,
+        dropoffCompany: String,
         invoiceTitle: String = "Invoice",
         driverName: String,
         truckNumber: String,
         loads: [CSVLoad],
-        ratePerTon: Double
+        ratePerTon: Double,
+        useDeliveryTons: Bool
     ) -> URL? {
         
         let pageWidth: CGFloat = 612
@@ -25,8 +28,10 @@ struct InvoiceGenerator {
         
         let safeDriver = driverName.replacingOccurrences(of: " ", with: "_")
         let safeTruck = truckNumber.replacingOccurrences(of: " ", with: "_")
+        let safeCompany =
+            companyName.replacingOccurrences(of: " ", with: "_")
 
-        let fileName = "Invoice_\(safeDriver)_Truck_\(safeTruck).pdf"
+        let fileName = "\(safeCompany)_Invoice_\(safeDriver)_Truck_\(safeTruck).pdf"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
@@ -67,6 +72,15 @@ struct InvoiceGenerator {
                 drawText(invoiceTitle, x: 40, y: y, font: .boldSystemFont(ofSize: 20))
                 y += 34
                 
+                drawText(
+                    "Route: \(pickupCompany) → \(dropoffCompany)",
+                    x: 40,
+                    y: y,
+                    font: .systemFont(ofSize: 13)
+                )
+
+                y += 24
+                
                 drawText("Driver: \(driverName)", x: 40, y: y, font: .systemFont(ofSize: 14))
                 y += 22
                 
@@ -84,7 +98,7 @@ struct InvoiceGenerator {
                 UIBezierPath(rect: CGRect(x: 40, y: headerY, width: 532, height: 28)).fill()
                 
                 drawText("Ticket", x: 48, y: y + 6, font: .boldSystemFont(ofSize: 11), width: 90)
-                drawText("Company", x: 135, y: y + 6, font: .boldSystemFont(ofSize: 11), width: 130)
+                drawText("Driver", x: 135, y: y + 6, font: .boldSystemFont(ofSize: 11), width: 130)
                 drawText("Date", x: 270, y: y + 6, font: .boldSystemFont(ofSize: 11), width: 90)
                 drawText("Tons", x: 370, y: y + 6, font: .boldSystemFont(ofSize: 11), width: 60)
                 drawText("Rate", x: 435, y: y + 6, font: .boldSystemFont(ofSize: 11), width: 60)
@@ -99,7 +113,9 @@ struct InvoiceGenerator {
                 
                 for load in loads {
 
-                    let tons = load.deliveryTons
+                    let tons = useDeliveryTons
+                        ? load.deliveryTons
+                        : load.pickupTons
                     let lineTotal = tons * ratePerTon
 
                     totalTons += tons
