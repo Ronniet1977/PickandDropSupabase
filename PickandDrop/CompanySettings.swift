@@ -12,6 +12,7 @@ import SwiftData
 class CompanySettings {
 
     var truckingCompanyName: String = ""
+    var companyJoinCode: String = ""
 
     var pickupCompanyName: String = ""
     var dropoffCompanyName: String = ""

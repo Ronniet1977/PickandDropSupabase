@@ -26,6 +26,8 @@ struct CompanySetupView: View {
     @State private var showFolderPicker = false
     @State private var selectedFolderName = ""
     @State private var errorText = ""
+    @State private var joinExistingCompany = false
+    @State private var joinCode = ""
     
     var body: some View {
         
@@ -64,6 +66,14 @@ struct CompanySetupView: View {
                         .padding(.vertical, 12)
                     }
                     
+                    Section("Setup Type") {
+                        
+                        Toggle(
+                            "Join Existing Company",
+                            isOn: $joinExistingCompany
+                        )
+                    }
+                    
                     Section("Company") {
                         
                         TextField(
@@ -88,27 +98,39 @@ struct CompanySetupView: View {
                         .keyboardType(.decimalPad)
                     }
                     
-                    Section("Administrator") {
+                    if !joinExistingCompany {
+                        
+                        Section("Administrator") {
+                            
+                            TextField(
+                                "Admin Username",
+                                text: $adminUsername
+                            )
+                            
+                            SecureField(
+                                "Admin Password",
+                                text: $adminPassword
+                            )
+                        }
+                    }
+                    
+                    Section("Company Join Code") {
                         
                         TextField(
-                            "Admin Username",
-                            text: $adminUsername
+                            "Enter Company Code",
+                            text: $joinCode
                         )
-                        
-                        SecureField(
-                            "Admin Password",
-                            text: $adminPassword
-                        )
+                        .textInputAutocapitalization(.characters)
                     }
                     
                     Section("Shared Reports Folder") {
-
+                        
                         Button {
-
+                            
                             showFolderPicker = true
-
+                            
                         } label: {
-
+                            
                             Label(
                                 selectedFolderName.isEmpty
                                 ? "Select Shared Folder"
@@ -116,9 +138,9 @@ struct CompanySetupView: View {
                                 systemImage: "folder.fill"
                             )
                         }
-
+                        
                         if !selectedFolderName.isEmpty {
-
+                            
                             Text("Shared folder connected")
                                 .foregroundStyle(.green)
                                 .font(.caption)
@@ -126,13 +148,17 @@ struct CompanySetupView: View {
                     }
                     
                     if !errorText.isEmpty {
-
+                        
                         Text(errorText)
                             .foregroundStyle(.red)
                     }
                     
-                    
-                    Button("Create Company") {
+                    Button(
+                        joinExistingCompany
+                        ? "Join Company"
+                        : "Create Company"
+                    ) {
+                        
                         guard !truckingCompany.trimmingCharacters(
                             in: .whitespacesAndNewlines
                         ).isEmpty else {
@@ -151,15 +177,33 @@ struct CompanySetupView: View {
                             return
                         }
                         
-                        guard adminPassword.count >= 6 else {
+                        guard !selectedFolderName.isEmpty else {
+                            
+                            errorText = "Please select a shared folder"
+                            
                             return
                         }
                         
-                        guard !selectedFolderName.isEmpty else {
-
-                            errorText = "Please select a shared folder"
-
-                            return
+                        if joinExistingCompany {
+                            
+                            let existingCode = "PickandDrop"
+                            
+                            guard joinCode.uppercased() == existingCode else {
+                                
+                                errorText = "Invalid company code"
+                                
+                                return
+                            }
+                            
+                        } else {
+                            
+                            guard adminPassword.count >= 6 else {
+                                
+                                errorText =
+                                "Admin password must be at least 6 characters"
+                                
+                                return
+                            }
                         }
                         
                         let settings = CompanySettings()
@@ -182,24 +226,57 @@ struct CompanySetupView: View {
                         settings.ratePerTon =
                         Double(ratePerTon) ?? 0
                         
+                        if !joinExistingCompany {
+                            
+                            let generatedCode =
+                            truckingCompany
+                                .uppercased()
+                                .replacingOccurrences(of: " ", with: "")
+                            + "-\(Int.random(in: 1000...9999))"
+                            
+                            settings.companyJoinCode = generatedCode
+                            
+                            UserDefaults.standard.set(
+                                generatedCode,
+                                forKey: "SharedCompanyCode"
+                            )
+                            
+                            print("✅ Company Join Code:",
+                                  generatedCode)
+                        }
+                        
                         context.insert(settings)
-                        let admin = DriverProfile()
                         
-                        admin.name = "Administrator"
-                        admin.truckNumber = "ADMIN"
-                        
-                        admin.username =
-                        adminUsername.trimmingCharacters(
-                            in: .whitespacesAndNewlines
-                        )
-                        
-                        admin.password = adminPassword
-                        
-                        admin.role = "admin"
-                        
-                        admin.mustChangePassword = false
-                        
-                        context.insert(admin)
+                        if !joinExistingCompany {
+                            
+                            let admin = DriverProfile()
+                            
+                            admin.name = "Administrator"
+                            admin.truckNumber = "ADMIN"
+                            
+                            admin.username =
+                            adminUsername.trimmingCharacters(
+                                in: .whitespacesAndNewlines
+                            )
+                            
+                            admin.password = adminPassword
+                            
+                            admin.role = "admin"
+                            
+                            admin.mustChangePassword = false
+                            
+                            context.insert(admin)
+                            
+                            UserDefaults.standard.set(
+                                admin.name,
+                                forKey: "currentDriverName"
+                            )
+                            
+                            UserDefaults.standard.set(
+                                true,
+                                forKey: "isLoggedIn"
+                            )
+                        }
                         
                         do {
                             
@@ -207,15 +284,6 @@ struct CompanySetupView: View {
                             
                             print("✅ Company setup complete")
                             
-                            UserDefaults.standard.set(
-                                admin.name,
-                                forKey: "currentDriverName"
-                            )
-
-                            UserDefaults.standard.set(
-                                true,
-                                forKey: "isLoggedIn"
-                            )
                             dismiss()
                             
                         } catch {
