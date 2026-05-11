@@ -38,6 +38,26 @@ struct CompanySetupView: View {
     @State private var errorText = ""
     @State private var joinExistingCompany = false
     @State private var joinCode = ""
+
+    private func loadCompanyFromSharedFolder() {
+        guard joinExistingCompany else { return }
+
+        guard let imported = CompanySyncManager.importCompany() else {
+            errorText = "Could not load CompanyInfo.json from the selected folder"
+            return
+        }
+
+        truckingCompany = imported.truckingCompanyName
+        pickupCompany = imported.pickupCompanyName
+        dropoffCompany = imported.dropoffCompanyName
+        ratePerTon = String(
+            format: "%.2f",
+            imported.ratePerTon
+        )
+        
+        joinCode = imported.companyJoinCode
+        errorText = ""
+    }
     
     var body: some View {
         
@@ -86,6 +106,30 @@ struct CompanySetupView: View {
                             "Join Existing Company",
                             isOn: $joinExistingCompany
                         )
+                    }
+                    
+                    Section("Shared Reports Folder") {
+                        
+                        Button {
+                            
+                            showFolderPicker = true
+                            
+                        } label: {
+                            
+                            Label(
+                                selectedFolderName.isEmpty
+                                ? "Select Shared Folder"
+                                : selectedFolderName,
+                                systemImage: "folder.fill"
+                            )
+                        }
+                        
+                        if !selectedFolderName.isEmpty {
+                            
+                            Text("Shared folder connected")
+                                .foregroundStyle(.green)
+                                .font(.caption)
+                        }
                     }
                     
                     Section("Company") {
@@ -167,29 +211,7 @@ struct CompanySetupView: View {
                         }
                     }
                     
-                    Section("Shared Reports Folder") {
-                        
-                        Button {
-                            
-                            showFolderPicker = true
-                            
-                        } label: {
-                            
-                            Label(
-                                selectedFolderName.isEmpty
-                                ? "Select Shared Folder"
-                                : selectedFolderName,
-                                systemImage: "folder.fill"
-                            )
-                        }
-                        
-                        if !selectedFolderName.isEmpty {
-                            
-                            Text("Shared folder connected")
-                                .foregroundStyle(.green)
-                                .font(.caption)
-                        }
-                    }
+                    
                     
                     if !errorText.isEmpty {
                         
@@ -230,20 +252,19 @@ struct CompanySetupView: View {
                         
                         if joinExistingCompany {
                             
-                            let existingCode = "PickandDrop"
+                            let existingCode =
+                                CompanySyncManager.importCompany()?.companyJoinCode ?? ""
                             
                             guard
                                 joinCode
-                                    .trimmingCharacters(
-                                        in: .whitespacesAndNewlines
-                                    )
+                                    .trimmingCharacters(in: .whitespacesAndNewlines)
                                     .uppercased()
-                                    ==
-                                    existingCode.uppercased()
+                                ==
+                                existingCode
+                                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                                    .uppercased()
                             else {
-                                
                                 errorText = "Invalid company code"
-                                
                                 return
                             }
                             
@@ -279,22 +300,19 @@ struct CompanySetupView: View {
                         Double(ratePerTon) ?? 0
                         
                         if !joinExistingCompany {
-                            
+
                             let generatedCode =
-                            truckingCompany
-                                .uppercased()
-                                .replacingOccurrences(of: " ", with: "")
-                            + "-\(Int.random(in: 1000...9999))"
-                            
+                                truckingCompany
+                                    .uppercased()
+                                    .replacingOccurrences(of: " ", with: "")
+                                + "-\(Int.random(in: 1000...9999))"
+
                             settings.companyJoinCode = generatedCode
-                            
-                            UserDefaults.standard.set(
-                                generatedCode,
-                                forKey: "SharedCompanyCode"
+
+                            print(
+                                "✅ Company Join Code:",
+                                generatedCode
                             )
-                            
-                            print("✅ Company Join Code:",
-                                  generatedCode)
                         }
                         
                         context.insert(settings)
@@ -397,23 +415,8 @@ struct CompanySetupView: View {
 
                             selectedFolderName =
                                 url.lastPathComponent
-                            
-                            if joinExistingCompany,
-                               let imported =
-                                CompanySyncManager.importCompany() {
 
-                                truckingCompany =
-                                    imported.truckingCompanyName
-
-                                pickupCompany =
-                                    imported.pickupCompanyName
-
-                                dropoffCompany =
-                                    imported.dropoffCompanyName
-
-                                ratePerTon =
-                                    String(imported.ratePerTon)
-                            }
+                            loadCompanyFromSharedFolder()
 
                             print("✅ Shared folder selected:",
                                   url.path)
