@@ -40,6 +40,13 @@ struct DriverSyncManager {
                     DriverFile.self,
                     from: data
                 )
+            
+            guard !file.drivers.isEmpty else {
+
+                print("❌ Refusing empty driver import")
+
+                return
+            }
 
             // REMOVE OLD LOCAL DRIVERS
             let descriptor =
@@ -83,6 +90,21 @@ struct DriverSyncManager {
     static func exportDrivers(
         drivers: [DriverProfile]
     ) {
+        guard !drivers.isEmpty else {
+
+            print("❌ Refusing empty export")
+
+            return
+        }
+
+        guard drivers.contains(where: {
+            $0.role == "admin"
+        }) else {
+
+            print("❌ No admin found — refusing export")
+
+            return
+        }
 
         let records = drivers.map {
 

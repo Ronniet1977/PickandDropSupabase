@@ -142,9 +142,15 @@ struct DriverManagerView: View {
 
                                         try? context.save()
                                         
-                                        DriverSyncManager.exportDrivers(
-                                            drivers: drivers
-                                        )
+                                        if drivers.contains(where: {
+                                            $0.name == currentDriverName &&
+                                            $0.role == "admin"
+                                        }) {
+
+                                            DriverSyncManager.exportDrivers(
+                                                drivers: drivers
+                                            )
+                                        }
                                     }
                                     .buttonStyle(.borderedProminent)
                                     .tint(.orange)
@@ -159,9 +165,15 @@ struct DriverManagerView: View {
 
                                         try? context.save()
                                         
-                                        DriverSyncManager.exportDrivers(
-                                            drivers: drivers
-                                        )
+                                        if drivers.contains(where: {
+                                            $0.name == currentDriverName &&
+                                            $0.role == "admin"
+                                        }) {
+
+                                            DriverSyncManager.exportDrivers(
+                                                drivers: drivers
+                                            )
+                                        }
                                     }
                                     
                                     Button(role: .destructive) {
@@ -239,9 +251,15 @@ struct DriverManagerView: View {
 
             try context.save()
             
-            DriverSyncManager.exportDrivers(
-                drivers: drivers
-            )
+            if drivers.contains(where: {
+                $0.name == currentDriverName &&
+                $0.role == "admin"
+            }) {
+
+                DriverSyncManager.exportDrivers(
+                    drivers: drivers
+                )
+            }
 
             newName = ""
             newTruck = ""
@@ -265,9 +283,15 @@ struct DriverManagerView: View {
 
             try context.save()
             
-            DriverSyncManager.exportDrivers(
-                drivers: drivers
-            )
+            if drivers.contains(where: {
+                $0.name == currentDriverName &&
+                $0.role == "admin"
+            }) {
+
+                DriverSyncManager.exportDrivers(
+                    drivers: drivers
+                )
+            }
 
             print("✅ Driver deleted")
 

@@ -18,6 +18,9 @@ struct CompanySetupView: View {
     @Query(sort: \DriverProfile.name)
     var drivers: [DriverProfile]
     
+    @AppStorage("currentDriverName")
+    var currentDriverName = ""
+    
     @State private var truckingCompany = ""
     @State private var pickupCompany = ""
     @State private var dropoffCompany = ""
