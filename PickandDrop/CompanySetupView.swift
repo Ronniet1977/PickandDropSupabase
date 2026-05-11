@@ -188,7 +188,15 @@ struct CompanySetupView: View {
                             
                             let existingCode = "PickandDrop"
                             
-                            guard joinCode.uppercased() == existingCode else {
+                            guard
+                                joinCode
+                                    .trimmingCharacters(
+                                        in: .whitespacesAndNewlines
+                                    )
+                                    .uppercased()
+                                    ==
+                                    existingCode.uppercased()
+                            else {
                                 
                                 errorText = "Invalid company code"
                                 
