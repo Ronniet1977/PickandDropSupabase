@@ -639,13 +639,19 @@ struct AdminDashboardView: View {
 
                 print("📄 Found file:", file.lastPathComponent)
 
-                if file.lastPathComponent.contains("ACTIVE") {
+                if file.lastPathComponent
+                    .hasSuffix("-ACTIVE.csv")
+                    ||
+                    file.lastPathComponent
+                    == "ADMIN-ACTIVE.csv" {
 
                     try? FileManager.default.removeItem(at: file)
 
                     print("🗑 Deleted ACTIVE file")
                 }
             }
+            
+            loadFromiCloud()
 
             print("✅ Archive & Reset complete")
 
@@ -774,7 +780,8 @@ struct AdminDashboardView: View {
 
                 let name = file.lastPathComponent
 
-                if name == "\(safeName)-Truck\(driver.truck)-ACTIVE.csv" {
+                if name.contains(safeName)
+                    && name.hasSuffix("-ACTIVE.csv") {
 
                     print("🔍 Looking for:", "\(safeName)-Truck\(driver.truck)-ACTIVE.csv")
                     print("📄 Checking:", name)
@@ -909,7 +916,9 @@ struct AdminDashboardView: View {
         formatter.dateFormat = "yyyy-MM-dd_HH-mm"
         
         let fileName = "Boss-Daily-Report-\(formatter.string(from: Date())).csv"
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        let url = StorageManager
+            .truckReportsFolder()
+            .appendingPathComponent(fileName)
         
         do {
             try csv.write(to: url, atomically: true, encoding: .utf8)
@@ -1091,8 +1100,8 @@ struct AdminDashboardView: View {
             csv += "\(d.name),\(d.truck),\(d.loads),\(pickupString),\(deliveryString)\n"
         }
 
-        let url = FileManager.default
-            .temporaryDirectory
+        let url = StorageManager
+            .truckReportsFolder()
             .appendingPathComponent("Report.csv")
 
         try? csv.write(to: url, atomically: true, encoding: .utf8)
@@ -1181,6 +1190,19 @@ struct AdminDashboardView: View {
                         summaryDict[driverName]?.pickupTons += pickupTons
                         summaryDict[driverName]?.deliveryTons += deliveryTons
                         
+                        let dateString = columns[0].trimmed()
+                        let timeString = columns[1].trimmed()
+
+                        let combined =
+                            "\(dateString) \(timeString)"
+
+                        let formatter = DateFormatter()
+                        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+
+                        let parsedDate =
+                            formatter.date(from: combined)
+                            ?? Date()
+                        
                         let alreadyExists = allLoads.contains {
                             $0.pickupTicketNumber == pickupTicket &&
                             $0.driverName == driverName
@@ -1198,7 +1220,7 @@ struct AdminDashboardView: View {
                         newLoad.deliveryTicketNumber = deliveryTicket
                         newLoad.deliveryTons = deliveryTons
 
-                        newLoad.createdAt = Date()
+                        newLoad.createdAt = parsedDate
 
                         newLoad.status = "new"
 
@@ -1225,7 +1247,15 @@ struct AdminDashboardView: View {
                 }
                 
                 // 🔥 Move CSV write OFF main thread too
-                generateAdminActiveCSV(from: allLoads)
+                try? context.save()
+
+                let refreshedLoads = try? context.fetch(
+                    FetchDescriptor<LoadItem>()
+                )
+
+                generateAdminActiveCSV(
+                    from: refreshedLoads ?? []
+                )
                 
                 // ✅ UI update safely
                 await MainActor.run {
@@ -1361,7 +1391,7 @@ struct AdminDashboardView: View {
             
             try csv.write(to: fileURL, atomically: true, encoding: .utf8)
             
-            print("✅ ADMIN ACTIVE (LOCAL):", fileURL)
+            print("✅ ADMIN ACTIVE (SHARED):", fileURL)
             
         } catch {
             print("❌ Failed:", error)

@@ -64,7 +64,9 @@ struct CSVExporter {
         }
         
         let folder = StorageManager.truckReportsFolder()
-        let url = folder.appendingPathComponent(fileName)
+        let url = StorageManager
+            .truckReportsFolder()
+            .appendingPathComponent(fileName)
         
         do {
             if FileManager.default.fileExists(atPath: url.path) {
@@ -93,7 +95,9 @@ struct CSVExporter {
         let fileName = "\(safeName)-Truck\(driver.truckNumber)-ACTIVE.csv"
 
         let folder = StorageManager.truckReportsFolder()
-        let url = folder.appendingPathComponent(fileName)
+        let url = StorageManager
+            .truckReportsFolder()
+            .appendingPathComponent(fileName)
 
         if FileManager.default.fileExists(atPath: url.path) {
 

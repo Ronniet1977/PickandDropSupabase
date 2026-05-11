@@ -424,9 +424,7 @@ struct ReportsView: View {
 
     func loadFiles() {
 
-        let folder = StorageManager.companyFolder(
-            settings?.truckingCompanyName ?? "Company"
-        )
+        let folder = StorageManager.truckReportsFolder()
 
         do {
 

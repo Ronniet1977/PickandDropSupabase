@@ -32,7 +32,9 @@ struct InvoiceGenerator {
             companyName.replacingOccurrences(of: " ", with: "_")
 
         let fileName = "\(safeCompany)_Invoice_\(safeDriver)_Truck_\(safeTruck).pdf"
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        let url = StorageManager
+            .truckReportsFolder()
+            .appendingPathComponent(fileName)
         
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
         

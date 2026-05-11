@@ -362,6 +362,10 @@ struct CompanySetupView: View {
                                 drivers: drivers
                             )
                             
+                            CompanySyncManager.exportCompany(
+                                settings: settings
+                            )
+                            
                             print("✅ Company setup complete")
                             
                             dismiss()
@@ -393,6 +397,23 @@ struct CompanySetupView: View {
 
                             selectedFolderName =
                                 url.lastPathComponent
+                            
+                            if joinExistingCompany,
+                               let imported =
+                                CompanySyncManager.importCompany() {
+
+                                truckingCompany =
+                                    imported.truckingCompanyName
+
+                                pickupCompany =
+                                    imported.pickupCompanyName
+
+                                dropoffCompany =
+                                    imported.dropoffCompanyName
+
+                                ratePerTon =
+                                    String(imported.ratePerTon)
+                            }
 
                             print("✅ Shared folder selected:",
                                   url.path)
