@@ -98,6 +98,12 @@ struct LoginView: View {
                 .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 28))
                 .padding(.horizontal)
+                .onAppear {
+
+                    DriverSyncManager.importDrivers(
+                        context: context
+                    )
+                }
 
                 Spacer()
             }

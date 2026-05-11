@@ -16,6 +16,69 @@ struct DriverSyncManager {
             .truckReportsFolder()
             .appendingPathComponent("Drivers.json")
     }
+    
+    static func importDrivers(
+        context: ModelContext
+    ) {
+
+        let url = driverFileURL()
+
+        guard FileManager.default.fileExists(
+            atPath: url.path
+        ) else {
+
+            print("❌ Drivers.json missing")
+            return
+        }
+
+        do {
+
+            let data = try Data(contentsOf: url)
+
+            let file = try JSONDecoder()
+                .decode(
+                    DriverFile.self,
+                    from: data
+                )
+
+            // REMOVE OLD LOCAL DRIVERS
+            let descriptor =
+                FetchDescriptor<DriverProfile>()
+
+            let existingDrivers =
+                try context.fetch(descriptor)
+
+            for driver in existingDrivers {
+
+                context.delete(driver)
+            }
+
+            // IMPORT NEW DRIVERS
+            for record in file.drivers {
+
+                let driver = DriverProfile()
+
+                driver.name = record.name
+                driver.truckNumber = record.truckNumber
+
+                driver.username = record.username
+                driver.password = record.password
+
+                driver.role = record.role
+                driver.isActive = record.isActive
+
+                context.insert(driver)
+            }
+
+            try context.save()
+
+            print("✅ Drivers imported")
+
+        } catch {
+
+            print("❌ Driver import failed:", error)
+        }
+    }
 
     static func exportDrivers(
         drivers: [DriverProfile]
