@@ -15,6 +15,9 @@ struct CompanySetupView: View {
     @Environment(\.dismiss)
     private var dismiss
     
+    @Query(sort: \DriverProfile.name)
+    var drivers: [DriverProfile]
+    
     @State private var truckingCompany = ""
     @State private var pickupCompany = ""
     @State private var dropoffCompany = ""
@@ -22,6 +25,10 @@ struct CompanySetupView: View {
     
     @State private var adminUsername = "admin"
     @State private var adminPassword = ""
+    
+    @State private var starterDriverName = ""
+    @State private var starterDriverTruck = ""
+    @State private var starterDriverUsername = ""
     
     @State private var showFolderPicker = false
     @State private var selectedFolderName = ""
@@ -59,7 +66,11 @@ struct CompanySetupView: View {
                             Text("Pick & Drop")
                                 .font(.largeTitle.bold())
                             
-                            Text("Company Setup")
+                            Text(
+                                joinExistingCompany
+                                ? "Join Company"
+                                : "Company Setup"
+                            )
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity)
@@ -112,15 +123,45 @@ struct CompanySetupView: View {
                                 text: $adminPassword
                             )
                         }
+                        
+                        if !joinExistingCompany {
+
+                            Section("Starter Driver") {
+
+                                TextField(
+                                    "Driver Name",
+                                    text: $starterDriverName
+                                )
+
+                                TextField(
+                                    "Truck Number",
+                                    text: $starterDriverTruck
+                                )
+
+                                TextField(
+                                    "Username",
+                                    text: $starterDriverUsername
+                                )
+
+                                Text(
+                                    "Default password: 1234"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                     
-                    Section("Company Join Code") {
-                        
-                        TextField(
-                            "Enter Company Code",
-                            text: $joinCode
-                        )
-                        .textInputAutocapitalization(.characters)
+                    if joinExistingCompany {
+
+                        Section("Company Join Code") {
+
+                            TextField(
+                                "Enter Company Code",
+                                text: $joinCode
+                            )
+                            .textInputAutocapitalization(.characters)
+                        }
                     }
                     
                     Section("Shared Reports Folder") {
@@ -286,9 +327,37 @@ struct CompanySetupView: View {
                             )
                         }
                         
+                        if !joinExistingCompany &&
+                           !starterDriverName.isEmpty {
+
+                            let starterDriver = DriverProfile()
+
+                            starterDriver.name =
+                                starterDriverName
+
+                            starterDriver.truckNumber =
+                                starterDriverTruck
+
+                            starterDriver.username =
+                                starterDriverUsername
+                                    .lowercased()
+
+                            starterDriver.password = "1234"
+
+                            starterDriver.role = "driver"
+
+                            starterDriver.mustChangePassword = true
+
+                            context.insert(starterDriver)
+                        }
+                        
                         do {
                             
                             try context.save()
+                            
+                            DriverSyncManager.exportDrivers(
+                                drivers: drivers
+                            )
                             
                             print("✅ Company setup complete")
                             

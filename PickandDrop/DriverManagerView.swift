@@ -141,6 +141,10 @@ struct DriverManagerView: View {
                                         driver.mustChangePassword = true
 
                                         try? context.save()
+                                        
+                                        DriverSyncManager.exportDrivers(
+                                            drivers: drivers
+                                        )
                                     }
                                     .buttonStyle(.borderedProminent)
                                     .tint(.orange)
@@ -154,6 +158,10 @@ struct DriverManagerView: View {
                                         driver.isActive.toggle()
 
                                         try? context.save()
+                                        
+                                        DriverSyncManager.exportDrivers(
+                                            drivers: drivers
+                                        )
                                     }
                                     
                                     Button(role: .destructive) {
@@ -230,6 +238,10 @@ struct DriverManagerView: View {
         do {
 
             try context.save()
+            
+            DriverSyncManager.exportDrivers(
+                drivers: drivers
+            )
 
             newName = ""
             newTruck = ""
@@ -252,6 +264,10 @@ struct DriverManagerView: View {
         do {
 
             try context.save()
+            
+            DriverSyncManager.exportDrivers(
+                drivers: drivers
+            )
 
             print("✅ Driver deleted")
 
