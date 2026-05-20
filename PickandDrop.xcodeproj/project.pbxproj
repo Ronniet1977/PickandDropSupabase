@@ -34,6 +34,7 @@
 		876A63472FB19AA1007635FB /* CompanySyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 876A63462FB19A9E007635FB /* CompanySyncManager.swift */; };
 		8789BB032FB04408004400C5 /* CompanySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB022FB04403004400C5 /* CompanySettings.swift */; };
 		8789BB052FB06063004400C5 /* CompanySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB042FB0604F004400C5 /* CompanySetupView.swift */; };
+		87A18E1D2FBE3CB0005CF62A /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 87A18E1C2FBE3CA5005CF62A /* .gitignore */; };
 		87CBD10A2FB1083E0038E416 /* SharedFolderSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87CBD1092FB1083B0038E416 /* SharedFolderSetupView.swift */; };
 /* End PBXBuildFile section */
 
@@ -67,6 +68,7 @@
 		876A63462FB19A9E007635FB /* CompanySyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySyncManager.swift; sourceTree = "<group>"; };
 		8789BB022FB04403004400C5 /* CompanySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySettings.swift; sourceTree = "<group>"; };
 		8789BB042FB0604F004400C5 /* CompanySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySetupView.swift; sourceTree = "<group>"; };
+		87A18E1C2FBE3CA5005CF62A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		87CBD1092FB1083B0038E416 /* SharedFolderSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFolderSetupView.swift; sourceTree = "<group>"; };
 		87DE09572FA52A09007E9268 /* PickandDrop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PickandDrop.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -98,6 +100,7 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				87A18E1C2FBE3CA5005CF62A /* .gitignore */,
 				8760FA792FBD817B00AADD94 /* DriverFilesView.swift */,
 				8760FA772FBD7E9000AADD94 /* HelpView.swift */,
 				8760FA752FBD7A1100AADD94 /* CameraPicker.swift */,
@@ -215,6 +218,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				87A18E1D2FBE3CB0005CF62A /* .gitignore in Resources */,
 				8751679C2FAD689800E8B528 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
