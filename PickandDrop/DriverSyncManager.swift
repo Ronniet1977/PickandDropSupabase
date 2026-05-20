@@ -73,6 +73,8 @@ struct DriverSyncManager {
 
                 driver.role = record.role
                 driver.isActive = record.isActive
+                driver.mustChangePassword =
+                    record.mustChangePassword ?? false
 
                 context.insert(driver)
             }
@@ -84,6 +86,35 @@ struct DriverSyncManager {
         } catch {
 
             print("❌ Driver import failed:", error)
+        }
+    }
+    
+    static func updateDriverInSharedFile(driver: DriverProfile) {
+
+        let url = driverFileURL()
+
+        do {
+            let data = try Data(contentsOf: url)
+
+            var file = try JSONDecoder()
+                .decode(DriverFile.self, from: data)
+
+            if let index = file.drivers.firstIndex(where: {
+                $0.username.lowercased() == driver.username.lowercased()
+            }) {
+                file.drivers[index].password = driver.password
+                file.drivers[index].mustChangePassword = driver.mustChangePassword
+                file.drivers[index].isActive = driver.isActive
+            }
+
+            let newData = try JSONEncoder().encode(file)
+
+            try newData.write(to: url, options: .atomic)
+
+            print("✅ Shared driver updated")
+
+        } catch {
+            print("❌ Failed updating shared driver:", error)
         }
     }
 
@@ -114,7 +145,8 @@ struct DriverSyncManager {
                 username: $0.username,
                 password: $0.password,
                 role: $0.role,
-                isActive: $0.isActive
+                isActive: $0.isActive,
+                mustChangePassword: $0.mustChangePassword
             )
         }
 

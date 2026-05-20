@@ -25,9 +25,9 @@ struct DriverManagerView: View {
     @State private var selectedRole = "driver"
 
     var body: some View {
-
+        
         ZStack {
-
+            
             LinearGradient(
                 colors: [
                     Color(red: 0.08, green: 0.11, blue: 0.18),
@@ -38,86 +38,86 @@ struct DriverManagerView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-
+            
             ScrollView {
-
+                
                 VStack(spacing: 24) {
-
+                    
                     // CREATE DRIVER CARD
-
+                    
                     VStack(spacing: 16) {
-
+                        
                         Text("Create Driver")
                             .font(.title.bold())
                             .foregroundStyle(.white)
-
+                        
                         TextField(
                             "Driver Name",
                             text: $newName
                         )
                         .textFieldStyle(.roundedBorder)
-
+                        
                         TextField(
                             "Truck Number",
                             text: $newTruck
                         )
                         .textFieldStyle(.roundedBorder)
-
+                        
                         TextField(
                             "Username",
                             text: $newUsername
                         )
                         .textFieldStyle(.roundedBorder)
-
+                        
                         Picker(
                             "Role",
                             selection: $selectedRole
                         ) {
-
+                            
                             Text("Driver")
                                 .tag("driver")
-
+                            
                             Text("Admin")
                                 .tag("admin")
                         }
                         .pickerStyle(.segmented)
-
+                        
                         Button("Create Account") {
-
+                            
                             createDriver()
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.green)
-
+                        
                     }
                     .padding()
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 28))
-
+                    
                     // DRIVER LIST
-
+                    
                     VStack(spacing: 16) {
-
+                        
                         ForEach(drivers) { driver in
-
+                            
                             VStack(alignment: .leading, spacing: 12) {
-
+                                
                                 HStack {
-
+                                    
                                     VStack(alignment: .leading) {
-
+                                        
                                         Text(driver.name)
                                             .font(.headline)
                                             .foregroundStyle(.white)
-
+                                        
                                         Text(
                                             "@\(driver.username)"
                                         )
                                         .foregroundStyle(.secondary)
                                     }
-
+                                    
                                     Spacer()
-
+                                    
                                     Text(driver.role.capitalized)
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 4)
@@ -133,20 +133,20 @@ struct DriverManagerView: View {
                                         )
                                         .clipShape(Capsule())
                                 }
-
+                                
                                 HStack {
                                     Button("Reset Password") {
-
+                                        
                                         driver.password = "1234"
                                         driver.mustChangePassword = true
-
+                                        
                                         try? context.save()
                                         
                                         if drivers.contains(where: {
                                             $0.name == currentDriverName &&
                                             $0.role == "admin"
                                         }) {
-
+                                            
                                             DriverSyncManager.exportDrivers(
                                                 drivers: drivers
                                             )
@@ -154,22 +154,22 @@ struct DriverManagerView: View {
                                     }
                                     .buttonStyle(.borderedProminent)
                                     .tint(.orange)
-
+                                    
                                     Button(
                                         driver.isActive
                                         ? "Disable"
                                         : "Enable"
                                     ) {
-
+                                        
                                         driver.isActive.toggle()
-
+                                        
                                         try? context.save()
                                         
                                         if drivers.contains(where: {
                                             $0.name == currentDriverName &&
                                             $0.role == "admin"
                                         }) {
-
+                                            
                                             DriverSyncManager.exportDrivers(
                                                 drivers: drivers
                                             )
@@ -177,11 +177,11 @@ struct DriverManagerView: View {
                                     }
                                     
                                     Button(role: .destructive) {
-
+                                        
                                         deleteDriver(driver)
-
+                                        
                                     } label: {
-
+                                        
                                         Label(
                                             "Delete",
                                             systemImage: "trash.fill"
@@ -190,13 +190,6 @@ struct DriverManagerView: View {
                                     .disabled(driver.name == currentDriverName)
                                     .buttonStyle(.borderedProminent)
                                     .tint(.red)
-                                    
-                                    .buttonStyle(.borderedProminent)
-                                    .tint(
-                                        driver.isActive
-                                        ? .red
-                                        : .green
-                                    )
                                 }
                             }
                             .padding()
@@ -214,12 +207,14 @@ struct DriverManagerView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button(role: .destructive) {
-                        deleteTestDrivers()
+                    Button {
+                        DriverSyncManager.exportDrivers(
+                            drivers: drivers
+                        )
                     } label: {
                         Label(
-                            "Delete Test Drivers",
-                            systemImage: "trash.fill"
+                            "Sync Drivers",
+                            systemImage: "arrow.triangle.2.circlepath"
                         )
                     }
                 } label: {

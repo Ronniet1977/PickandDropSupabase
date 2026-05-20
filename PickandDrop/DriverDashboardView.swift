@@ -6,6 +6,11 @@ struct DriverDashboardView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("hasSetup") var hasSetup = true
     @AppStorage("currentDriverName") var currentDriverName: String = ""
+    @AppStorage("isLoggedIn")
+    var isLoggedIn = false
+
+    @AppStorage("mustChangePassword")
+    var mustChangePassword = false
     
     @Query var drivers: [DriverProfile]
     @Query var shifts: [Shift]
@@ -354,8 +359,11 @@ struct DriverDashboardView: View {
 
     
     func logout() {
+
         hasSetup = false
         currentDriverName = ""
+        isLoggedIn = false
+        mustChangePassword = false
         print("Driver logged out")
     }
 }

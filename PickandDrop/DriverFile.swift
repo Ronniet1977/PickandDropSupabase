@@ -23,4 +23,6 @@ struct DriverRecord: Codable, Identifiable {
 
     var role: String
     var isActive: Bool
+
+    var mustChangePassword: Bool?
 }

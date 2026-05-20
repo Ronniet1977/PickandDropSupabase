@@ -63,6 +63,7 @@ struct RootView: View {
 
                         currentDriverName = ""
                         isLoggedIn = false
+                        mustChangePassword = false
                     }
                 }
         }

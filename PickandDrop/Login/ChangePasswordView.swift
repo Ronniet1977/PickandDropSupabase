@@ -123,6 +123,10 @@ struct ChangePasswordView: View {
         do {
 
             try context.save()
+            
+            DriverSyncManager.updateDriverInSharedFile(
+                driver: driver
+            )
 
             mustChangePassword = false
             withAnimation {

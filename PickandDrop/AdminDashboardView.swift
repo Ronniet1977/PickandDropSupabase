@@ -29,6 +29,11 @@ struct AdminDashboardView: View {
     
     @AppStorage("hasSetup") var hasSetup = true
     @AppStorage("currentDriverName") var currentDriverName: String = ""
+    @AppStorage("isLoggedIn")
+    var isLoggedIn = false
+
+    @AppStorage("mustChangePassword")
+    var mustChangePassword = false
     
     @State private var selectedLoad: LoadItem?
     @State private var selectedDriver: DriverSummary?
@@ -1000,12 +1005,10 @@ struct AdminDashboardView: View {
     }
     
     func logout() {
-        currentDriverName = ""   // if using AppStorage
-        
-        hasSetup = false
-        selectedDriver = nil
-        
-        print("Logged out")
+
+        currentDriverName = ""
+        isLoggedIn = false
+        mustChangePassword = false
     }
     // 🔥 IMPORT
     func importCSVs(urls: [URL]) async {

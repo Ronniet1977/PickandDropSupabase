@@ -112,22 +112,32 @@ struct LoginView: View {
     }
 
     func login() {
+
+        var didMigrateUsers = false
+
         for driver in drivers {
+
+            if driver.username.isEmpty {
+
+                driver.username = driver.name.lowercased()
+                didMigrateUsers = true
+            }
+
+            if driver.password.isEmpty {
+
+                driver.password = "1234"
+                didMigrateUsers = true
+            }
+        }
+
+        if didMigrateUsers {
             do {
                 try context.save()
             } catch {
                 print("❌ Failed saving migrated users:", error)
             }
-
-            if driver.username.isEmpty {
-
-                driver.username = driver.name.lowercased()
-                if driver.password.isEmpty {
-                    driver.password = "1234"
-                }
-            }
         }
-        
+
         if let driver = drivers.first(where: {
 
             $0.username.lowercased() ==
@@ -142,11 +152,13 @@ struct LoginView: View {
             $0.isActive
 
         }) {
+            if driver.role == "admin" {
+                driver.mustChangePassword = false
+                try? context.save()
+            }
 
             currentDriverName = driver.name
-
             mustChangePassword = driver.mustChangePassword
-
             isLoggedIn = true
 
             print("✅ Login success")
