@@ -50,6 +50,7 @@ struct AdminDashboardView: View {
     
     @State private var showResetAlert = false
     
+    
     var settings: CompanySettings? {
         companySettings.first
     }
@@ -278,6 +279,18 @@ struct AdminDashboardView: View {
                     systemImage: "doc.text.fill"
                 )
             }
+            NavigationStack {
+                DriverFilesView()
+            }
+            .tabItem {
+                Label("Files", systemImage: "folder.fill")
+            }
+            NavigationStack {
+                HelpView()
+            }
+            .tabItem {
+                Label("Help", systemImage: "questionmark.circle.fill")
+            }
         }
     }
     var dashboardTab: some View {
@@ -446,7 +459,6 @@ struct AdminDashboardView: View {
             .toolbar {
 
                 ToolbarItemGroup(placement: .topBarTrailing) {
-
                     Button("Boss Report") {
 
                         bossReportText = makeBossDailyReport()
@@ -605,6 +617,20 @@ struct AdminDashboardView: View {
                 )
             }
         }
+    }
+    
+    func openDriversFolder() {
+
+        let folder = StorageManager
+            .truckReportsFolder()
+            .appendingPathComponent("Drivers")
+
+        try? FileManager.default.createDirectory(
+            at: folder,
+            withIntermediateDirectories: true
+        )
+
+        UIApplication.shared.open(folder)
     }
     
     func archiveAndReset() {

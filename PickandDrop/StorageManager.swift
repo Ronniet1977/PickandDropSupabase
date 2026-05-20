@@ -55,6 +55,31 @@ struct StorageManager {
         return local
     }
     
+    // StorageManager helper
+    static func driverFuelReceiptFolder(
+        driverName: String
+    ) -> URL {
+
+        let safeName = driverName
+            .replacingOccurrences(
+                of: "[^a-zA-Z0-9_-]",
+                with: "_",
+                options: .regularExpression
+            )
+
+        let folder = truckReportsFolder()
+            .appendingPathComponent("Drivers")
+            .appendingPathComponent(safeName)
+            .appendingPathComponent("Fuel Receipts")
+
+        try? FileManager.default.createDirectory(
+            at: folder,
+            withIntermediateDirectories: true
+        )
+
+        return folder
+    }
+    
     static func companyFolder(_ company: String) -> URL {
 
         let safeCompany = company

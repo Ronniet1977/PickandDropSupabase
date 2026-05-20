@@ -12,6 +12,9 @@ struct AddFuelView: View {
     
     @State private var fuelAmount = ""
     
+    @State private var showCamera = false
+    @State private var receiptImage: UIImage?
+    
     var settings: CompanySettings? {
         companySettings.first
     }
@@ -128,6 +131,39 @@ struct AddFuelView: View {
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 30))
                         .padding(.horizontal)
+                        
+                        VStack(spacing: 16) {
+                            
+                            Button {
+                                
+                                showCamera = true
+                                
+                            } label: {
+                                
+                                HStack(spacing: 12) {
+                                    
+                                    Image(systemName: "camera.fill")
+                                    
+                                    Text(
+                                        receiptImage == nil
+                                        ? "Take Fuel Receipt"
+                                        : "Receipt Added"
+                                    )
+                                    .fontWeight(.bold)
+                                }
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(
+                                    receiptImage == nil
+                                    ? Color.blue
+                                    : Color.green
+                                )
+                                .clipShape(
+                                    RoundedRectangle(cornerRadius: 22)
+                                )
+                            }
+                        }
 
                         Button {
 
@@ -160,6 +196,12 @@ struct AddFuelView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showCamera) {
+
+            CameraPicker(
+                image: $receiptImage
+            )
+        }
     }
     
     func saveFuel() {
@@ -167,6 +209,8 @@ struct AddFuelView: View {
 
         let amount = Double(fuelAmount) ?? 0
         shift.fuelTotal += amount
+        
+        saveFuelReceipt()
 
         do {
             try context.save()
@@ -189,6 +233,52 @@ struct AddFuelView: View {
 
         } catch {
             print("❌ Fuel save failed:", error)
+        }
+    }
+    
+    func saveFuelReceipt() {
+
+        guard let receiptImage else { return }
+
+        let folder =
+            StorageManager
+                .driverFuelReceiptFolder(
+                    driverName: driver.name
+                )
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd_HH-mm"
+
+        let safeDriver =
+            driver.name.replacingOccurrences(
+                of: " ",
+                with: "_"
+            )
+
+        let fileName =
+            "\(safeDriver)_Truck\(driver.truckNumber)_Fuel_\(formatter.string(from: Date())).jpg"
+
+        let fileURL =
+            folder.appendingPathComponent(fileName)
+
+        guard let data =
+            receiptImage.jpegData(
+                compressionQuality: 0.8
+            ) else {
+            return
+        }
+
+        do {
+
+            try data.write(to: fileURL)
+
+            print("⛽️ Fuel receipt saved:",
+                  fileURL)
+
+        } catch {
+
+            print("❌ Receipt save failed:",
+                  error)
         }
     }
 }

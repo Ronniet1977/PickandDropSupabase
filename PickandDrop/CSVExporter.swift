@@ -63,7 +63,6 @@ struct CSVExporter {
             csv += "\(date),\(time),\(csvSafe(driver.name)),\(driver.truckNumber),\(csvSafe(load.pickupTicketNumber)),\(pickupTons),\(csvSafe(load.deliveryTicketNumber)),\(deliveryTons),\(pickedUp),\(delivered),\(fuelString)\n"
         }
         
-        let folder = StorageManager.truckReportsFolder()
         let url = StorageManager
             .truckReportsFolder()
             .appendingPathComponent(fileName)
@@ -94,7 +93,6 @@ struct CSVExporter {
 
         let fileName = "\(safeName)-Truck\(driver.truckNumber)-ACTIVE.csv"
 
-        let folder = StorageManager.truckReportsFolder()
         let url = StorageManager
             .truckReportsFolder()
             .appendingPathComponent(fileName)
