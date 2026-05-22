@@ -127,7 +127,17 @@ struct InvoiceGenerator {
                     let rateString = String(format: "$%.2f", ratePerTon)
                     let totalString = String(format: "$%.2f", lineTotal)
 
-                    drawText(load.deliveryTicket, x: 48, y: y, font: .systemFont(ofSize: 10), width: 80)
+                    let ticket = useDeliveryTons
+                        ? load.deliveryTicket
+                        : load.pickupTicket
+
+                    drawText(
+                        ticket,
+                        x: 48,
+                        y: y,
+                        font: .systemFont(ofSize: 10),
+                        width: 80
+                    )
 
                     drawText(load.driverName, x: 135, y: y, font: .systemFont(ofSize: 10), width: 125)
 
