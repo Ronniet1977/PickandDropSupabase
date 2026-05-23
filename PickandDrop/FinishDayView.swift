@@ -25,7 +25,15 @@ struct FinishDayView: View {
     }
     
     var shiftLoads: [LoadItem] {
-        return loads.filter { $0.driverName == driver.name }
+
+        return loads.filter {
+            $0.driverName == driver.name &&
+            !$0.isArchived &&
+            (
+                activeShift == nil ||
+                $0.createdAt >= activeShift!.startedAt
+            )
+        }
     }
     
     var totalTons: Double {
@@ -108,8 +116,15 @@ struct FinishDayView: View {
             try context.save()
             print("✅ Shift finished")
 
+            let currentShift = activeShift
+
             let driverLoads = loads.filter {
-                $0.driverName == driver.name
+                $0.driverName == driver.name &&
+                !$0.isArchived &&
+                (
+                    currentShift == nil ||
+                    $0.createdAt >= currentShift!.startedAt
+                )
             }
 
             // ✅ FINAL export
@@ -120,6 +135,13 @@ struct FinishDayView: View {
                 settings: settings,
                 isFinal: true
             )
+
+            // ✅ DELETE FINISHED LOCAL LOADS
+            for load in driverLoads {
+                load.isArchived = true
+            }
+
+            try context.save()
 
             // ✅ REMOVE ACTIVE FILE
             CSVExporter.deleteActiveCSV(driver: driver)

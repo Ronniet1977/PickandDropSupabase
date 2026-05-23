@@ -79,6 +79,8 @@ class LoadItem {
     var truckingCompanyName: String = ""
     var pickupCompanyName: String = ""
     var dropoffCompanyName: String = ""
+    
+    var isArchived: Bool = false
 
     init() {}
 }

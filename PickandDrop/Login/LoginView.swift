@@ -152,14 +152,32 @@ struct LoginView: View {
             $0.isActive
 
         }) {
+
             if driver.role == "admin" {
                 driver.mustChangePassword = false
                 try? context.save()
             }
 
+            if driver.role != "admin" &&
+                DriverSessionManager.isLoggedIn(
+                    username: driver.username
+                ) {
+
+                loginError =
+                    "This driver is already logged in on another device."
+
+                return
+            }
+
             currentDriverName = driver.name
             mustChangePassword = driver.mustChangePassword
             isLoggedIn = true
+
+            if driver.role != "admin" {
+                DriverSessionManager.login(
+                    username: driver.username
+                )
+            }
 
             print("✅ Login success")
 

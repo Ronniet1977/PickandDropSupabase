@@ -15,7 +15,7 @@ struct CSVExporter {
             "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
         }
         
-        var csv = "Date,Time,Driver,Truck,\(settings?.pickupCompanyName ?? "Pickup") Ticket,\(settings?.pickupCompanyName ?? "Pickup") Ticket,Pickup Tons,,\(settings?.dropoffCompanyName ?? "Dropoff") Ticket,\(settings?.dropoffCompanyName ?? "Dropoff") Ticket,\(settings?.dropoffCompanyName ?? "Dropoff") Tons,PickedUp,Delivered,Fuel Total\n"
+        var csv = "Date,Time,Driver,Truck,\(settings?.pickupCompanyName ?? "Pickup") Ticket,\(settings?.pickupCompanyName ?? "Pickup") Tons,\(settings?.dropoffCompanyName ?? "Dropoff") Ticket,\(settings?.dropoffCompanyName ?? "Dropoff") Tons,PickedUp,Delivered,Fuel Total\n"
         
         let safeName = driver.name
             .replacingOccurrences(of: "[^a-zA-Z0-9_-]", with: "_", options: .regularExpression)
@@ -39,8 +39,20 @@ struct CSVExporter {
         
         let fileName = "\(safeName)-Truck\(driver.truckNumber)-\(suffix).csv"
         
+        if sortedLoads.isEmpty {
+
+            let date = dateFormatter.string(from: Date())
+            let time = timeFormatter.string(from: Date())
+            let fuelString = String(format: "%.2f", activeShift?.fuelTotal ?? 0)
+
+            csv += "\(date),\(time),\(csvSafe(driver.name)),\(driver.truckNumber),,,,,,,\(fuelString)\n"
+        }
+        
         for (index, load) in sortedLoads.enumerated() {
-            
+
+            print("🚚 CSV LOAD:", load.pickupTicketNumber)
+            print("🚚 DELIVERED:", load.deliveredAt != nil)
+
             let date = dateFormatter.string(from: load.createdAt)
             let time = timeFormatter.string(from: load.createdAt)
             
@@ -68,11 +80,12 @@ struct CSVExporter {
             .appendingPathComponent(fileName)
         
         do {
-            if FileManager.default.fileExists(atPath: url.path) {
-                try FileManager.default.removeItem(at: url)
-            }
-            
-            try csv.write(to: url, atomically: true, encoding: .utf8)
+            let data = Data(csv.utf8)
+
+            try data.write(
+                to: url,
+                options: .atomic
+            )
             print("✅ CSV written:", url)
             
         } catch {

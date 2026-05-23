@@ -210,17 +210,28 @@ struct AddFuelView: View {
         let amount = Double(fuelAmount) ?? 0
         shift.fuelTotal += amount
         
+        WeeklyFuelManager.addFuel(
+            driverName: driver.name,
+            truckNumber: driver.truckNumber,
+            amount: amount
+        )
+        
         saveFuelReceipt()
 
         do {
             try context.save()
             print("✅ Fuel saved")
 
-            let driverLoads = loads.filter {
-                $0.driverName == driver.name
-            }
+            let currentShift = activeShift
 
-            let currentShift = shift
+            let driverLoads = loads.filter {
+                $0.driverName == driver.name &&
+                !$0.isArchived &&
+                (
+                    currentShift == nil ||
+                    $0.createdAt >= currentShift!.startedAt
+                )
+            }
 
             _ = CSVExporter.generateCSV(
                 loads: driverLoads,

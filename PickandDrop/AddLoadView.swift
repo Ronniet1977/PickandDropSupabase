@@ -31,7 +31,15 @@ struct AddLoadView: View {
     }
     
     var shiftLoads: [LoadItem] {
-        loads.filter { $0.driverName == driver.name }
+
+        loads.filter {
+            $0.driverName == driver.name &&
+            !$0.isArchived &&
+            (
+                activeShift == nil ||
+                $0.createdAt >= activeShift!.startedAt
+            )
+        }
     }
     
     var body: some View {
@@ -229,7 +237,12 @@ struct AddLoadView: View {
             try context.save()
 
             let driverLoads = self.loads.filter {
-                $0.driverName == driver.name
+                $0.driverName == driver.name &&
+                !$0.isArchived &&
+                (
+                    activeShift == nil ||
+                    $0.createdAt >= activeShift!.startedAt
+                )
             }
 
             let _ = CSVExporter.generateCSV(

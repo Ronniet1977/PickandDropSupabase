@@ -14,7 +14,10 @@ struct LoadListView: View {
     
     var shiftLoads: [LoadItem] {
         loads
-            .filter { $0.driverName == driver.name }
+            .filter {
+                $0.driverName == driver.name &&
+                !$0.isArchived
+            }
             .sorted { $0.createdAt > $1.createdAt }
     }
     

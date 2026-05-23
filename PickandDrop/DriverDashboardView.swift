@@ -34,7 +34,15 @@ struct DriverDashboardView: View {
     }
     
     var shiftLoads: [LoadItem] {
-        return loads.filter { $0.driverName == driver.name }
+
+        return loads.filter {
+            $0.driverName == driver.name &&
+            !$0.isArchived &&
+            (
+                activeShift == nil ||
+                $0.createdAt >= activeShift!.startedAt
+            )
+        }
     }
     
     var totalTons: Double {
@@ -44,7 +52,12 @@ struct DriverDashboardView: View {
     var todayLoads: [LoadItem] {
 
         loads.filter {
-            $0.driverName == driver.name
+            $0.driverName == driver.name &&
+            !$0.isArchived &&
+            (
+                activeShift == nil ||
+                $0.createdAt >= activeShift!.startedAt
+            )
         }
     }
     
@@ -360,10 +373,15 @@ struct DriverDashboardView: View {
     
     func logout() {
 
+        DriverSessionManager.logout(
+            username: driver.username
+        )
+
         hasSetup = false
         currentDriverName = ""
         isLoggedIn = false
         mustChangePassword = false
+
         print("Driver logged out")
     }
 }

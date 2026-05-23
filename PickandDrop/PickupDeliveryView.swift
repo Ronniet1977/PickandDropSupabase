@@ -27,7 +27,10 @@ struct PickupDeliveryView: View {
     
     var driverLoads: [LoadItem] {
         loads
-            .filter { $0.driverName == driver.name }
+            .filter {
+                $0.driverName == driver.name &&
+                !$0.isArchived
+            }
             .sorted { $0.createdAt > $1.createdAt }
     }
     
@@ -351,22 +354,27 @@ struct PickupDeliveryView: View {
         
         sendDeliveryNotification(for: load)
         
+        print("✅ DELIVERY SAVED:", load.deliveryTicketNumber)
+        print("✅ DELIVERED AT:", load.deliveredAt ?? Date())
+        
         saveAndUpdateCSV()
         
         deliveryTicket = ""
         deliveryTons = ""
         selectedLoad = nil
+        
     }
     
     func saveAndUpdateCSV() {
         do {
             try context.save()
 
-            let driverLoads = loads.filter {
-                $0.driverName == driver.name
-            }
-
             let currentShift = activeShift
+
+            let driverLoads = loads.filter {
+                $0.driverName == driver.name &&
+                !$0.isArchived
+            }
 
             let _ = CSVExporter.generateCSV(
                 loads: driverLoads,

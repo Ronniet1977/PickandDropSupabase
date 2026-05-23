@@ -191,11 +191,16 @@ struct StartShiftView: View {
             try context.save()
             print("✅ Shift started")
 
-            let driverLoads = loads.filter {
-                $0.driverName == driver.name
-            }
+            let currentShift = activeShift
 
-            let currentShift = newShift
+            let driverLoads = loads.filter {
+                $0.driverName == driver.name &&
+                !$0.isArchived &&
+                (
+                    currentShift == nil ||
+                    $0.createdAt >= currentShift!.startedAt
+                )
+            }
 
             _ = CSVExporter.generateCSV(
                 loads: driverLoads,

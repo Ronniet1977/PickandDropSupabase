@@ -54,6 +54,7 @@ struct AdminDashboardView: View {
     @State private var dismissedDrivers: Set<String> = []
     
     @State private var showResetAlert = false
+    @State private var fuelByDriver: [String: Double] = [:]
     
     
     
@@ -200,7 +201,7 @@ struct AdminDashboardView: View {
                 loads: loads.count,
                 pickupTons: loads.reduce(0.0) { $0 + $1.pickupTons },
                 deliveryTons: loads.reduce(0.0) { $0 + $1.deliveryTons },
-                fuel: 0,
+                fuel: fuelByDriver[driverName] ?? 0,
                 status: status,
                 isFinished: isFinished
             )
@@ -215,11 +216,11 @@ struct AdminDashboardView: View {
     }
     
     var visibleDriverSummaries: [DriverSummary] {
-        driverSummaries.filter {
+        filteredDriverSummaries.filter {
             !dismissedDrivers.contains($0.name)
         }
     }
-
+    
     //Boss Sumary
     var deliveredLoads: Int {
         allLoads.filter { $0.deliveredAt != nil }.count
@@ -230,7 +231,7 @@ struct AdminDashboardView: View {
     }
     
     var totalFuel: Double {
-        driverSummaries.reduce(0.0) { $0 + $1.fuel }
+        WeeklyFuelManager.totalFuel()
     }
     
     var totalPickupTons: Double {
@@ -457,9 +458,6 @@ struct AdminDashboardView: View {
                     }
                     .padding()
                 }
-                .refreshable {
-                    loadFromiCloud()
-                }
             }
             .navigationTitle("Admin")
             .toolbar {
@@ -475,8 +473,13 @@ struct AdminDashboardView: View {
                     Button {
                         loadFromiCloud()
                     } label: {
-                        Image(systemName: "arrow.clockwise")
+                        if isRefreshing {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
                     }
+                    .disabled(isRefreshing)
 
                     Menu {
 
@@ -529,7 +532,6 @@ struct AdminDashboardView: View {
             .onAppear {
                 requestNotificationPermission()
                 loadFromiCloud()
-                try? context.save()
             }
             .sheet(item: $selectedDriver) { driver in
                 DriverDetailView(
@@ -682,8 +684,6 @@ struct AdminDashboardView: View {
                     print("🗑 Deleted ACTIVE file")
                 }
             }
-            
-            loadFromiCloud()
 
             print("✅ Archive & Reset complete")
 
@@ -766,6 +766,13 @@ struct AdminDashboardView: View {
                     Text(
                         "\(settings?.dropoffCompanyName ?? "Dropoff"): \(driver.deliveryTons, specifier: "%.0f")"
                     )
+                    
+                    Text(
+                        "Fuel: $\(WeeklyFuelManager.fuelForDriver(driver.name), specifier: "%.0f")"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    
                 }
                 .font(.caption)
             }
@@ -823,8 +830,6 @@ struct AdminDashboardView: View {
                     print("🗑 Deleted ACTIVE:", name)
                 }
             }
-
-            loadFromiCloud()
 
         } catch {
 
@@ -1107,7 +1112,11 @@ struct AdminDashboardView: View {
                         newLoad.status = "delivered"
                     }
                     
-                    summaryDict[driverName]?.fuel = Double(fuel) ?? 0
+                    let fuelValue = Double(fuel) ?? 0
+
+                    if fuelValue > 0 {
+                        summaryDict[driverName]?.fuel = fuelValue
+                    }
 
                     context.insert(newLoad)
                 }
@@ -1141,14 +1150,23 @@ struct AdminDashboardView: View {
     
     func loadFromiCloud() {
         
-        if isRefreshing { return }   // ✅ prevents overlapping refreshes
+        if isRefreshing {
+            print("⛔️ Already refreshing")
+            return
+        }   // ✅ prevents overlapping refreshes
         
         isRefreshing = true
         
         var activeDriverNames: Set<String> = []
         
         Task {
-            
+
+            defer {
+                Task { @MainActor in
+                    isRefreshing = false
+                }
+            }
+
             let baseURL = StorageManager.truckReportsFolder()
             
             print("📂 Truck Reports base:", baseURL)
@@ -1170,13 +1188,14 @@ struct AdminDashboardView: View {
                 var summaryDict: [String: DriverSummary] = [:]
                 
                 for file in files {
-                    
+
                     let fileName = file.lastPathComponent
-                    
-                    // ✅ Only read driver ACTIVE files
-                    // ❌ Skip ADMIN-ACTIVE.csv so it does not duplicate everything
+
                     if fileName == "ADMIN-ACTIVE.csv" { continue }
                     if !fileName.hasSuffix("-ACTIVE.csv") { continue }
+
+                    print("📄 IMPORTING:", file.lastPathComponent)
+                    print("📍 Path:", file.path)
                     
                     let text = try String(contentsOf: file, encoding: .utf8)
                     let rows = text.components(separatedBy: "\n").dropFirst()
@@ -1233,14 +1252,7 @@ struct AdminDashboardView: View {
                             formatter.date(from: combined)
                             ?? Date()
                         
-                        let alreadyExists = allLoads.contains {
-                            $0.pickupTicketNumber == pickupTicket &&
-                            $0.driverName == driverName
-                        }
-
-                        if alreadyExists {
-                            continue
-                        }
+                        
                         let newLoad = LoadItem()
 
                         newLoad.driverName = driverName
@@ -1270,7 +1282,15 @@ struct AdminDashboardView: View {
                             newLoad.status = "delivered"
                         }
 
-                        summaryDict[driverName]?.fuel = Double(fuel) ?? 0
+                        let fuelValue = Double(fuel) ?? 0
+
+                        if fuelValue > 0 {
+                            summaryDict[driverName]?.fuel = fuelValue
+                            
+                            await MainActor.run {
+                                fuelByDriver[driverName] = fuelValue
+                            }
+                        }
 
                         context.insert(newLoad)
                     }
@@ -1308,15 +1328,10 @@ struct AdminDashboardView: View {
                     }
                     
                     lastUpdated = Date()
-                    isRefreshing = false
                 }
                 
             } catch {
                 print("❌ Error reading iCloud:", error)
-                
-                await MainActor.run {
-                    isRefreshing = false
-                }
             }
         }
     }
@@ -1352,7 +1367,9 @@ struct AdminDashboardView: View {
                     pickupTons: 0,
                     deliveryTons: 0,
 
-                    fuel: 0,
+                    fuel: filteredDriverSummaries
+                        .first { $0.name == load.driverName }?
+                        .fuel ?? 0,
 
                     status: isFinished ? "finished" : "active",
 
@@ -1368,14 +1385,14 @@ struct AdminDashboardView: View {
         let summaries = Array(summaryDict.values)
         
         // SUMMARY CSV
-        csv += "Driver,Truck,Loads,Pickup Tons,Delivery Tons,Fuel,Status\n"
+        csv += "Driver,Truck,Loads,Pickup Tons,Delivery Tons,Status\n"
         
         for d in summaries {
             
             let pickupString = String(format: "%.2f", d.pickupTons)
             let deliveryString = String(format: "%.2f", d.deliveryTons)
             
-            csv += "\(d.name),\(d.truck),\(d.loads),\(pickupString),\(deliveryString),\(d.fuel),\(d.status)\n"
+            csv += "\(d.name),\(d.truck),\(d.loads),\(pickupString),\(deliveryString),\(d.status)\n"
         }
         
         csv += "\n\n"
@@ -1414,12 +1431,18 @@ struct AdminDashboardView: View {
         let fileURL = folder.appendingPathComponent(fileName)
         
         do {
-            
-            if FileManager.default.fileExists(atPath: fileURL.path) {
-                try FileManager.default.removeItem(at: fileURL)
+            if let oldText = try? String(contentsOf: fileURL, encoding: .utf8),
+               oldText == csv {
+                print("✅ ADMIN ACTIVE unchanged — skipping write")
+                return
             }
             
-            try csv.write(to: fileURL, atomically: true, encoding: .utf8)
+            let data = Data(csv.utf8)
+
+            try data.write(
+                to: fileURL,
+                options: .atomic
+            )
             
             print("✅ ADMIN ACTIVE (SHARED):", fileURL)
             

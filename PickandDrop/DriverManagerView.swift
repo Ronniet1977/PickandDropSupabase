@@ -27,6 +27,7 @@ struct DriverManagerView: View {
     @State private var selectedRole = "driver"
     
     @State private var showJoinCode = false
+    @State private var showCopied = false
 
     var body: some View {
         
@@ -255,6 +256,14 @@ struct DriverManagerView: View {
             "Company Join Code",
             isPresented: $showJoinCode
         ) {
+
+            Button("Copy Code") {
+
+                UIPasteboard.general.string =
+                    CompanySyncManager
+                        .importCompany()?
+                        .companyJoinCode
+            }
 
             Button("OK", role: .cancel) { }
 
