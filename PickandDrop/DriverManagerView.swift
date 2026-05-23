@@ -23,6 +23,8 @@ struct DriverManagerView: View {
     @State private var newUsername = ""
 
     @State private var selectedRole = "driver"
+    
+    @State private var showJoinCode = false
 
     var body: some View {
         
@@ -208,6 +210,18 @@ struct DriverManagerView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
+
+                        showJoinCode = true
+
+                    } label: {
+
+                        Label(
+                            "View Company Code",
+                            systemImage: "number.circle.fill"
+                        )
+                    }
+                    
+                    Button {
                         DriverSyncManager.exportDrivers(
                             drivers: drivers
                         )
@@ -222,6 +236,22 @@ struct DriverManagerView: View {
                         .font(.title3)
                 }
             }
+        }
+        .alert(
+            "Company Join Code",
+            isPresented: $showJoinCode
+        ) {
+
+            Button("OK", role: .cancel) { }
+
+        } message: {
+
+            Text(
+                CompanySyncManager
+                    .importCompany()?
+                    .companyJoinCode
+                ?? "No code found"
+            )
         }
     }
 

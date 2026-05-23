@@ -56,6 +56,7 @@ struct AdminDashboardView: View {
     @State private var showResetAlert = false
     
     
+    
     var settings: CompanySettings? {
         companySettings.first
     }

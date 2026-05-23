@@ -38,6 +38,8 @@ struct CompanySetupView: View {
     @State private var errorText = ""
     @State private var joinExistingCompany = false
     @State private var joinCode = ""
+    
+    
 
     private func loadCompanyFromSharedFolder() {
         guard joinExistingCompany else { return }
