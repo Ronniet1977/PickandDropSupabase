@@ -8,8 +8,7 @@ import Foundation
 
 struct WeeklyFuelEntry: Codable, Identifiable {
 
-    let id = UUID()
-
+    var id = UUID()
     let driverName: String
     let truckNumber: String
 
