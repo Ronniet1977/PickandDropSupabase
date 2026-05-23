@@ -14,6 +14,8 @@ struct DriverManagerView: View {
 
     @Query(sort: \DriverProfile.name)
     var drivers: [DriverProfile]
+    @Query
+    var companySettings: [CompanySettings]
     
     @AppStorage("currentDriverName")
     var currentDriverName = ""
@@ -211,6 +213,18 @@ struct DriverManagerView: View {
                 Menu {
                     Button {
 
+                        regenerateCompanyCode()
+
+                    } label: {
+
+                        Label(
+                            "Generate New Code",
+                            systemImage: "arrow.clockwise.circle.fill"
+                        )
+                    }
+                    
+                    Button {
+
                         showJoinCode = true
 
                     } label: {
@@ -253,6 +267,29 @@ struct DriverManagerView: View {
                 ?? "No code found"
             )
         }
+    }
+    
+    func regenerateCompanyCode() {
+
+        guard let settings = companySettings.first else {
+            return
+        }
+
+        let newCode =
+            settings.truckingCompanyName
+                .uppercased()
+                .replacingOccurrences(of: " ", with: "")
+            + "-\(Int.random(in: 1000...9999))"
+
+        settings.companyJoinCode = newCode
+
+        try? context.save()
+
+        CompanySyncManager.exportCompany(
+            settings: settings
+        )
+
+        print("✅ New Join Code:", newCode)
     }
 
     func createDriver() {
