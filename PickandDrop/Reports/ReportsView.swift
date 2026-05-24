@@ -10,10 +10,13 @@ import SwiftData
 import QuickLook
 
 struct ReportsView: View {
-    
+    @Environment(\.modelContext) private var context
     @Query var companySettings: [CompanySettings]
+    @Query var loads: [LoadItem]
     @State private var reportFiles: [URL] = []
     @State private var invoiceURL: URL?
+    @State private var weeklyInvoiceURL: URL?
+    @State private var selectedInvoiceWeek = Date()
     
     
     var settings: CompanySettings? {
@@ -40,7 +43,7 @@ struct ReportsView: View {
                 ScrollView {
 
                     VStack(spacing: 22) {
-
+                        
                         // HEADER
 
                         VStack(alignment: .leading, spacing: 14) {
@@ -112,7 +115,42 @@ struct ReportsView: View {
                             }
                             .padding(.top, 80)
                         }
+                        
+                        DatePicker(
+                            "Invoice Week",
+                            selection: $selectedInvoiceWeek,
+                            displayedComponents: .date
+                        )
+                        .datePickerStyle(.compact)
+                        .foregroundStyle(.white)
+                        
+                        Button {
 
+                            if let settings = companySettings.first {
+
+                                weeklyInvoiceURL =
+                                    WeeklyInvoiceGenerator.createWeeklyInvoicePDF(
+                                        settings: settings,
+                                        weekDate: selectedInvoiceWeek
+                                    )                            }
+
+                        } label: {
+
+                            Label(
+                                "Weekly Invoice",
+                                systemImage: "doc.richtext.fill"
+                            )
+                        }
+                        
+                        Button(role: .destructive) {
+                            WeeklyFuelManager.archiveAndResetWeeklyFuel()
+                        } label: {
+
+                            Label(
+                                "Archive Weekly Fuel",
+                                systemImage: "archivebox.fill"
+                            )
+                        }
                         // REPORT CARDS
 
                         ForEach(reportFiles, id: \.self) { file in
@@ -196,6 +234,7 @@ struct ReportsView: View {
                 loadFiles()
             }
             .quickLookPreview($invoiceURL)
+            .quickLookPreview($weeklyInvoiceURL)
         }
     }
     

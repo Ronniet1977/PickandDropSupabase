@@ -6,10 +6,12 @@ struct PickupDeliveryView: View {
     let driver: DriverProfile
     
     @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
     @Query var loads: [LoadItem]
     @Query var shifts: [Shift]
     @Query var companySettings: [CompanySettings]
     
+    @StateObject private var notificationManager = NotificationSyncManager()
     @State private var selectedLoad: LoadItem?
     @State private var deliveryTicket = ""
     @State private var deliveryTons = ""
@@ -335,6 +337,22 @@ struct PickupDeliveryView: View {
         }
     }
     
+    func sendAdminNotification(
+        type: String,
+        message: String,
+        ticket: String? = nil
+    ) {
+        let note = AppNotification(
+            type: type,
+            driverName: driver.name,
+            truckNumber: driver.truckNumber,
+            message: message,
+            loadTicket: ticket
+        )
+
+        notificationManager.sendNotification(note)
+    }
+    
     func markPickedUp(_ load: LoadItem) {
         load.status = "pickedUp"
         load.pickedUpAt = Date()
@@ -344,18 +362,20 @@ struct PickupDeliveryView: View {
     func completeDelivery(_ load: LoadItem) {
         guard let tonsValue = Double(deliveryTons) else { return }
         
-        // ✅ Mark delivered
         load.deliveredAt = Date()
         load.status = "delivered"
         load.deliveryTicketNumber = deliveryTicket
-        
-        // ✅ Optional: update tons if you want
         load.deliveryTons = tonsValue
         
+        // Local device notification
         sendDeliveryNotification(for: load)
         
-        print("✅ DELIVERY SAVED:", load.deliveryTicketNumber)
-        print("✅ DELIVERED AT:", load.deliveredAt ?? Date())
+        // ✅ Admin iCloud notification
+        sendAdminNotification(
+            type: "Delivered",
+            message: "\(driver.name) delivered \(settings?.dropoffCompanyName ?? "Dropoff") ticket \(load.deliveryTicketNumber) • \(tonsValue) tons",
+            ticket: load.deliveryTicketNumber
+        )
         
         saveAndUpdateCSV()
         
@@ -363,6 +383,7 @@ struct PickupDeliveryView: View {
         deliveryTons = ""
         selectedLoad = nil
         
+        dismiss()
     }
     
     func saveAndUpdateCSV() {

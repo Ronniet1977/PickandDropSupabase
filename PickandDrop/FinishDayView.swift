@@ -12,6 +12,8 @@ struct FinishDayView: View {
     @Query var shifts: [Shift]
     @Query var companySettings: [CompanySettings]
     
+    @StateObject private var notificationManager = NotificationSyncManager()
+    
     @State private var didFinish = false
     
     var settings: CompanySettings? {
@@ -65,6 +67,7 @@ struct FinishDayView: View {
                             Text("Finish Day")
                                 .font(.largeTitle)
                                 .bold()
+                                .foregroundStyle(.red)
                             
                             Text(
                                 settings?.truckingCompanyName
@@ -79,13 +82,6 @@ struct FinishDayView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         }
-                        Button {
-                            finishDay()
-                        } label: {
-                            Text("Finish Day")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.red)
                     }
                 }
             }
@@ -107,25 +103,39 @@ struct FinishDayView: View {
             .replacingOccurrences(of: "_+", with: "_", options: .regularExpression)
     }
     
+    func sendAdminNotification(
+        type: String,
+        message: String
+    ) {
+        let note = AppNotification(
+            type: type,
+            driverName: driver.name,
+            truckNumber: driver.truckNumber,
+            message: message,
+            loadTicket: nil
+        )
+
+        notificationManager.sendNotification(note)
+    }
+    
     func finishDay() {
         guard let shift = activeShift else { return }
 
-        shift.status = "finished"
+        
 
         do {
             try context.save()
             print("✅ Shift finished")
 
-            let currentShift = activeShift
+            let currentShift = shift
 
             let driverLoads = loads.filter {
                 $0.driverName == driver.name &&
                 !$0.isArchived &&
-                (
-                    currentShift == nil ||
-                    $0.createdAt >= currentShift!.startedAt
-                )
+                $0.shift?.id == currentShift.id
             }
+            
+            print("📦 FinishDay driverLoads:", driverLoads.count)
 
             // ✅ FINAL export
             let _ = CSVExporter.generateCSV(
@@ -135,11 +145,19 @@ struct FinishDayView: View {
                 settings: settings,
                 isFinal: true
             )
+            
+            sendAdminNotification(
+                type: "Finished Day",
+                message: "\(driver.name) finished the day • \(driverLoads.count) loads • \(String(format: "%.2f", totalTons)) tons"
+            )
 
             // ✅ DELETE FINISHED LOCAL LOADS
             for load in driverLoads {
                 load.isArchived = true
+                print("🗂 ARCHIVING:", load.pickupTicketNumber, load.isArchived)
             }
+            
+            shift.status = "finished"
 
             try context.save()
 

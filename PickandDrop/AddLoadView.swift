@@ -11,6 +11,8 @@ struct AddLoadView: View {
     @Query var shifts: [Shift]
     @Query var companySettings: [CompanySettings]
     
+    @StateObject private var notificationManager = NotificationSyncManager()
+    
     @State private var pickupTicket = ""
     @State private var pickupTons = ""
     
@@ -212,6 +214,22 @@ struct AddLoadView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
     }
     
+    func sendAdminNotification(
+        type: String,
+        message: String,
+        ticket: String? = nil
+    ) {
+        let note = AppNotification(
+            type: type,
+            driverName: driver.name,
+            truckNumber: driver.truckNumber,
+            message: message,
+            loadTicket: ticket
+        )
+
+        notificationManager.sendNotification(note)
+    }
+    
     func saveLoad() {
         guard let tonsValue = Double(pickupTons) else { return }
 
@@ -232,6 +250,11 @@ struct AddLoadView: View {
         }
 
         context.insert(newLoad)
+        sendAdminNotification(
+            type: "Load Added",
+            message: "\(driver.name) picked up \(cleanTicket) • \(tonsValue) tons",
+            ticket: cleanTicket
+        )
 
         do {
             try context.save()

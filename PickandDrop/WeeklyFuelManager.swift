@@ -113,6 +113,48 @@ enum WeeklyFuelManager {
                 $0 + $1.amount
             }
     }
+    
+    static func archiveAndResetWeeklyFuel() {
+        let currentURL = fileURL
+
+        guard FileManager.default.fileExists(atPath: currentURL.path) else {
+            print("⚠️ No WeeklyFuel.json to archive")
+            return
+        }
+
+        let archiveFolder = StorageManager
+            .truckReportsFolder()
+            .appendingPathComponent("FuelArchive")
+
+        try? FileManager.default.createDirectory(
+            at: archiveFolder,
+            withIntermediateDirectories: true
+        )
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd_HH-mm"
+
+        let archiveURL = archiveFolder
+            .appendingPathComponent("WeeklyFuel-\(formatter.string(from: Date())).json")
+
+        do {
+            try FileManager.default.copyItem(
+                at: currentURL,
+                to: archiveURL
+            )
+
+            try Data("[]".utf8).write(
+                to: currentURL,
+                options: [.atomic]
+            )
+
+            print("✅ Weekly fuel archived:", archiveURL.lastPathComponent)
+            print("🧹 Weekly fuel reset")
+
+        } catch {
+            print("❌ Weekly fuel archive/reset failed:", error)
+        }
+    }
 
     static func resetWeeklyFuel() {
 

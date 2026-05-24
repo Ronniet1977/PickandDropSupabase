@@ -19,6 +19,7 @@ enum AdminLoadFilter: String, CaseIterable, Identifiable {
 
 struct AdminDashboardView: View {
     @Environment(\.modelContext) private var context
+    @StateObject private var notificationManager = NotificationSyncManager()
     @Query var drivers: [DriverProfile]
     @Query var loads: [LoadItem]
     @Query var shifts: [Shift]
@@ -39,6 +40,7 @@ struct AdminDashboardView: View {
     @State private var selectedDriver: DriverSummary?
     @State private var exportURL: URL?
     @State private var showImporter = false
+    @State private var showFolderPicker = false
     
     @State private var lastDeliveredCount: Int = 0
     
@@ -46,6 +48,7 @@ struct AdminDashboardView: View {
         .autoconnect()
     @State private var lastUpdated: Date = Date()
     @State private var isRefreshing = false
+    @State private var lastRefresh = Date.distantPast
     
     @State private var selectedFilter: AdminLoadFilter = .all
     
@@ -55,6 +58,8 @@ struct AdminDashboardView: View {
     
     @State private var showResetAlert = false
     @State private var fuelByDriver: [String: Double] = [:]
+    
+    
     
     
     
@@ -360,6 +365,80 @@ struct AdminDashboardView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, 4)
                         
+                        if !notificationManager.notifications.isEmpty {
+
+                            VStack(alignment: .leading, spacing: 12) {
+
+                                HStack {
+                                    Text("Driver Notifications")
+                                        .font(.headline)
+
+                                    Spacer()
+
+                                    Text("\(notificationManager.notifications.count)")
+                                        .font(.caption.bold())
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 4)
+                                        .background(.red)
+                                        .foregroundStyle(.white)
+                                        .clipShape(Capsule())
+                                }
+
+                                ForEach(notificationManager.notifications) { note in
+
+                                    VStack(alignment: .leading, spacing: 6) {
+
+                                        HStack {
+                                            Text(note.type)
+                                                .font(.caption.bold())
+                                                .padding(6)
+                                                .background(.green.opacity(0.2))
+                                                .clipShape(Capsule())
+
+                                            Spacer()
+
+                                            Text(
+                                                note.createdAt.formatted(
+                                                    date: .omitted,
+                                                    time: .shortened
+                                                )
+                                            )
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        }
+
+                                        Text(note.message)
+                                            .font(.body)
+
+                                        HStack {
+                                            Text("Driver: \(note.driverName)")
+                                            Spacer()
+                                            Text("Truck: \(note.truckNumber)")
+                                        }
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+
+                                        Button(role: .destructive) {
+
+                                            notificationManager.deleteNotification(note)
+
+                                        } label: {
+
+                                            Label(
+                                                "Clear Notification",
+                                                systemImage: "trash"
+                                            )
+                                        }
+                                        .font(.caption)
+                                    }
+                                    .padding()
+                                    .background(.thinMaterial)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                }
+                            }
+                            .padding()
+                        }
+                        
                         //Boss Summary Cards
                         VStack(spacing: 12) {
                             HStack(spacing: 12) {
@@ -472,6 +551,7 @@ struct AdminDashboardView: View {
 
                     Button {
                         loadFromiCloud()
+                        notificationManager.loadNotifications()
                     } label: {
                         if isRefreshing {
                             ProgressView()
@@ -482,6 +562,17 @@ struct AdminDashboardView: View {
                     .disabled(isRefreshing)
 
                     Menu {
+                        Button("Reset Shared Folder") {
+                            UserDefaults.standard.removeObject(
+                                forKey: StorageManager.folderBookmarkKey
+                            )
+
+                            print("🧹 Shared folder bookmark cleared")
+
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                showFolderPicker = true
+                            }
+                        }
 
                         Button {
                             showImporter = true
@@ -529,9 +620,30 @@ struct AdminDashboardView: View {
                     Task { await importCSVs(urls: urls) }
                 }
             }
+            .onReceive(
+                Timer.publish(
+                    every: 60,
+                    on: .main,
+                    in: .common
+                ).autoconnect()
+            ) { _ in
+
+                guard !isRefreshing else { return }
+
+                guard Date().timeIntervalSince(lastRefresh) > 45 else {
+                    return
+                }
+
+                lastRefresh = Date()
+
+                loadFromiCloud()
+                notificationManager.loadNotifications()
+            }
             .onAppear {
                 requestNotificationPermission()
                 loadFromiCloud()
+
+                notificationManager.loadNotifications()
             }
             .sheet(item: $selectedDriver) { driver in
                 DriverDetailView(
@@ -605,6 +717,24 @@ struct AdminDashboardView: View {
                             }
                         }
                     }
+                }
+            }
+            .fileImporter(
+                isPresented: $showFolderPicker,
+                allowedContentTypes: [.folder]
+            ) { result in
+
+                switch result {
+
+                case .success(let url):
+
+                    StorageManager.saveTruckReportsFolder(url)
+
+                    print("✅ New shared folder selected")
+
+                case .failure(let error):
+
+                    print("❌ Folder picker failed:", error)
                 }
             }
             .alert(

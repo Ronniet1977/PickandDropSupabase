@@ -10,6 +10,8 @@ struct AddFuelView: View {
     @Query var loads: [LoadItem]
     @Query var companySettings: [CompanySettings]
     
+    @StateObject private var notificationManager = NotificationSyncManager()
+    
     @State private var fuelAmount = ""
     
     @State private var showCamera = false
@@ -204,6 +206,22 @@ struct AddFuelView: View {
         }
     }
     
+    func sendAdminNotification(
+        type: String,
+        message: String,
+        ticket: String? = nil
+    ) {
+        let note = AppNotification(
+            type: type,
+            driverName: driver.name,
+            truckNumber: driver.truckNumber,
+            message: message,
+            loadTicket: ticket
+        )
+
+        notificationManager.sendNotification(note)
+    }
+    
     func saveFuel() {
         guard let shift = activeShift else { return }
 
@@ -216,6 +234,10 @@ struct AddFuelView: View {
             amount: amount
         )
         
+        sendAdminNotification(
+            type: "Fuel Added",
+            message: "\(driver.name) added fuel • $\(String(format: "%.2f", amount))"
+        )
         saveFuelReceipt()
 
         do {

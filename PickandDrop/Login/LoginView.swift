@@ -103,8 +103,43 @@ struct LoginView: View {
                     DriverSyncManager.importDrivers(
                         context: context
                     )
-                }
 
+                    if let imported =
+                        CompanySyncManager.importCompany() {
+
+                        let descriptor =
+                            FetchDescriptor<CompanySettings>()
+
+                        let existing =
+                            try? context.fetch(descriptor)
+
+                        let settings =
+                            existing?.first ?? CompanySettings()
+
+                        settings.truckingCompanyName =
+                            imported.truckingCompanyName
+
+                        settings.pickupCompanyName =
+                            imported.pickupCompanyName
+
+                        settings.dropoffCompanyName =
+                            imported.dropoffCompanyName
+
+                        settings.ratePerTon =
+                            imported.ratePerTon
+
+                        settings.companyJoinCode =
+                            imported.companyJoinCode
+
+                        if existing?.isEmpty == true {
+                            context.insert(settings)
+                        }
+
+                        try? context.save()
+
+                        print("✅ Company settings synced")
+                    }
+                }
                 Spacer()
             }
             .padding()
