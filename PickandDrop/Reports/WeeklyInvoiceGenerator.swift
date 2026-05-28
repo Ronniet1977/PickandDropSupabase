@@ -89,7 +89,10 @@ enum WeeklyInvoiceGenerator {
     for file in finalCSVs {
 
         guard let text =
-            try? String(contentsOf: file)
+                try? String(
+                    contentsOf: file,
+                    encoding: .utf8
+                )
         else { continue }
 
         let lines = text.components(separatedBy: "\n")
@@ -152,10 +155,6 @@ enum WeeklyInvoiceGenerator {
         let grandTotal = rows.reduce(0.0) {
             $0 + $1.total
         }
-        
-        let sortedDates = rows
-            .map { $0.date }
-            .sorted()
 
         let startDate = weekInterval.start
 

@@ -33,7 +33,17 @@ struct PickupDeliveryView: View {
                 $0.driverName == driver.name &&
                 !$0.isArchived
             }
-            .sorted { $0.createdAt > $1.createdAt }
+            .sorted {
+                if $0.deliveredAt == nil && $1.deliveredAt != nil {
+                    return true
+                }
+
+                if $0.deliveredAt != nil && $1.deliveredAt == nil {
+                    return false
+                }
+
+                return $0.createdAt > $1.createdAt
+            }
     }
     
     var body: some View {

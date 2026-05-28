@@ -17,10 +17,22 @@ struct DriverDashboardView: View {
     @Query var loads: [LoadItem]
     @Query var companySettings: [CompanySettings]
     
+    @State private var showPendingDeliveryAlert = false
+    @State private var showPickupDeliveryView = false
+    
     let driver: DriverProfile
     
     var settings: CompanySettings? {
         companySettings.first
+    }
+    
+    var pendingDeliveries: [LoadItem] {
+        loads.filter {
+            $0.driverName == driver.name &&
+            !$0.isArchived &&
+            $0.pickedUpAt != nil &&
+            $0.deliveredAt == nil
+        }
     }
     
     var activeShift: Shift? {
@@ -328,6 +340,37 @@ struct DriverDashboardView: View {
                     Button("Log Out") {
                         logout()
                     }
+                }
+            }
+            .onAppear {
+
+                if !pendingDeliveries.isEmpty {
+                    showPendingDeliveryAlert = true
+                }
+            }
+
+            .alert(
+                "Pending Deliveries",
+                isPresented: $showPendingDeliveryAlert
+            ) {
+
+                Button("Complete Deliveries") {
+                    showPickupDeliveryView = true
+                }
+
+                Button("Later", role: .cancel) { }
+
+            } message: {
+
+                Text(
+                    "You have \(pendingDeliveries.count) load(s) still waiting for delivery tickets."
+                )
+            }
+
+            .sheet(isPresented: $showPickupDeliveryView) {
+
+                NavigationStack {
+                    PickupDeliveryView(driver: driver)
                 }
             }
         }

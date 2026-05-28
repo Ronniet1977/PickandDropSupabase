@@ -153,8 +153,15 @@ struct FinishDayView: View {
 
             // ✅ DELETE FINISHED LOCAL LOADS
             for load in driverLoads {
-                load.isArchived = true
-                print("🗂 ARCHIVING:", load.pickupTicketNumber, load.isArchived)
+                
+                if load.deliveredAt != nil {
+                    load.isArchived = true
+                    print("🗂 ARCHIVING DELIVERED:", load.pickupTicketNumber)
+                } else {
+                    load.isArchived = false
+                    load.status = "pickedUp"
+                    print("⏳ KEEPING PENDING:", load.pickupTicketNumber)
+                }
             }
             
             shift.status = "finished"

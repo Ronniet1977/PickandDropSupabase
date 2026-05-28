@@ -203,6 +203,18 @@ struct LoadListView: View {
                                     .font(.caption)
                                     .foregroundStyle(.orange)
                                 }
+                                
+                                if load.deliveredAt == nil,
+                                   let picked = load.pickedUpAt,
+                                   !Calendar.current.isDateInToday(picked) {
+
+                                    Label(
+                                        "Pending from previous day",
+                                        systemImage: "exclamationmark.triangle.fill"
+                                    )
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.yellow)
+                                }
 
                                 if let delivered = load.deliveredAt {
 

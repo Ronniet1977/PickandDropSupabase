@@ -30,8 +30,6 @@ final class NotificationSyncManager: ObservableObject {
     }
 
     func setupFolder() {
-        let folder = baseURL
-
         do {
             try FileManager.default.createDirectory(
                 at: baseURL,
