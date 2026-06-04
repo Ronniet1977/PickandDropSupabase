@@ -61,6 +61,7 @@ struct AdminDashboardView: View {
     
     @State private var supabaseLoads: [SupabaseLoad] = []
     @State private var supabaseDrivers: [SupabaseDriver] = []
+    @State private var supabaseSettings: SupabaseCompanySettings?
     
     //Supabase Summary Vars
     var dashboardLoads: [SupabaseLoad] {
@@ -1096,57 +1097,64 @@ struct AdminDashboardView: View {
     
     func makeBossDailyReport() -> String {
         let dateText = Date().formatted(date: .abbreviated, time: .omitted)
-        
-        let totalLoads = driverSummaries.reduce(0) { $0 + $1.loads }
-        let totalPickupTons = driverSummaries.reduce(0.0) {
-            $0 + $1.pickupTons
-        }
-        let totalDeliveryTons = driverSummaries.reduce(0.0) {
-            $0 + $1.deliveryTons
-        }
-        let totalFuel = driverSummaries.reduce(0.0) { $0 + $1.fuel }
-        
+
+        let summaries = supabaseDriverSummaries
+
+        let totalLoads = summaries.reduce(0) { $0 + $1.loads }
+        let totalPickupTons = summaries.reduce(0.0) { $0 + $1.pickupTons }
+        let totalDeliveryTons = summaries.reduce(0.0) { $0 + $1.deliveryTons }
+        let totalFuel = summaries.reduce(0.0) { $0 + $1.fuel }
+
         var report = """
-    📋 \(settings?.truckingCompanyName ?? "Trucking Company") DAILY REPORT
+    📋 \(supabaseSettings?.trucking_company_name ?? "Trucking Company") DAILY REPORT
     Date: \(dateText)
-    
+
     TOTALS
     Loads: \(totalLoads)
-    \(settings?.pickupCompanyName ?? "Pickup") Tons: \(String(format: "%.2f", totalPickupTons))
-    \(settings?.dropoffCompanyName ?? "Dropoff") Tons: \(String(format: "%.2f", totalDeliveryTons))
+    \(supabaseSettings?.pickup_company_name ?? "Pickup") Tons: \(String(format: "%.2f", totalPickupTons))
+    \(supabaseSettings?.dropoff_company_name ?? "Dropoff") Tons: \(String(format: "%.2f", totalDeliveryTons))
     Fuel: \(String(format: "%.2f", totalFuel))
-    
+
     -------------------------
-    
+
     """
-        
-        for driver in driverSummaries.sorted(by: { $0.name < $1.name }) {
-            
-            let driverLoads = allLoads.filter {
-                $0.driverName == driver.name
+
+        for driver in summaries.sorted(by: { $0.name < $1.name }) {
+
+            let driverLoads = dashboardLoads.filter {
+                $0.driver_name == driver.name
             }
-            
+
             report += """
     👤 \(driver.name)
     Truck: \(driver.truck)
     Loads: \(driver.loads)
-    \(settings?.pickupCompanyName ?? "Pickup") Tons: \(String(format: "%.2f", driver.pickupTons))
-    \(settings?.dropoffCompanyName ?? "Dropoff") Tons: \(String(format: "%.2f", driver.deliveryTons))
-    
+    \(supabaseSettings?.pickup_company_name ?? "Pickup") Tons: \(String(format: "%.2f", driver.pickupTons))
+    \(supabaseSettings?.dropoff_company_name ?? "Dropoff") Tons: \(String(format: "%.2f", driver.deliveryTons))
+
     """
-            
+
             for load in driverLoads {
+
+                let ticket = load.pickup_ticket_number ?? "—"
+                let pickupTons = load.pickup_tons ?? 0
+                let deliveryTicket = load.delivery_ticket_number ?? "Not delivered"
+                let deliveryTons = load.delivery_tons ?? 0
+                let status = load.status ?? "unknown"
+
                 report += """
-      • Ticket: \(load.pickupTicketNumber)
-        \(settings?.pickupCompanyName ?? "Pickup") Tons: \(String(format: "%.2f", load.pickupTons))
-        \(settings?.dropoffCompanyName ?? "Dropoff") Tons: \(String(format: "%.2f", load.deliveryTons))
-    
+      • Ticket: \(ticket)
+        \(supabaseSettings?.pickup_company_name ?? "Pickup") Tons: \(String(format: "%.2f", pickupTons))
+        \(supabaseSettings?.dropoff_company_name ?? "Dropoff") Ticket: \(deliveryTicket)
+        \(supabaseSettings?.dropoff_company_name ?? "Dropoff") Tons: \(String(format: "%.2f", deliveryTons))
+        Status: \(status)
+
     """
             }
-            
+
             report += "-------------------------\n\n"
         }
-        
+
         return report
     }
     
@@ -1404,8 +1412,11 @@ struct AdminDashboardView: View {
         Task {
             let loads = await LoadSupabaseManager.shared.fetchLoads()
             let drivers = await DriverSupabaseManager.shared.fetchDrivers()
+            let companySettings =
+                await CompanySupabaseManager.shared.fetchCompanySettings()
 
             await MainActor.run {
+                supabaseSettings = companySettings
                 supabaseLoads = loads
                 supabaseDrivers = drivers
                 lastUpdated = Date()

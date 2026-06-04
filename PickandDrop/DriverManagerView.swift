@@ -26,6 +26,7 @@ struct DriverManagerView: View {
 
     @State private var selectedRole = "driver"
     
+    @State private var companyCodeText = ""
     @State private var showJoinCode = false
     @State private var showCopied = false
 
@@ -225,11 +226,20 @@ struct DriverManagerView: View {
                     }
                     
                     Button {
+                        Task {
+                            let settings =
+                                await CompanySupabaseManager
+                                    .shared
+                                    .fetchCompanySettings()
 
-                        showJoinCode = true
+                            companyCodeText =
+                                settings?.company_join_code
+                                ?? "No code found"
+
+                            showJoinCode = true
+                        }
 
                     } label: {
-
                         Label(
                             "View Company Code",
                             systemImage: "number.circle.fill"
@@ -258,23 +268,14 @@ struct DriverManagerView: View {
         ) {
 
             Button("Copy Code") {
-
-                UIPasteboard.general.string =
-                    CompanySyncManager
-                        .importCompany()?
-                        .companyJoinCode
+                UIPasteboard.general.string = companyCodeText
             }
 
             Button("OK", role: .cancel) { }
 
         } message: {
 
-            Text(
-                CompanySyncManager
-                    .importCompany()?
-                    .companyJoinCode
-                ?? "No code found"
-            )
+            Text(companyCodeText)
         }
     }
     
