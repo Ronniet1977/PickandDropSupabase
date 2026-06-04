@@ -101,11 +101,8 @@ struct DriverFilesView: View {
                     .filter { $0.hasDirectoryPath }
 
         } catch {
-
-            print(
-                "❌ Failed loading driver folders:",
-                error
-            )
+            driverFolders = []
+            print("📁 No old driver folders found")
         }
     }
 }
@@ -358,7 +355,7 @@ struct CompanySettingsDTO: Codable {
 
 struct CompanyInfoCardView: View {
 
-    @State private var settings: CompanySettingsDTO?
+    @State private var settings: SupabaseCompanySettings?
 
     var body: some View {
         ScrollView {
@@ -367,11 +364,11 @@ struct CompanyInfoCardView: View {
                 if let settings {
 
                     VStack(alignment: .leading, spacing: 14) {
-                        Text(settings.truckingCompanyName)
+                        Text(settings.trucking_company_name)
                             .font(.largeTitle.bold())
 
-                        Label(settings.pickupCompanyName, systemImage: "arrow.up.circle.fill")
-                        Label(settings.dropoffCompanyName, systemImage: "arrow.down.circle.fill")
+                        Label(settings.pickup_company_name, systemImage: "arrow.up.circle.fill")
+                        Label(settings.dropoff_company_name, systemImage: "arrow.down.circle.fill")
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
@@ -383,7 +380,7 @@ struct CompanyInfoCardView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        Text(settings.companyJoinCode)
+                        Text(settings.company_join_code)
                             .font(.title2.bold())
                             .foregroundStyle(AppTheme.accent)
                     }
@@ -397,7 +394,7 @@ struct CompanyInfoCardView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        Text("$\(settings.ratePerTon, specifier: "%.2f")")
+                        Text("$\(settings.rate_per_ton, specifier: "%.2f")")
                             .font(.title2.bold())
                             .foregroundStyle(AppTheme.success)
                     }
@@ -420,38 +417,24 @@ struct CompanyInfoCardView: View {
     }
 
     func loadCompanyInfo() {
-        let url = StorageManager.truckReportsFolder()
-            .appendingPathComponent("CompanyInfo.json")
 
-        do {
-            let data = try Data(contentsOf: url)
+        Task {
 
-            settings = try JSONDecoder()
-                .decode(CompanySettingsDTO.self, from: data)
+            let company =
+                await CompanySupabaseManager
+                    .shared
+                    .fetchCompanySettings()
 
-        } catch {
-            print("❌ Failed loading company info:", error)
+            await MainActor.run {
+                settings = company
+            }
         }
     }
 }
 
-struct DriversDTO: Codable {
-    let drivers: [DriverDTO]
-}
-
-struct DriverDTO: Codable, Identifiable {
-
-    let id: String
-    let name: String
-    let truckNumber: String
-    let role: String
-    let username: String
-    let isActive: Bool
-}
-
 struct DriversCardView: View {
 
-    @State private var drivers: [DriverDTO] = []
+    @State private var drivers: [SupabaseDriver] = []
 
     var body: some View {
 
@@ -459,7 +442,7 @@ struct DriversCardView: View {
 
             VStack(spacing: 16) {
 
-                ForEach(drivers) { driver in
+                ForEach(drivers, id: \.id) { driver in
 
                     VStack(alignment: .leading, spacing: 12) {
 
@@ -470,7 +453,7 @@ struct DriversCardView: View {
                                 Text(driver.name)
                                     .font(.title2.bold())
 
-                                Text("Truck \(driver.truckNumber)")
+                                Text("Truck \(driver.truck_number)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -504,16 +487,16 @@ struct DriversCardView: View {
                             Spacer()
 
                             Label(
-                                driver.isActive
+                                driver.is_active
                                 ? "Active"
                                 : "Inactive",
                                 systemImage:
-                                    driver.isActive
+                                    driver.is_active
                                     ? "checkmark.circle.fill"
                                     : "xmark.circle.fill"
                             )
                             .foregroundStyle(
-                                driver.isActive
+                                driver.is_active
                                 ? .green
                                 : .red
                             )
@@ -535,22 +518,15 @@ struct DriversCardView: View {
     }
 
     func loadDrivers() {
+        Task {
+            let loaded =
+                await DriverSupabaseManager
+                    .shared
+                    .fetchDrivers()
 
-        let url = StorageManager.truckReportsFolder()
-            .appendingPathComponent("Drivers.json")
-
-        do {
-
-            let data = try Data(contentsOf: url)
-
-            let decoded = try JSONDecoder()
-                .decode(DriversDTO.self, from: data)
-
-            drivers = decoded.drivers
-
-        } catch {
-
-            print("❌ Failed loading drivers:", error)
+            await MainActor.run {
+                drivers = loaded
+            }
         }
     }
 }
