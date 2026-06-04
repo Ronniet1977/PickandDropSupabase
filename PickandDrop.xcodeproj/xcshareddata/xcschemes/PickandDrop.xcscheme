@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "87DE09562FA52A09007E9268"
-               BuildableName = "PickandDrop.app"
+               BuildableName = "PickandDropLLCSupabase.app"
                BlueprintName = "PickandDrop"
                ReferencedContainer = "container:PickandDrop.xcodeproj">
             </BuildableReference>
@@ -46,7 +46,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "87DE09562FA52A09007E9268"
-            BuildableName = "PickandDrop.app"
+            BuildableName = "PickandDropLLCSupabase.app"
             BlueprintName = "PickandDrop"
             ReferencedContainer = "container:PickandDrop.xcodeproj">
          </BuildableReference>
@@ -63,7 +63,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "87DE09562FA52A09007E9268"
-            BuildableName = "PickandDrop.app"
+            BuildableName = "PickandDropLLCSupabase.app"
             BlueprintName = "PickandDrop"
             ReferencedContainer = "container:PickandDrop.xcodeproj">
          </BuildableReference>

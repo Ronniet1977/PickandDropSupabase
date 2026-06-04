@@ -9,139 +9,110 @@ import Foundation
 import Combine
 
 struct AppNotification: Identifiable, Codable, Hashable {
+
     var id: UUID = UUID()
     var type: String
     var driverName: String
     var truckNumber: String
     var message: String
     var loadTicket: String?
-    var createdAt: Date = Date()
+    var createdAt: String? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case type
+        case driverName = "driver_name"
+        case truckNumber = "truck_number"
+        case message
+        case loadTicket = "load_ticket"
+        case createdAt = "created_at"
+    }
 }
 
 @MainActor
 final class NotificationSyncManager: ObservableObject {
+
     @Published var notifications: [AppNotification] = []
 
-    private let folderName = "AdminNotifications"
-
-    private var baseURL: URL {
-        StorageManager.truckReportsFolder()
-            .appendingPathComponent("AdminNotifications")
-    }
-
-    func setupFolder() {
-        do {
-            try FileManager.default.createDirectory(
-                at: baseURL,
-                withIntermediateDirectories: true
-            )
-        } catch {
-            print("❌ Failed creating notification folder:", error)
-        }
-    }
-
     func sendNotification(_ notification: AppNotification) {
-        setupFolder()
 
-        let folder = baseURL
-        
-        print("📁 Notification folder:", folder.path)
+        Task {
+            do {
+                let body = try JSONEncoder().encode(notification)
 
-        let fileURL = folder.appendingPathComponent("\(notification.id.uuidString).json")
+                _ = try await SupabaseRESTManager.shared.request(
+                    table: "pickdrop_notifications",
+                    method: "POST",
+                    body: body
+                )
 
-        do {
-            let data = try JSONEncoder.prettyDate.encode(notification)
-            try data.write(to: fileURL, options: [.atomic])
-            print("✅ Notification saved:", fileURL.lastPathComponent)
-        } catch {
-            print("❌ Failed saving notification:", error)
+                print("✅ Supabase notification sent")
+
+            } catch {
+                print("❌ Supabase notification failed:", error)
+            }
         }
     }
 
     func loadNotifications() {
-        setupFolder()
 
-        let folder = baseURL
+        Task {
+            do {
+                let data = try await SupabaseRESTManager.shared.request(
+                    table: "pickdrop_notifications",
+                    query: "?select=*&order=created_at.desc"
+                )
 
-        do {
-            let files = try FileManager.default.contentsOfDirectory(
-                at: folder,
-                includingPropertiesForKeys: nil
-            )
+                let loaded = try JSONDecoder()
+                    .decode([AppNotification].self, from: data)
 
-            let loaded: [AppNotification] = files.compactMap { url in
-                guard url.pathExtension == "json" else { return nil }
+                notifications = loaded
 
-                do {
-                    let data = try Data(contentsOf: url)
-                    return try JSONDecoder.prettyDate.decode(AppNotification.self, from: data)
-                } catch {
-                    print("⚠️ Bad notification file:", url.lastPathComponent)
-                    return nil
-                }
+                print("🔔 Supabase notifications loaded:", notifications.count)
+
+            } catch {
+                print("❌ Failed loading Supabase notifications:", error)
             }
-
-            notifications = loaded.sorted {
-                $0.createdAt > $1.createdAt
-            }
-            print("🔔 Loaded notifications:", notifications.count)
-
-        } catch {
-            print("❌ Failed loading notifications:", error)
         }
     }
-    
-    
 
     func deleteNotification(_ notification: AppNotification) {
-        let folder = baseURL
 
-        let fileURL = folder.appendingPathComponent("\(notification.id.uuidString).json")
+        Task {
+            do {
+                _ = try await SupabaseRESTManager.shared.request(
+                    table: "pickdrop_notifications",
+                    method: "DELETE",
+                    query: "?id=eq.\(notification.id.uuidString)"
+                )
 
-        do {
-            try FileManager.default.removeItem(at: fileURL)
-            notifications.removeAll { $0.id == notification.id }
-            print("🗑 Deleted notification")
-        } catch {
-            print("❌ Failed deleting notification:", error)
+                notifications.removeAll { $0.id == notification.id }
+
+                print("🗑 Supabase notification deleted")
+
+            } catch {
+                print("❌ Failed deleting Supabase notification:", error)
+            }
         }
     }
 
     func deleteAllNotifications() {
-        let folder = baseURL
 
-        do {
-            let files = try FileManager.default.contentsOfDirectory(
-                at: folder,
-                includingPropertiesForKeys: nil
-            )
+        Task {
+            do {
+                _ = try await SupabaseRESTManager.shared.request(
+                    table: "pickdrop_notifications",
+                    method: "DELETE",
+                    query: "?id=not.is.null"
+                )
 
-            for file in files where file.pathExtension == "json" {
-                try? FileManager.default.removeItem(at: file)
+                notifications.removeAll()
+
+                print("🧹 Supabase notifications cleared")
+
+            } catch {
+                print("❌ Failed clearing Supabase notifications:", error)
             }
-
-            notifications.removeAll()
-            print("🧹 Cleared all notifications")
-
-        } catch {
-            print("❌ Failed clearing notifications:", error)
         }
-    }
-}
-
-extension JSONEncoder {
-    static var prettyDate: JSONEncoder {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted]
-        encoder.dateEncodingStrategy = .iso8601
-        return encoder
-    }
-}
-
-extension JSONDecoder {
-    static var prettyDate: JSONDecoder {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
     }
 }

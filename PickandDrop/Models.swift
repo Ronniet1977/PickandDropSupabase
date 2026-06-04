@@ -3,6 +3,17 @@ import Foundation
 import SwiftData
 import Foundation
 
+
+struct SupabaseCompanySettings: Codable, Identifiable {
+    let id: UUID
+
+    let trucking_company_name: String
+    let pickup_company_name: String
+    let dropoff_company_name: String
+    let company_join_code: String
+    let rate_per_ton: Double
+}
+
 struct DriverSummary: Identifiable {
     var id: String { name }   // stable ID
     

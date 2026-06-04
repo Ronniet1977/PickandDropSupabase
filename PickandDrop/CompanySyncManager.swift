@@ -61,37 +61,8 @@ struct CompanySyncManager {
 
     static func importCompany() -> CompanyFile? {
 
-        let url = companyFileURL()
+        print("☁️ Using Supabase Company Settings")
 
-        guard FileManager.default.fileExists(
-            atPath: url.path
-        ) else {
-
-            print("❌ CompanyInfo.json missing")
-
-            return nil
-        }
-
-        do {
-
-            let data = try Data(contentsOf: url)
-
-            let file = try JSONDecoder()
-                .decode(
-                    CompanyFile.self,
-                    from: data
-                )
-
-            print("✅ Company imported")
-
-            return file
-
-        } catch {
-
-            print("❌ Company import failed:",
-                  error)
-
-            return nil
-        }
+        return nil
     }
 }

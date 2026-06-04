@@ -397,12 +397,7 @@ struct AdminDashboardView: View {
 
                                             Spacer()
 
-                                            Text(
-                                                note.createdAt.formatted(
-                                                    date: .omitted,
-                                                    time: .shortened
-                                                )
-                                            )
+                                            Text(note.createdAt ?? "")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                         }
@@ -542,6 +537,13 @@ struct AdminDashboardView: View {
             .toolbar {
 
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button("Test Company Settings") {
+                        Task {
+                            let settings = await CompanySupabaseManager.shared.fetchCompanySettings()
+                            print(settings?.trucking_company_name ?? "No company")
+                        }
+                    }
+                    
                     Button("Boss Report") {
 
                         bossReportText = makeBossDailyReport()
