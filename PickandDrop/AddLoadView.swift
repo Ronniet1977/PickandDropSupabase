@@ -181,9 +181,9 @@ struct AddLoadView: View {
                         .padding(.horizontal)
 
                         Button {
-
-                            saveLoad()
-
+                            Task {
+                                await saveLoad()
+                            }
                         } label: {
 
                             HStack(spacing: 14) {
@@ -230,56 +230,33 @@ struct AddLoadView: View {
         notificationManager.sendNotification(note)
     }
     
-    func saveLoad() {
+    func saveLoad() async {
+        print("☁️ SUPABASE saveLoad running")
+
         guard let tonsValue = Double(pickupTons) else { return }
 
         let cleanTicket = pickupTicket.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTicket.isEmpty else { return }
 
-        let newLoad = LoadItem()
-        newLoad.driverName = driver.name
-        newLoad.pickupTicketNumber = cleanTicket
-        newLoad.pickupTons = tonsValue
+        // ✅ Save load to Supabase
+        await LoadSupabaseManager.shared.addLoad(
+            driverName: driver.name,
+            truckNumber: driver.truckNumber,
+            pickupTicketNumber: cleanTicket,
+            pickupTons: tonsValue
+        )
 
-        newLoad.status = "pickedUp"
-        newLoad.createdAt = Date()
-        newLoad.pickedUpAt = Date()
-
-        if let shift = activeShift {
-            newLoad.shift = shift
-        }
-
-        context.insert(newLoad)
+        // ✅ Send admin notification to Supabase
         sendAdminNotification(
             type: "Load Added",
             message: "\(driver.name) picked up \(cleanTicket) • \(tonsValue) tons",
             ticket: cleanTicket
         )
 
-        do {
-            try context.save()
-
-            let driverLoads = self.loads.filter {
-                $0.driverName == driver.name &&
-                !$0.isArchived &&
-                (
-                    activeShift == nil ||
-                    $0.createdAt >= activeShift!.startedAt
-                )
-            }
-
-            let _ = CSVExporter.generateCSV(
-                loads: driverLoads,
-                driver: driver,
-                activeShift: activeShift,
-                settings: settings,
-                isFinal: false
-            )
-
+        await MainActor.run {
+            pickupTicket = ""
+            pickupTons = ""
             dismiss()
-
-        } catch {
-            print("❌ Save failed:", error)
         }
     }
 }
