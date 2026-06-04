@@ -59,12 +59,83 @@ struct AdminDashboardView: View {
     @State private var showResetAlert = false
     @State private var fuelByDriver: [String: Double] = [:]
     
+    @State private var supabaseLoads: [SupabaseLoad] = []
+    @State private var supabaseDrivers: [SupabaseDriver] = []
     
-    
+    //Supabase Summary Vars
+    var dashboardLoads: [SupabaseLoad] {
+        supabaseLoads.filter {
+            $0.is_archived != true
+        }
+    }
+
+    var supabaseTotalLoads: Int {
+        dashboardLoads.count
+    }
+
+    var supabaseDeliveredLoads: Int {
+        dashboardLoads.filter {
+            $0.status == "delivered"
+        }.count
+    }
+
+    var supabaseOpenLoads: Int {
+        dashboardLoads.filter {
+            $0.status != "delivered"
+        }.count
+    }
+
+    var supabasePickupTons: Double {
+        dashboardLoads.reduce(0.0) {
+            $0 + ($1.pickup_tons ?? 0)
+        }
+    }
+
+    var supabaseDeliveryTons: Double {
+        dashboardLoads.reduce(0.0) {
+            $0 + ($1.delivery_tons ?? 0)
+        }
+    }
+
+    var supabaseTonsDifference: Double {
+        supabasePickupTons - supabaseDeliveryTons
+    }
     
     
     var settings: CompanySettings? {
         companySettings.first
+    }
+    
+    var supabaseDriverSummaries: [DriverSummary] {
+
+        let grouped = Dictionary(grouping: dashboardLoads) {
+            $0.driver_name ?? "Unknown"
+        }
+
+        return grouped.map { driverName, loads in
+
+            let driverProfile = supabaseDrivers.first {
+                $0.name == driverName
+            }
+
+            return DriverSummary(
+                name: driverName,
+                truck: driverProfile?.truck_number ?? "—",
+                loads: loads.count,
+                pickupTons: loads.reduce(0.0) {
+                    $0 + ($1.pickup_tons ?? 0)
+                },
+                deliveryTons: loads.reduce(0.0) {
+                    $0 + ($1.delivery_tons ?? 0)
+                },
+                fuel: 0,
+                status: "active",
+                isFinished: false
+            )
+        }
+        .sorted {
+            $0.name < $1.name
+        }
     }
     
     var combinedReports: [DriverSummary] {
@@ -221,7 +292,7 @@ struct AdminDashboardView: View {
     }
     
     var visibleDriverSummaries: [DriverSummary] {
-        filteredDriverSummaries.filter {
+        supabaseDriverSummaries.filter {
             !dismissedDrivers.contains($0.name)
         }
     }
@@ -439,8 +510,8 @@ struct AdminDashboardView: View {
                             HStack(spacing: 12) {
                                 BossSummaryCard(
                                     title: "Total Loads",
-                                    value: "\(totalLoads)",
-                                    subtitle: "\(deliveredLoads) delivered",
+                                    value: "\(supabaseTotalLoads)",
+                                    subtitle: "\(supabaseDeliveredLoads) delivered",
                                     systemImage: "shippingbox.fill"
                                 )
                                 
@@ -453,7 +524,7 @@ struct AdminDashboardView: View {
                                 
                                 BossSummaryCard(
                                     title: "Open",
-                                    value: "\(openLoads)",
+                                    value: "\(supabaseOpenLoads)",
                                     subtitle: "Not delivered",
                                     systemImage: "clock.fill"
                                 )
@@ -462,14 +533,14 @@ struct AdminDashboardView: View {
                             HStack(spacing: 12) {
                                 BossSummaryCard(
                                     title: "\(settings?.pickupCompanyName ?? "Pickup") Tons",
-                                    value: String(format: "%.0f", totalPickupTons),
+                                    value: String(format: "%.0f", supabasePickupTons),
                                     subtitle: "Pickup tons",
                                     systemImage: "arrow.up.circle.fill"
                                 )
                                 
                                 BossSummaryCard(
                                     title: "\(settings?.dropoffCompanyName ?? "Drop Off") Tons",
-                                    value: String(format: "%.0f", totalDeliveryTons),
+                                    value: String(format: "%.0f", supabaseDeliveryTons),
                                     subtitle: "Delivery tons",
                                     systemImage: "arrow.down.circle.fill"
                                 )
@@ -477,13 +548,13 @@ struct AdminDashboardView: View {
                             
                             BossSummaryCard(
                                 title: "Difference",
-                                value: String(format: "%.0f", tonsDifference),
+                                value: String(format: "%.0f", supabaseTonsDifference),
                                 subtitle: tonsDifference == 0 ? "Balanced" : "Check pickup vs delivery",
                                 systemImage: tonsDifference == 0 ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
                             )
                             .foregroundStyle(
-                                tonsDifference == 0 ? .green :
-                                    abs(tonsDifference) < 5 ? .yellow :
+                                supabaseTonsDifference == 0 ? .green :
+                                    abs(supabaseTonsDifference) < 5 ? .yellow :
                                         .red
                             )
                             
@@ -505,7 +576,7 @@ struct AdminDashboardView: View {
                                     .font(.caption)
                                 Text("\(visibleDriverSummaries.count)")
                                     .font(.title.bold())
-                                Text("\(filteredLoads.count) loads shown")
+                                Text("\(dashboardLoads.count) loads shown")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -515,7 +586,7 @@ struct AdminDashboardView: View {
                             VStack(alignment: .trailing) {
                                 Text("Loads")
                                     .font(.caption)
-                                Text("\(totalLoads)")
+                                Text("\(supabaseTotalLoads)")
                                     .font(.title.bold())
                             }
                         }
@@ -594,7 +665,7 @@ struct AdminDashboardView: View {
                     .foregroundStyle(.white)
 
                     Button {
-                        loadFromiCloud()
+                        loadFromSupabase()
                         notificationManager.loadNotifications()
                     } label: {
                         if isRefreshing {
@@ -680,12 +751,12 @@ struct AdminDashboardView: View {
 
                 lastRefresh = Date()
 
-                loadFromiCloud()
+                loadFromSupabase()
                 notificationManager.loadNotifications()
             }
             .onAppear {
                 requestNotificationPermission()
-                loadFromiCloud()
+                loadFromSupabase()
 
                 notificationManager.loadNotifications()
             }
@@ -1320,6 +1391,29 @@ struct AdminDashboardView: View {
         try? csv.write(to: url, atomically: true, encoding: .utf8)
 
         return url
+    }
+    
+    func loadFromSupabase() {
+        if isRefreshing {
+            print("⛔️ Already refreshing")
+            return
+        }
+
+        isRefreshing = true
+
+        Task {
+            let loads = await LoadSupabaseManager.shared.fetchLoads()
+            let drivers = await DriverSupabaseManager.shared.fetchDrivers()
+
+            await MainActor.run {
+                supabaseLoads = loads
+                supabaseDrivers = drivers
+                lastUpdated = Date()
+                isRefreshing = false
+            }
+
+            notificationManager.loadNotifications()
+        }
     }
     
     func loadFromiCloud() {
