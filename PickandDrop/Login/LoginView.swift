@@ -11,7 +11,6 @@ struct LoginView: View {
 
     @Environment(\.modelContext) private var context
 
-    @Query var drivers: [DriverProfile]
     @Query var companySettings: [CompanySettings]
 
     @AppStorage("currentDriverName")
@@ -81,9 +80,9 @@ struct LoginView: View {
                     }
 
                     Button {
-
-                        login()
-
+                        Task {
+                            await login()
+                        }
                     } label: {
 
                         Text("Log In")
@@ -98,80 +97,19 @@ struct LoginView: View {
                 .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 28))
                 .padding(.horizontal)
-                .onAppear {
-
-                    DriverSyncManager.importDrivers(
-                        context: context
-                    )
-
-                    if let imported =
-                        CompanySyncManager.importCompany() {
-
-                        let descriptor =
-                            FetchDescriptor<CompanySettings>()
-
-                        let existing =
-                            try? context.fetch(descriptor)
-
-                        let settings =
-                            existing?.first ?? CompanySettings()
-
-                        settings.truckingCompanyName =
-                            imported.truckingCompanyName
-
-                        settings.pickupCompanyName =
-                            imported.pickupCompanyName
-
-                        settings.dropoffCompanyName =
-                            imported.dropoffCompanyName
-
-                        settings.ratePerTon =
-                            imported.ratePerTon
-
-                        settings.companyJoinCode =
-                            imported.companyJoinCode
-
-                        if existing?.isEmpty == true {
-                            context.insert(settings)
-                        }
-
-                        try? context.save()
-
-                        print("✅ Company settings synced")
-                    }
-                }
+                
                 Spacer()
             }
             .padding()
         }
     }
 
-    func login() {
+    func login() async {
 
-        var didMigrateUsers = false
-
-        for driver in drivers {
-
-            if driver.username.isEmpty {
-
-                driver.username = driver.name.lowercased()
-                didMigrateUsers = true
-            }
-
-            if driver.password.isEmpty {
-
-                driver.password = "1234"
-                didMigrateUsers = true
-            }
-        }
-
-        if didMigrateUsers {
-            do {
-                try context.save()
-            } catch {
-                print("❌ Failed saving migrated users:", error)
-            }
-        }
+        let drivers =
+            await DriverSupabaseManager
+                .shared
+                .fetchDrivers()
 
         if let driver = drivers.first(where: {
 
@@ -180,39 +118,32 @@ struct LoginView: View {
 
             &&
 
-            $0.password == password
+            ($0.password ?? "") == password
 
             &&
 
-            $0.isActive
+            $0.is_active
 
         }) {
+            let localDriver = DriverProfile()
+            localDriver.name = driver.name
+            localDriver.username = driver.username
+            localDriver.password = driver.password ?? ""
+            localDriver.truckNumber = driver.truck_number
+            localDriver.role = driver.role
+            localDriver.isActive = driver.is_active
+            localDriver.mustChangePassword = false
 
-            if driver.role == "admin" {
-                driver.mustChangePassword = false
-                try? context.save()
-            }
+            context.insert(localDriver)
 
-            if driver.role != "admin" &&
-                DriverSessionManager.isLoggedIn(
-                    username: driver.username
-                ) {
-
-                loginError =
-                    "This driver is already logged in on another device."
-
-                return
-            }
+            try? context.save()
 
             currentDriverName = driver.name
-            mustChangePassword = driver.mustChangePassword
-            isLoggedIn = true
 
-            if driver.role != "admin" {
-                DriverSessionManager.login(
-                    username: driver.username
-                )
-            }
+            // Admin never forced to change password
+            mustChangePassword = false
+
+            isLoggedIn = true
 
             print("✅ Login success")
 

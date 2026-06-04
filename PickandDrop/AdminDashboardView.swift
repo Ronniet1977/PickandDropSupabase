@@ -641,6 +641,18 @@ struct AdminDashboardView: View {
                                 print("🚚 TEST LOADS:", loads.count)
                             }
                         }
+                        
+                        Button("Add Test Driver") {
+                            Task {
+                                await DriverSupabaseManager.shared.addDriver(
+                                    name: "Bob",
+                                    username: "bob",
+                                    password: "1234",
+                                    truckNumber: "777",
+                                    role: "driver"
+                                )
+                            }
+                        }
 
                         Button("Test Notification") {
                             let note = AppNotification(

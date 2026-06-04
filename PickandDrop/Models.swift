@@ -20,10 +20,12 @@ struct SupabaseDriver: Codable, Identifiable {
 
     let name: String
     let username: String
+    let password: String?
     let truck_number: String
 
     let role: String
     let is_active: Bool
+    
 }
 
 struct SupabaseLoad: Codable, Identifiable {

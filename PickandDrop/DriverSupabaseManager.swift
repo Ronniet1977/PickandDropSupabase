@@ -40,6 +40,7 @@ final class DriverSupabaseManager {
     func addDriver(
         name: String,
         username: String,
+        password: String,
         truckNumber: String,
         role: String
     ) async {
@@ -49,7 +50,8 @@ final class DriverSupabaseManager {
             "username": username,
             "truck_number": truckNumber,
             "role": role,
-            "is_active": true
+            "is_active": true,
+            "password": password
         ]
 
         do {
