@@ -36,6 +36,7 @@
 		8787AA9D2FD2075100A8DC15 /* SupabaseRESTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9C2FD2074C00A8DC15 /* SupabaseRESTManager.swift */; };
 		8787AA9F2FD20AFC00A8DC15 /* PickDropNotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9E2FD20AF800A8DC15 /* PickDropNotification.swift */; };
 		8787AAA12FD20B2A00A8DC15 /* NotificationSupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AAA02FD20B2600A8DC15 /* NotificationSupabaseManager.swift */; };
+		8787AAA32FD2155D00A8DC15 /* DriverSupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AAA22FD2155900A8DC15 /* DriverSupabaseManager.swift */; };
 		8789BB032FB04408004400C5 /* CompanySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB022FB04403004400C5 /* CompanySettings.swift */; };
 		8789BB052FB06063004400C5 /* CompanySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB042FB0604F004400C5 /* CompanySetupView.swift */; };
 		879FD9752FC1564D00DEAC87 /* DriverSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879FD9742FC155FE00DEAC87 /* DriverSessionManager.swift */; };
@@ -77,6 +78,7 @@
 		8787AA9C2FD2074C00A8DC15 /* SupabaseRESTManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseRESTManager.swift; sourceTree = "<group>"; };
 		8787AA9E2FD20AF800A8DC15 /* PickDropNotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickDropNotification.swift; sourceTree = "<group>"; };
 		8787AAA02FD20B2600A8DC15 /* NotificationSupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSupabaseManager.swift; sourceTree = "<group>"; };
+		8787AAA22FD2155900A8DC15 /* DriverSupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverSupabaseManager.swift; sourceTree = "<group>"; };
 		8789BB022FB04403004400C5 /* CompanySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySettings.swift; sourceTree = "<group>"; };
 		8789BB042FB0604F004400C5 /* CompanySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySetupView.swift; sourceTree = "<group>"; };
 		879FD9742FC155FE00DEAC87 /* DriverSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverSessionManager.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				8787AAA22FD2155900A8DC15 /* DriverSupabaseManager.swift */,
 				8787AAA02FD20B2600A8DC15 /* NotificationSupabaseManager.swift */,
 				8787AA9E2FD20AF800A8DC15 /* PickDropNotification.swift */,
 				8787AA9C2FD2074C00A8DC15 /* SupabaseRESTManager.swift */,
@@ -261,6 +264,7 @@
 				875167A12FAD689800E8B528 /* CSVExporter.swift in Sources */,
 				875167A32FAD689800E8B528 /* DriverDashboardView.swift in Sources */,
 				875167A42FAD689800E8B528 /* DriverDetailView.swift in Sources */,
+				8787AAA32FD2155D00A8DC15 /* DriverSupabaseManager.swift in Sources */,
 				879FD9752FC1564D00DEAC87 /* DriverSessionManager.swift in Sources */,
 				875167A52FAD689800E8B528 /* FinishDayView.swift in Sources */,
 				875167A62FAD689800E8B528 /* LoadListView.swift in Sources */,

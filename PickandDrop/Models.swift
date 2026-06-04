@@ -14,6 +14,18 @@ struct SupabaseCompanySettings: Codable, Identifiable {
     let rate_per_ton: Double
 }
 
+struct SupabaseDriver: Codable, Identifiable {
+
+    let id: UUID
+
+    let name: String
+    let username: String
+    let truck_number: String
+
+    let role: String
+    let is_active: Bool
+}
+
 struct DriverSummary: Identifiable {
     var id: String { name }   // stable ID
     

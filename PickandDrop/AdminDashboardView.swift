@@ -537,10 +537,16 @@ struct AdminDashboardView: View {
             .toolbar {
 
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("Test Company Settings") {
+                    Button("Add Test Driver") {
+
                         Task {
-                            let settings = await CompanySupabaseManager.shared.fetchCompanySettings()
-                            print(settings?.trucking_company_name ?? "No company")
+
+                            await DriverSupabaseManager.shared.addDriver(
+                                name: "Test Driver",
+                                username: "testdriver",
+                                truckNumber: "9999",
+                                role: "driver"
+                            )
                         }
                     }
                     
