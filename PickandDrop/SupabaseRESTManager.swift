@@ -82,3 +82,101 @@ final class CompanySupabaseManager {
         }
     }
 }
+
+final class LoadSupabaseManager {
+
+    static let shared = LoadSupabaseManager()
+
+    private init() {}
+
+    func fetchLoads() async -> [SupabaseLoad] {
+
+        do {
+
+            let data = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                query: "?select=*&order=created_at.desc"
+            )
+
+            let loads = try JSONDecoder()
+                .decode([SupabaseLoad].self, from: data)
+
+            print("✅ Loaded loads:", loads.count)
+
+            return loads
+
+        } catch {
+
+            print("❌ Failed loading loads:", error)
+
+            return []
+        }
+    }
+    
+    func addLoad(
+        driverName: String,
+        truckNumber: String,
+        pickupTicketNumber: String,
+        pickupTons: Double
+    ) async {
+
+        let body: [String: Any] = [
+            "driver_name": driverName,
+            "truck_number": truckNumber,
+            "pickup_ticket_number": pickupTicketNumber,
+            "pickup_tons": pickupTons,
+            "status": "pickedUp",
+            "picked_up_at": ISO8601DateFormatter().string(from: Date()),
+            "is_archived": false
+        ]
+
+        do {
+            let data = try JSONSerialization.data(withJSONObject: body)
+
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                method: "POST",
+                body: data
+            )
+
+            print("✅ Supabase load added")
+
+        } catch {
+            print("❌ Failed adding Supabase load:", error)
+        }
+    }
+    
+    func deliverLoad(
+        loadID: UUID,
+        deliveryTicketNumber: String,
+        deliveryTons: Double
+    ) async {
+
+        let body: [String: Any] = [
+            "delivery_ticket_number": deliveryTicketNumber,
+            "delivery_tons": deliveryTons,
+            "status": "delivered",
+            "delivered_at": ISO8601DateFormatter().string(from: Date())
+        ]
+
+        do {
+
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                method: "PATCH",
+                query: "?id=eq.\(loadID.uuidString)",
+                body: data
+            )
+
+            print("✅ Supabase load delivered")
+
+        } catch {
+
+            print("❌ Failed delivering load:", error)
+        }
+    }
+}

@@ -537,17 +537,53 @@ struct AdminDashboardView: View {
             .toolbar {
 
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("Add Test Driver") {
-
-                        Task {
-
-                            await DriverSupabaseManager.shared.addDriver(
-                                name: "Test Driver",
-                                username: "testdriver",
-                                truckNumber: "9999",
-                                role: "driver"
-                            )
+                    Menu {
+                        Button("Add Test Load") {
+                            Task {
+                                await LoadSupabaseManager.shared.addLoad(
+                                    driverName: "Ronnie",
+                                    truckNumber: "6969",
+                                    pickupTicketNumber: "TEST999",
+                                    pickupTons: 25.5
+                                )
+                            }
                         }
+
+                        Button("Deliver Latest Load") {
+                            Task {
+                                let loads = await LoadSupabaseManager.shared.fetchLoads()
+
+                                if let first = loads.first {
+                                    await LoadSupabaseManager.shared.deliverLoad(
+                                        loadID: first.id,
+                                        deliveryTicketNumber: "DEL123",
+                                        deliveryTons: 24.5
+                                    )
+                                }
+                            }
+                        }
+
+                        Button("Fetch Loads") {
+                            Task {
+                                let loads = await LoadSupabaseManager.shared.fetchLoads()
+                                print("🚚 TEST LOADS:", loads.count)
+                            }
+                        }
+
+                        Button("Test Notification") {
+                            let note = AppNotification(
+                                type: "Test",
+                                driverName: "Ronnie",
+                                truckNumber: "6969",
+                                message: "Supabase test notification",
+                                loadTicket: "TEST"
+                            )
+
+                            notificationManager.sendNotification(note)
+                        }
+
+                    } label: {
+                        Label("Tests", systemImage: "hammer.fill")
                     }
                     
                     Button("Boss Report") {

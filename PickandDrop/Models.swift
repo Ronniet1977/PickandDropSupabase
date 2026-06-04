@@ -26,6 +26,30 @@ struct SupabaseDriver: Codable, Identifiable {
     let is_active: Bool
 }
 
+struct SupabaseLoad: Codable, Identifiable {
+
+    let id: UUID
+
+    let driver_name: String?
+
+    let truck_number: String?
+
+    let pickup_ticket_number: String?
+    let delivery_ticket_number: String?
+
+    let pickup_tons: Double?
+    let delivery_tons: Double?
+
+    let status: String?
+
+    let picked_up_at: String?
+    let delivered_at: String?
+
+    let created_at: String?
+
+    let is_archived: Bool?
+}
+
 struct DriverSummary: Identifiable {
     var id: String { name }   // stable ID
     
