@@ -12,9 +12,11 @@ struct PickupDeliveryView: View {
     @Query var companySettings: [CompanySettings]
     
     @StateObject private var notificationManager = NotificationSyncManager()
-    @State private var selectedLoad: LoadItem?
     @State private var deliveryTicket = ""
     @State private var deliveryTons = ""
+    
+    @State private var supabaseLoads: [SupabaseLoad] = []
+    @State private var selectedLoad: SupabaseLoad?
     
     var settings: CompanySettings? {
         companySettings.first
@@ -27,22 +29,22 @@ struct PickupDeliveryView: View {
         }
     }
     
-    var driverLoads: [LoadItem] {
-        loads
+    var driverLoads: [SupabaseLoad] {
+        supabaseLoads
             .filter {
-                $0.driverName == driver.name &&
-                !$0.isArchived
+                $0.driver_name == driver.name &&
+                $0.is_archived != true
             }
             .sorted {
-                if $0.deliveredAt == nil && $1.deliveredAt != nil {
+                if $0.delivered_at == nil && $1.delivered_at != nil {
                     return true
                 }
 
-                if $0.deliveredAt != nil && $1.deliveredAt == nil {
+                if $0.delivered_at != nil && $1.delivered_at == nil {
                     return false
                 }
 
-                return $0.createdAt > $1.createdAt
+                return ($0.created_at ?? "") > ($1.created_at ?? "")
             }
     }
     
@@ -96,56 +98,47 @@ struct PickupDeliveryView: View {
 
                                 VStack(alignment: .leading, spacing: 6) {
 
-                                    Text("Ticket: \(load.pickupTicketNumber)")
+                                    let ticket = load.pickup_ticket_number ?? ""
+
+                                    Text("Ticket: \(ticket)")
                                         .font(.title3.bold())
                                         .foregroundStyle(.white)
 
-                                    Text("Tons: \(String(format: "%.2f", load.pickupTons))")
+                                    let tons = load.pickup_tons ?? 0
+
+                                    Text("Tons: \(tons, specifier: "%.2f")")
                                         .font(.subheadline)
                                         .foregroundStyle(.white.opacity(0.7))
 
-                                    if let picked = load.pickedUpAt {
-
-                                        Text(
-                                            "Picked up: \(picked.formatted(date: .omitted, time: .shortened))"
-                                        )
-                                        .font(.caption)
-                                        .foregroundStyle(.orange)
+                                    if let picked = load.picked_up_at {
+                                        Text("Picked up: \(picked)")
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
                                     }
 
-                                    if let delivered = load.deliveredAt {
-
-                                        Text(
-                                            "Delivered: \(delivered.formatted(date: .omitted, time: .shortened))"
-                                        )
-                                        .font(.caption)
-                                        .foregroundStyle(.green)
+                                    if let delivered = load.delivered_at {
+                                        Text("Delivered: \(delivered)")
+                                            .font(.caption)
+                                            .foregroundStyle(.green)
                                     }
                                 }
 
                                 Spacer()
 
-                                Text(statusText(load.status))
-                                    .font(.caption.bold())
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        statusColor(load.status).opacity(0.2)
-                                    )
-                                    .foregroundStyle(statusColor(load.status))
-                                    .clipShape(Capsule())
+                                //Text(statusText(load.status ?? "pickedUp"))
+                                    //.font(.caption.bold())
+                                    //.padding(.horizontal, 12)
+                                    //.padding(.vertical, 8)
+                                    //.background(
+                                        //statusColor(load.status ?? "pickedUp").opacity(0.2)
+                                    //)
+                                    //.foregroundStyle(
+                                        //statusColor(load.status ?? "pickedUp")
+                                    //)
+                                    //.clipShape(Capsule())
                             }
 
                             HStack(spacing: 14) {
-
-                                Button(
-                                    "Pickup (\(settings?.pickupCompanyName ?? "Pickup"))"
-                                ) {
-                                    markPickedUp(load)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(.blue)
-                                .disabled(load.pickedUpAt != nil)
 
                                 Button(
                                     "Deliver (\(settings?.dropoffCompanyName ?? "Dropoff"))"
@@ -159,8 +152,8 @@ struct PickupDeliveryView: View {
                                 .buttonStyle(.borderedProminent)
                                 .tint(.green)
                                 .disabled(
-                                    load.pickedUpAt == nil ||
-                                    load.deliveredAt != nil
+                                    load.picked_up_at == nil ||
+                                    load.delivered_at != nil
                                 )
                             }
                         }
@@ -183,6 +176,11 @@ struct PickupDeliveryView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {
             requestNotificationPermission()
+
+            Task {
+                supabaseLoads =
+                    await LoadSupabaseManager.shared.fetchLoads()
+            }
         }
         .sheet(item: $selectedLoad) { load in
 
@@ -223,7 +221,7 @@ struct PickupDeliveryView: View {
                                 .foregroundStyle(.white)
 
                             Text(
-                                "\(settings?.pickupCompanyName ?? "Pickup") Ticket \(load.pickupTicketNumber)"
+                                "\(settings?.pickupCompanyName ?? "Pickup") Ticket \(load.pickup_ticket_number ?? "")"
                             )
                             .foregroundStyle(.white.opacity(0.7))
                         }
@@ -275,9 +273,9 @@ struct PickupDeliveryView: View {
                         .padding(.horizontal)
 
                         Button {
-
-                            completeDelivery(load)
-
+                            Task {
+                                await completeDelivery(load)
+                            }
                         } label: {
 
                             HStack {
@@ -324,29 +322,6 @@ struct PickupDeliveryView: View {
         }
     }
     
-    func sendDeliveryNotification(for load: LoadItem) {
-        let content = UNMutableNotificationContent()
-        content.title =
-            "\(settings?.dropoffCompanyName ?? "Dropoff") Load Delivered ✅"
-        content.body =
-            "\(driver.name) delivered \(settings?.dropoffCompanyName ?? "Dropoff") ticket \(load.deliveryTicketNumber)"
-        content.sound = .default
-        
-        let request = UNNotificationRequest(
-            identifier: UUID().uuidString,
-            content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        )
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("❌ Notification failed:", error)
-            } else {
-                print("✅ Delivery notification sent")
-            }
-        }
-    }
-    
     func sendAdminNotification(
         type: String,
         message: String,
@@ -363,62 +338,29 @@ struct PickupDeliveryView: View {
         notificationManager.sendNotification(note)
     }
     
-    func markPickedUp(_ load: LoadItem) {
-        load.status = "pickedUp"
-        load.pickedUpAt = Date()
-        saveAndUpdateCSV()
-    }
-    
-    func completeDelivery(_ load: LoadItem) {
+    func completeDelivery(_ load: SupabaseLoad) async {
         guard let tonsValue = Double(deliveryTons) else { return }
-        
-        load.deliveredAt = Date()
-        load.status = "delivered"
-        load.deliveryTicketNumber = deliveryTicket
-        load.deliveryTons = tonsValue
-        
-        // Local device notification
-        sendDeliveryNotification(for: load)
-        
-        // ✅ Admin iCloud notification
+
+        await LoadSupabaseManager.shared.deliverLoad(
+            loadID: load.id,
+            deliveryTicketNumber: deliveryTicket,
+            deliveryTons: tonsValue
+        )
+
         sendAdminNotification(
             type: "Delivered",
-            message: "\(driver.name) delivered \(settings?.dropoffCompanyName ?? "Dropoff") ticket \(load.deliveryTicketNumber) • \(tonsValue) tons",
-            ticket: load.deliveryTicketNumber
+            message: "\(driver.name) delivered \(settings?.dropoffCompanyName ?? "Dropoff") ticket \(deliveryTicket) • \(tonsValue) tons",
+            ticket: deliveryTicket
         )
-        
-        saveAndUpdateCSV()
-        
-        deliveryTicket = ""
-        deliveryTons = ""
-        selectedLoad = nil
-        
-        dismiss()
-    }
-    
-    func saveAndUpdateCSV() {
-        do {
-            try context.save()
 
-            let currentShift = activeShift
-
-            let driverLoads = loads.filter {
-                $0.driverName == driver.name &&
-                !$0.isArchived
-            }
-
-            let _ = CSVExporter.generateCSV(
-                loads: driverLoads,
-                driver: driver,
-                activeShift: currentShift,
-                settings: settings
-            )
-
-            print("✅ Pickup/Deliver updated")
-
-        } catch {
-            print("❌ Pickup/Deliver save failed:", error)
+        await MainActor.run {
+            deliveryTicket = ""
+            deliveryTons = ""
+            selectedLoad = nil
         }
+
+        supabaseLoads =
+            await LoadSupabaseManager.shared.fetchLoads()
     }
     
     func statusText(_ status: String) -> String {

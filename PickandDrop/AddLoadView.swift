@@ -231,8 +231,6 @@ struct AddLoadView: View {
     }
     
     func saveLoad() async {
-        print("☁️ SUPABASE saveLoad running")
-
         guard let tonsValue = Double(pickupTons) else { return }
 
         let cleanTicket = pickupTicket.trimmingCharacters(in: .whitespacesAndNewlines)
