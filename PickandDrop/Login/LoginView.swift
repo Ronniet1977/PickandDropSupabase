@@ -125,7 +125,14 @@ struct LoginView: View {
             $0.is_active
 
         }) {
-            let localDriver = DriverProfile()
+            let existingDriver = try? context.fetch(
+                FetchDescriptor<DriverProfile>()
+            ).first {
+                $0.username.lowercased() == driver.username.lowercased()
+            }
+
+            let localDriver = existingDriver ?? DriverProfile()
+
             localDriver.name = driver.name
             localDriver.username = driver.username
             localDriver.password = driver.password ?? ""
@@ -134,7 +141,9 @@ struct LoginView: View {
             localDriver.isActive = driver.is_active
             localDriver.mustChangePassword = false
 
-            context.insert(localDriver)
+            if existingDriver == nil {
+                context.insert(localDriver)
+            }
 
             try? context.save()
 

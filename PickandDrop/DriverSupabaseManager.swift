@@ -73,4 +73,74 @@ final class DriverSupabaseManager {
             print("❌ Failed adding driver:", error)
         }
     }
+    
+    func setDriverActive(
+        id: UUID,
+        isActive: Bool
+    ) async {
+
+        let body: [String: Any] = [
+            "is_active": isActive
+        ]
+
+        do {
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_drivers?id=eq.\(id.uuidString)",
+                method: "PATCH",
+                body: data
+            )
+
+            print("✅ Driver updated")
+
+        } catch {
+            print("❌ Driver update failed:", error)
+        }
+    }
+    
+    func resetPassword(
+        id: UUID
+    ) async {
+
+        let body: [String: Any] = [
+            "password": "1234"
+        ]
+
+        do {
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_drivers?id=eq.\(id.uuidString)",
+                method: "PATCH",
+                body: data
+            )
+
+            print("✅ Password reset")
+
+        } catch {
+            print("❌ Password reset failed:", error)
+        }
+    }
+    
+    func deleteDriver(
+        id: UUID
+    ) async {
+
+        do {
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_drivers?id=eq.\(id.uuidString)",
+                method: "DELETE"
+            )
+
+            print("✅ Driver deleted")
+
+        } catch {
+            print("❌ Driver delete failed:", error)
+        }
+    }
 }

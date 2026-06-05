@@ -12,10 +12,7 @@ struct DriverManagerView: View {
 
     @Environment(\.modelContext) private var context
 
-    @Query(sort: \DriverProfile.name)
-    var drivers: [DriverProfile]
-    @Query
-    var companySettings: [CompanySettings]
+    @State private var drivers: [SupabaseDriver] = []
     
     @AppStorage("currentDriverName")
     var currentDriverName = ""
@@ -106,103 +103,91 @@ struct DriverManagerView: View {
                         
                         ForEach(drivers) { driver in
                             
-                            VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 14) {
                                 
                                 HStack {
-                                    
-                                    VStack(alignment: .leading) {
-                                        
+                                    VStack(alignment: .leading, spacing: 4) {
                                         Text(driver.name)
                                             .font(.headline)
                                             .foregroundStyle(.white)
                                         
-                                        Text(
-                                            "@\(driver.username)"
-                                        )
-                                        .foregroundStyle(.secondary)
+                                        Text("@\(driver.username)")
+                                            .foregroundStyle(.white.opacity(0.55))
                                     }
                                     
                                     Spacer()
                                     
                                     Text(driver.role.capitalized)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 4)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
                                         .background(
                                             driver.role == "admin"
                                             ? .red.opacity(0.2)
                                             : .blue.opacity(0.2)
                                         )
                                         .foregroundStyle(
-                                            driver.role == "admin"
-                                            ? .red
-                                            : .blue
+                                            driver.role == "admin" ? .red : .blue
                                         )
                                         .clipShape(Capsule())
                                 }
                                 
-                                HStack {
-                                    Button("Reset Password") {
-                                        
-                                        driver.password = "1234"
-                                        driver.mustChangePassword = true
-                                        
-                                        try? context.save()
-                                        
-                                        if drivers.contains(where: {
-                                            $0.name == currentDriverName &&
-                                            $0.role == "admin"
-                                        }) {
-                                            
-                                            DriverSyncManager.exportDrivers(
-                                                drivers: drivers
-                                            )
+                                HStack(spacing: 12) {
+                                    Button {
+                                        Task {
+                                            await DriverSupabaseManager.shared
+                                                .resetPassword(id: driver.id)
+
+                                            loadDrivers()
                                         }
+                                    } label: {
+                                        Label("Reset", systemImage: "key.fill")
                                     }
-                                    .buttonStyle(.borderedProminent)
                                     .tint(.orange)
                                     
-                                    Button(
-                                        driver.isActive
-                                        ? "Disable"
-                                        : "Enable"
-                                    ) {
-                                        
-                                        driver.isActive.toggle()
-                                        
-                                        try? context.save()
-                                        
-                                        if drivers.contains(where: {
-                                            $0.name == currentDriverName &&
-                                            $0.role == "admin"
-                                        }) {
-                                            
-                                            DriverSyncManager.exportDrivers(
-                                                drivers: drivers
-                                            )
+                                    Button {
+
+                                        Task {
+
+                                            await DriverSupabaseManager.shared
+                                                .setDriverActive(
+                                                    id: driver.id,
+                                                    isActive: !driver.is_active
+                                                )
+
+                                            loadDrivers()
                                         }
-                                    }
-                                    
-                                    Button(role: .destructive) {
-                                        
-                                        deleteDriver(driver)
-                                        
+
                                     } label: {
-                                        
+
                                         Label(
-                                            "Delete",
-                                            systemImage: "trash.fill"
+                                            driver.is_active ? "Disable" : "Enable",
+                                            systemImage:
+                                                driver.is_active
+                                                ? "pause.circle.fill"
+                                                : "play.circle.fill"
                                         )
                                     }
+                                    .tint(.blue)
+                                    
+                                    Button(role: .destructive) {
+                                        Task {
+                                            await DriverSupabaseManager.shared
+                                                .deleteDriver(id: driver.id)
+
+                                            loadDrivers()
+                                        }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash.fill")
+                                    }
                                     .disabled(driver.name == currentDriverName)
-                                    .buttonStyle(.borderedProminent)
                                     .tint(.red)
                                 }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.regular)
                             }
                             .padding()
                             .background(.ultraThinMaterial)
-                            .clipShape(
-                                RoundedRectangle(cornerRadius: 24)
-                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
                         }
                     }
                 }
@@ -247,9 +232,9 @@ struct DriverManagerView: View {
                     }
                     
                     Button {
-                        DriverSyncManager.exportDrivers(
-                            drivers: drivers
-                        )
+                        //DriverSyncManager.exportDrivers(
+                            //drivers: drivers
+                        //)
                     } label: {
                         Label(
                             "Sync Drivers",
@@ -261,6 +246,9 @@ struct DriverManagerView: View {
                         .font(.title3)
                 }
             }
+        }
+        .onAppear {
+            loadDrivers()
         }
         .alert(
             "Company Join Code",
@@ -279,71 +267,44 @@ struct DriverManagerView: View {
         }
     }
     
-    func regenerateCompanyCode() {
+    func loadDrivers() {
 
-        guard let settings = companySettings.first else {
-            return
+        Task {
+
+            let loaded =
+                await DriverSupabaseManager
+                    .shared
+                    .fetchDrivers()
+
+            await MainActor.run {
+                drivers = loaded
+            }
         }
-
-        let newCode =
-            settings.truckingCompanyName
-                .uppercased()
-                .replacingOccurrences(of: " ", with: "")
-            + "-\(Int.random(in: 1000...9999))"
-
-        settings.companyJoinCode = newCode
-
-        try? context.save()
-
-        CompanySyncManager.exportCompany(
-            settings: settings
-        )
-
-        print("✅ New Join Code:", newCode)
     }
-
+    
+    func regenerateCompanyCode() {
+        print("Supabase version coming next")
+    }
+    
     func createDriver() {
 
-        let driver = DriverProfile()
+        Task {
 
-        driver.name = newName
-        driver.truckNumber = newTruck
+            await DriverSupabaseManager.shared.addDriver(
+                name: newName,
+                username: newUsername.lowercased(),
+                password: "1234",
+                truckNumber: newTruck,
+                role: selectedRole
+            )
 
-        driver.username = newUsername.lowercased()
+            await MainActor.run {
 
-        driver.password = "1234"
-
-        driver.role = selectedRole
-
-        driver.mustChangePassword = true
-
-        context.insert(driver)
-
-        do {
-
-            try context.save()
-            
-            if drivers.contains(where: {
-                $0.name == currentDriverName &&
-                $0.role == "admin"
-            }) {
-
-                DriverSyncManager.exportDrivers(
-                    drivers: drivers
-                )
+                newName = ""
+                newTruck = ""
+                newUsername = ""
+                selectedRole = "driver"
             }
-
-            newName = ""
-            newTruck = ""
-            newUsername = ""
-
-            selectedRole = "driver"
-
-            print("✅ Driver created")
-
-        } catch {
-
-            print("❌ Failed creating driver:", error)
         }
     }
     
@@ -360,9 +321,9 @@ struct DriverManagerView: View {
                 $0.role == "admin"
             }) {
 
-                DriverSyncManager.exportDrivers(
-                    drivers: drivers
-                )
+                //DriverSyncManager.exportDrivers(
+                    //drivers: drivers
+                //)
             }
 
             print("✅ Driver deleted")
@@ -370,28 +331,6 @@ struct DriverManagerView: View {
         } catch {
 
             print("❌ Failed deleting driver:", error)
-        }
-    }
-    
-    func deleteTestDrivers() {
-
-        for driver in drivers {
-
-            if driver.name != currentDriverName {
-
-                context.delete(driver)
-            }
-        }
-
-        do {
-
-            try context.save()
-
-            print("✅ Test drivers deleted")
-
-        } catch {
-
-            print("❌ Failed deleting:", error)
         }
     }
 }
