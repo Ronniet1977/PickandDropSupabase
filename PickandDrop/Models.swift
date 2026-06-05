@@ -21,6 +21,7 @@ struct SupabaseDriver: Codable, Identifiable {
     let name: String
     let username: String
     let password: String?
+    let must_change_password: Bool?
     let truck_number: String
 
     let role: String

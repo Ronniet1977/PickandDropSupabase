@@ -21,6 +21,7 @@ struct LoginView: View {
 
     @State private var username = ""
     @State private var password = ""
+    @State private var showJoinCompany = false
 
     @State private var loginError = ""
     @AppStorage("mustChangePassword")
@@ -73,7 +74,6 @@ struct LoginView: View {
                         .textFieldStyle(.roundedBorder)
 
                     if !loginError.isEmpty {
-
                         Text(loginError)
                             .foregroundStyle(.red)
                             .font(.caption)
@@ -84,7 +84,6 @@ struct LoginView: View {
                             await login()
                         }
                     } label: {
-
                         Text("Log In")
                             .fontWeight(.bold)
                             .frame(maxWidth: .infinity)
@@ -92,6 +91,11 @@ struct LoginView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.blue)
+
+                    Button("Join Company") {
+                        showJoinCompany = true
+                    }
+                    .foregroundStyle(.white)
                 }
                 .padding()
                 .background(.ultraThinMaterial)
@@ -101,6 +105,9 @@ struct LoginView: View {
                 Spacer()
             }
             .padding()
+        }
+        .sheet(isPresented: $showJoinCompany) {
+            JoinCompanyView()
         }
     }
 
@@ -139,7 +146,8 @@ struct LoginView: View {
             localDriver.truckNumber = driver.truck_number
             localDriver.role = driver.role
             localDriver.isActive = driver.is_active
-            localDriver.mustChangePassword = false
+            localDriver.mustChangePassword =
+                driver.must_change_password ?? true
 
             if existingDriver == nil {
                 context.insert(localDriver)
@@ -149,8 +157,10 @@ struct LoginView: View {
 
             currentDriverName = driver.name
 
-            // Admin never forced to change password
-            mustChangePassword = false
+            mustChangePassword =
+                driver.role == "admin"
+                ? false
+                : (driver.must_change_password ?? true)
 
             isLoggedIn = true
 

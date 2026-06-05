@@ -88,6 +88,7 @@ struct DriverManagerView: View {
                         Button("Create Account") {
                             
                             createDriver()
+                            
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.green)

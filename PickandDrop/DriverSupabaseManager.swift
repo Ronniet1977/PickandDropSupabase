@@ -51,7 +51,8 @@ final class DriverSupabaseManager {
             "truck_number": truckNumber,
             "role": role,
             "is_active": true,
-            "password": password
+            "password": password,
+            "must_change_password": true
         ]
 
         do {
@@ -98,6 +99,35 @@ final class DriverSupabaseManager {
 
         } catch {
             print("❌ Driver update failed:", error)
+        }
+    }
+    
+    func updatePassword(
+        username: String,
+        password: String,
+        mustChangePassword: Bool
+    ) async {
+
+        let body: [String: Any] = [
+            "password": password,
+            "must_change_password": mustChangePassword
+        ]
+
+        do {
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_drivers?username=eq.\(username)",
+                method: "PATCH",
+                body: data
+            )
+
+            print("✅ Supabase password updated")
+
+        } catch {
+            print("❌ Supabase password update failed:", error)
         }
     }
     

@@ -74,8 +74,9 @@ struct ChangePasswordView: View {
                     }
 
                     Button("Save Password") {
-
-                        savePassword()
+                        Task {
+                            await savePassword()
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.green)
@@ -96,48 +97,39 @@ struct ChangePasswordView: View {
             }
         }
     }
-
-    func savePassword() {
+    
+    func savePassword() async {
 
         guard !newPassword.isEmpty else {
-
             errorText = "Password required"
             return
         }
 
         guard newPassword == confirmPassword else {
-
             errorText = "Passwords do not match"
             return
         }
-        
-        guard newPassword.count >= 6 else {
 
-            errorText = "Password must be at least 4 characters"
+        guard newPassword.count >= 6 else {
+            errorText = "Password must be at least 6 characters"
             return
         }
 
-        driver.password = newPassword
-        driver.mustChangePassword = false
+        await DriverSupabaseManager.shared.updatePassword(
+            username: driver.username,
+            password: newPassword,
+            mustChangePassword: false
+        )
 
-        do {
+        await MainActor.run {
+            driver.password = newPassword
+            driver.mustChangePassword = false
 
-            try context.save()
-            
-            DriverSyncManager.updateDriverInSharedFile(
-                driver: driver
-            )
+            try? context.save()
 
             mustChangePassword = false
-            withAnimation {
-                mustChangePassword = false
-            }
 
             print("✅ Password changed")
-
-        } catch {
-
-            errorText = "Failed saving password"
         }
     }
 }
