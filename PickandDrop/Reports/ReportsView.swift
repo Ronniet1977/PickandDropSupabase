@@ -143,7 +143,7 @@ struct ReportsView: View {
                         }
                         
                         Button(role: .destructive) {
-                            WeeklyFuelManager.archiveAndResetWeeklyFuel()
+                            print("Fuel is now Supabase-backed")
                         } label: {
 
                             Label(

@@ -26,6 +26,7 @@ enum AppTheme {
 struct DriverFilesView: View {
 
     @State private var driverFolders: [URL] = []
+    @State private var fuelEntries: [SupabaseFuel] = []
 
     var body: some View {
 
@@ -49,8 +50,13 @@ struct DriverFilesView: View {
                         DriverSessionsCardView()
                     }
 
-                    NavigationLink("Fuel Archives") {
-                        FuelArchiveListView()
+                    NavigationLink {
+                        FuelReportsView()
+                    } label: {
+                        Label(
+                            "Fuel Reports",
+                            systemImage: "fuelpump.fill"
+                        )
                     }
                 }
                 .listRowBackground(AppTheme.cardBackground)
@@ -78,7 +84,11 @@ struct DriverFilesView: View {
             )
             .navigationTitle("Driver Files")
             .onAppear {
-                loadDriverFolders()
+                Task {
+                    fuelEntries =
+                        await FuelSupabaseManager.shared
+                            .fetchFuel()
+                }
             }
         }
     }
@@ -266,10 +276,12 @@ struct FilePreviewView: View {
 //Cards
 struct WeeklyFuelCardsView: View {
 
-    @State private var entries: [WeeklyFuelEntry] = []
+    @State private var fuelEntries: [SupabaseFuel] = []
 
     var totalFuel: Double {
-        entries.reduce(0) { $0 + $1.amount }
+        fuelEntries.reduce(0.0) {
+            $0 + ($1.amount ?? 0)
+        }
     }
 
     var body: some View {
@@ -287,7 +299,7 @@ struct WeeklyFuelCardsView: View {
                     Text("$\(totalFuel, specifier: "%.2f")")
                         .font(.largeTitle.bold())
 
-                    Text("\(entries.count) fuel entries")
+                    Text("\(fuelEntries.count) fuel entries")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -296,7 +308,7 @@ struct WeeklyFuelCardsView: View {
                 .background(AppTheme.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
 
-                ForEach(entries) { entry in
+                ForEach(fuelEntries) { entry in
 
                     VStack(alignment: .leading, spacing: 10) {
 
@@ -304,29 +316,24 @@ struct WeeklyFuelCardsView: View {
 
                             VStack(alignment: .leading, spacing: 4) {
 
-                                Text(entry.driverName)
+                                Text(entry.driver_name ?? "Unknown")
                                     .font(.headline)
 
-                                Text("Truck \(entry.truckNumber)")
+                                Text("Truck \(entry.truck_number ?? "")")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
 
                             Spacer()
 
-                            Text("$\(entry.amount, specifier: "%.2f")")
+                            Text("$\(entry.amount ?? 0, specifier: "%.2f")")
                                 .font(.title3.bold())
                                 .foregroundStyle(AppTheme.success)
                         }
 
-                        Text(
-                            entry.date.formatted(
-                                date: .abbreviated,
-                                time: .shortened
-                            )
-                        )
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        Text(entry.created_at ?? "")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
@@ -338,8 +345,16 @@ struct WeeklyFuelCardsView: View {
         }
         .navigationTitle("Weekly Fuel")
         .onAppear {
-            entries = WeeklyFuelManager.loadFuelEntries()
-                .sorted { $0.date > $1.date }
+            Task {
+                let loaded =
+                    await FuelSupabaseManager
+                        .shared
+                        .fetchFuel()
+
+                await MainActor.run {
+                    fuelEntries = loaded
+                }
+            }
         }
     }
 }
@@ -632,208 +647,3 @@ struct DriverSessionsCardView: View {
     }
 }
 
-struct FuelArchiveListView: View {
-
-    @State private var archiveFiles: [URL] = []
-
-    var body: some View {
-
-        List {
-
-            // ✅ Current Week
-            Section("Current Week") {
-
-                NavigationLink {
-
-                    FuelArchivePrettyView(
-                        fileURL: StorageManager
-                            .truckReportsFolder()
-                            .appendingPathComponent("WeeklyFuel.json")
-                    )
-
-                } label: {
-
-                    Label(
-                        "Weekly Fuel",
-                        systemImage: "fuelpump.fill"
-                    )
-                }
-            }
-
-            // ✅ Archived Weeks
-            Section("Archived Weeks") {
-
-                ForEach(archiveFiles, id: \.self) { file in
-
-                    NavigationLink {
-
-                        FuelArchivePrettyView(
-                            fileURL: file
-                        )
-
-                    } label: {
-
-                        Label(
-                            file.deletingPathExtension().lastPathComponent,
-                            systemImage: "archivebox.fill"
-                        )
-                    }
-                }
-            }
-        }
-        .navigationTitle("Fuel Archives")
-        .onAppear {
-            loadArchives()
-        }
-    }
-
-    func loadArchives() {
-
-        let folder = StorageManager
-            .truckReportsFolder()
-            .appendingPathComponent("FuelArchive")
-
-        do {
-
-            archiveFiles =
-                try FileManager.default
-                    .contentsOfDirectory(
-                        at: folder,
-                        includingPropertiesForKeys: nil
-                    )
-                    .filter {
-                        $0.pathExtension == "json"
-                    }
-                    .sorted {
-                        $0.lastPathComponent > $1.lastPathComponent
-                    }
-
-        } catch {
-
-            print(
-                "❌ Failed loading fuel archives:",
-                error
-            )
-        }
-    }
-}
-
-struct FuelArchivePrettyView: View {
-
-    let fileURL: URL
-
-    @State private var entries: [WeeklyFuelEntry] = []
-
-    var totalFuel: Double {
-        entries.reduce(0) { $0 + $1.amount }
-    }
-
-    var body: some View {
-
-        ScrollView {
-
-            VStack(spacing: 16) {
-
-                // ✅ Summary Card
-                VStack(alignment: .leading, spacing: 8) {
-
-                    Text(fileURL.lastPathComponent)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Text("$\(totalFuel, specifier: "%.2f")")
-                        .font(.largeTitle.bold())
-
-                    Text("\(entries.count) fuel entries")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(AppTheme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 24))
-
-                // ✅ Entry Cards
-                ForEach(entries) { entry in
-
-                    VStack(alignment: .leading, spacing: 10) {
-
-                        HStack {
-
-                            VStack(alignment: .leading, spacing: 4) {
-
-                                Text(entry.driverName)
-                                    .font(.headline)
-
-                                Text("Truck \(entry.truckNumber)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer()
-
-                            Text("$\(entry.amount, specifier: "%.2f")")
-                                .font(.title3.bold())
-                                .foregroundStyle(AppTheme.success)
-                        }
-
-                        Text(
-                            entry.date.formatted(
-                                date: .abbreviated,
-                                time: .shortened
-                            )
-                        )
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(AppTheme.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 22))
-                }
-
-                // ✅ Empty State
-                if entries.isEmpty {
-
-                    VStack(spacing: 10) {
-
-                        Image(systemName: "fuelpump.slash.fill")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-
-                        Text("No fuel entries")
-                            .font(.headline)
-
-                        Text("This week has no fuel yet.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding()
-                }
-            }
-            .padding()
-        }
-        .navigationTitle("Fuel Report")
-        .onAppear {
-            loadFuelArchive()
-        }
-    }
-
-    func loadFuelArchive() {
-
-        do {
-
-            let data = try Data(contentsOf: fileURL)
-
-            entries = try JSONDecoder()
-                .decode([WeeklyFuelEntry].self, from: data)
-                .sorted { $0.date > $1.date }
-
-            print("✅ Loaded fuel archive:", entries.count)
-
-        } catch {
-
-            print("❌ Failed loading fuel archive:", error)
-        }
-    }
-}
