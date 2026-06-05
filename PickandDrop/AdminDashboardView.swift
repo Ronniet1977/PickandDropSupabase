@@ -62,6 +62,7 @@ struct AdminDashboardView: View {
     @State private var supabaseLoads: [SupabaseLoad] = []
     @State private var supabaseDrivers: [SupabaseDriver] = []
     @State private var supabaseSettings: SupabaseCompanySettings?
+    @State private var supabaseFuel: [SupabaseFuel] = []
     
     //Supabase Summary Vars
     var dashboardLoads: [SupabaseLoad] {
@@ -308,7 +309,9 @@ struct AdminDashboardView: View {
     }
     
     var totalFuel: Double {
-        WeeklyFuelManager.totalFuel()
+        supabaseFuel.reduce(0.0) {
+            $0 + ($1.amount ?? 0)
+        }
     }
     
     var totalPickupTons: Double {
@@ -1023,7 +1026,7 @@ struct AdminDashboardView: View {
                     )
                     
                     Text(
-                        "Fuel: $\(WeeklyFuelManager.fuelForDriver(driver.name), specifier: "%.0f")"
+                        "Fuel: $\(fuelForDriver(driver.name), specifier: "%.0f")"
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -1423,17 +1426,25 @@ struct AdminDashboardView: View {
             let drivers = await DriverSupabaseManager.shared.fetchDrivers()
             let companySettings =
                 await CompanySupabaseManager.shared.fetchCompanySettings()
+            let fuel = await FuelSupabaseManager.shared.fetchFuel()
 
             await MainActor.run {
                 supabaseSettings = companySettings
                 supabaseLoads = loads
                 supabaseDrivers = drivers
+                supabaseFuel = fuel
                 lastUpdated = Date()
                 isRefreshing = false
             }
 
             notificationManager.loadNotifications()
         }
+    }
+    
+    func fuelForDriver(_ name: String) -> Double {
+        supabaseFuel
+            .filter { $0.driver_name == name }
+            .reduce(0.0) { $0 + ($1.amount ?? 0) }
     }
     
     func loadFromiCloud() {

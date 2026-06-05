@@ -53,6 +53,14 @@ struct SupabaseLoad: Codable, Identifiable {
     let is_archived: Bool?
 }
 
+struct SupabaseFuel: Codable, Identifiable {
+    let id: UUID
+    let driver_name: String?
+    let truck_number: String?
+    let amount: Double?
+    let created_at: String?
+}
+
 struct DriverSummary: Identifiable {
     var id: String { name }   // stable ID
     

@@ -228,11 +228,20 @@ struct AddFuelView: View {
         let amount = Double(fuelAmount) ?? 0
         shift.fuelTotal += amount
         
-        WeeklyFuelManager.addFuel(
-            driverName: driver.name,
-            truckNumber: driver.truckNumber,
-            amount: amount
-        )
+        guard let amountValue = Double(fuelAmount) else { return }
+
+        Task {
+            await FuelSupabaseManager.shared.addFuel(
+                driverName: driver.name,
+                truckNumber: driver.truckNumber,
+                amount: amountValue
+            )
+
+            await MainActor.run {
+                fuelAmount = ""
+                dismiss()
+            }
+        }
         
         sendAdminNotification(
             type: "Fuel Added",
