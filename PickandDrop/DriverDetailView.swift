@@ -2,19 +2,16 @@ import SwiftUI
 import SwiftData
 
 struct DriverDetailView: View {
-    @State private var selectedLoad: LoadItem?
-    @Query var companySettings: [CompanySettings]
-    
-    var settings: CompanySettings? {
-        companySettings.first
-    }
+
+    @State private var selectedLoad: SupabaseLoad?
 
     let driver: DriverSummary
-    let loads: [LoadItem]
+    let loads: [SupabaseLoad]
+    let settings: SupabaseCompanySettings?
     
-    var grouped: [String: [LoadItem]] {
+    var grouped: [String: [SupabaseLoad]] {
         [
-            "\(settings?.pickupCompanyName ?? "Pickup") Loads": loads
+            "\(settings?.pickup_company_name ?? "Pickup") Loads": loads
         ]
     }
     
@@ -36,7 +33,7 @@ struct DriverDetailView: View {
                     Section {
                         VStack(alignment: .leading) {
                             Text(
-                                settings?.truckingCompanyName
+                                settings?.trucking_company_name
                                 ?? "Trucking Company"
                             )
                             .font(.caption.bold())
@@ -67,7 +64,9 @@ struct DriverDetailView: View {
                         
                         if let loads = grouped[company] {
                             
-                            let total = loads.reduce(0) { $0 + $1.pickupTons }
+                            let total = loads.reduce(0.0) {
+                                $0 + ($1.pickup_tons ?? 0)
+                            }
                             
                             Section(
                                 header:
@@ -86,29 +85,39 @@ struct DriverDetailView: View {
                                 
                                 ForEach(loads) { load in
                                     
-                                    VStack(alignment: .leading) {
-                                        
+                                    VStack(alignment: .leading, spacing: 8) {
+
                                         HStack {
-                                            
+
                                             Text(
-                                                "\(settings?.pickupCompanyName ?? "Pickup") Ticket \(load.pickupTicketNumber)"
+                                                "\(settings?.pickup_company_name ?? "Pickup") Ticket \(load.pickup_ticket_number ?? "")"
                                             )
-                                            
+
                                             Spacer()
-                                            
+
                                             Text(
-                                                "\(load.pickupTons, specifier: "%.0f") \(settings?.pickupCompanyName ?? "Pickup") tons"
+                                                "\(load.pickup_tons ?? 0, specifier: "%.0f") Tons"
                                             )
                                             .foregroundStyle(.blue)
+                                            .fontWeight(.semibold)
                                         }
-                                        
-                                        if load.isDelivered {
-                                            
-                                            Text(
-                                                "\(settings?.dropoffCompanyName ?? "Dropoff") Ticket \(load.deliveryTicketNumber)"
-                                            )
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+
+                                        if load.status == "delivered" {
+
+                                            HStack {
+
+                                                Text(
+                                                    "\(settings?.dropoff_company_name ?? "Dropoff") Ticket \(load.delivery_ticket_number ?? "")"
+                                                )
+
+                                                Spacer()
+
+                                                Text(
+                                                    "\(load.delivery_tons ?? 0, specifier: "%.0f") Tons"
+                                                )
+                                                .foregroundStyle(.green)
+                                                .fontWeight(.semibold)
+                                            }
                                         }
                                     }
                                     .contentShape(Rectangle())
@@ -126,36 +135,39 @@ struct DriverDetailView: View {
             .sheet(item: $selectedLoad) { load in
                 NavigationStack {
                     Form {
-                        Section(settings?.pickupCompanyName ?? "Pickup") {
-                            LabeledContent("Ticket", value: load.pickupTicketNumber)
-                            LabeledContent("Tons", value: String(format: "%.2f", load.pickupTons))
+                        Section(settings?.pickup_company_name ?? "Pickup") {
+                            LabeledContent("Ticket", value: load.pickup_ticket_number ?? "")
+                            LabeledContent("Tons", value: String(format: "%.2f", load.pickup_tons ?? 0))
                         }
 
-                        Section(settings?.dropoffCompanyName ?? "Dropoff") {
+                        Section(settings?.dropoff_company_name ?? "Dropoff") {
 
-                            if load.isDelivered {
+                            if load.status == "delivered" {
 
                                 LabeledContent(
-                                    "\(settings?.dropoffCompanyName ?? "Dropoff") Ticket",
-                                    value: load.deliveryTicketNumber
+                                    "\(settings?.dropoff_company_name ?? "Dropoff") Ticket",
+                                    value: load.delivery_ticket_number ?? ""
                                 )
 
                                 LabeledContent(
-                                    "\(settings?.dropoffCompanyName ?? "Dropoff") Tons",
-                                    value: String(format: "%.2f", load.deliveryTons)
+                                    "\(settings?.dropoff_company_name ?? "Dropoff") Tons",
+                                    value: String(format: "%.2f", load.delivery_tons ?? 0)
                                 )
 
                             } else {
 
                                 LabeledContent(
                                     "Status",
-                                    value: "Not delivered to \(settings?.dropoffCompanyName ?? "Dropoff") yet"
+                                    value: "Not delivered to \(settings?.dropoff_company_name ?? "Dropoff") yet"
                                 )
                             }
                         }
                         
                         Section("Driver") {
-                            LabeledContent("Driver", value: load.driverName)
+                            LabeledContent(
+                                "Driver",
+                                value: load.driver_name ?? ""
+                            )
                         }
                     }
                     .navigationTitle("Load Details")

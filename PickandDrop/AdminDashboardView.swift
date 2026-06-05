@@ -776,9 +776,10 @@ struct AdminDashboardView: View {
             .sheet(item: $selectedDriver) { driver in
                 DriverDetailView(
                     driver: driver,
-                    loads: allLoads
-                        .filter { $0.driverName == driver.name }
-                        .sorted { $0.createdAt > $1.createdAt }
+                    loads: dashboardLoads
+                        .filter { $0.driver_name == driver.name }
+                        .sorted { ($0.created_at ?? "") > ($1.created_at ?? "") },
+                    settings: supabaseSettings
                 )
             }
             .sheet(isPresented: Binding(
@@ -952,14 +953,10 @@ struct AdminDashboardView: View {
     }
     
     func driverCard(_ driver: DriverSummary) -> some View {
-        let deliveredTons = allLoads
-            .filter {
-                $0.driverName == driver.name &&
-                $0.deliveredAt != nil
-            }
-            .reduce(0.0) { $0 + $1.deliveryTons }
         
-        let hasMismatch = deliveredTons > 0 && abs(driver.pickupTons - driver.deliveryTons) > 0.01
+        let hasMismatch =
+            driver.deliveryTons > 0 &&
+            abs(driver.pickupTons - driver.deliveryTons) > 0.01
         
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -1018,11 +1015,11 @@ struct AdminDashboardView: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     
                     Text(
-                        "\(settings?.pickupCompanyName ?? "Pickup"): \(driver.pickupTons, specifier: "%.0f")"
+                        "\(supabaseSettings?.pickup_company_name ?? "Pickup"): \(driver.pickupTons, specifier: "%.0f")"
                     )
                     
                     Text(
-                        "\(settings?.dropoffCompanyName ?? "Dropoff"): \(driver.deliveryTons, specifier: "%.0f")"
+                        "\(supabaseSettings?.dropoff_company_name ?? "Dropoff"): \(driver.deliveryTons, specifier: "%.0f")"
                     )
                     
                     Text(
