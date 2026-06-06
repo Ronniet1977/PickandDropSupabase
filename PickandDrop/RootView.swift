@@ -6,6 +6,8 @@ struct RootView: View {
     @Query var drivers: [DriverProfile]
     @Query var companySettings: [CompanySettings]
     
+    @State private var checkedCompany = false
+    @State private var hasCompanyInSupabase = false
 
     @AppStorage("currentDriverName")
     var currentDriverName: String = ""
@@ -22,50 +24,72 @@ struct RootView: View {
 
     var body: some View {
 
-        if settings == nil {
+        Group {
 
-            CompanySetupView()
+            if !checkedCompany {
 
-        }
-        else if !StorageManager.hasSharedFolder() {
+                ProgressView("Loading...")
 
-            SharedFolderSetupView()
-        }
-        else if isLoggedIn,
-                  let driver = drivers.first(where: {
-                      $0.name == currentDriverName
-                  }) {
+            } else if !hasCompanyInSupabase {
 
-            if mustChangePassword {
+                CompanySetupView {
+                    Task {
+                        let company =
+                            await CompanySupabaseManager.shared.fetchCompanySettings()
 
-                ChangePasswordView(driver: driver)
+                        await MainActor.run {
+                            hasCompanyInSupabase = company != nil
+                            checkedCompany = true
+                        }
+                    }
+                }
 
-            } else {
+            } else if isLoggedIn,
+                      let driver = drivers.first(where: {
+                          $0.name == currentDriverName
+                      }) {
 
-                if driver.role == "admin" {
+                if mustChangePassword {
 
-                    AdminDashboardView()
+                    ChangePasswordView(driver: driver)
 
                 } else {
 
-                    DriverDashboardView(driver: driver)
+                    if driver.role == "admin" {
+
+                        AdminDashboardView()
+
+                    } else {
+
+                        DriverDashboardView(driver: driver)
+                    }
                 }
+
+            } else {
+
+                LoginView()
             }
+        }
+        .onAppear {
 
-        } else {
+            Task {
 
-            LoginView()
-                .onAppear {
+                let company =
+                    await CompanySupabaseManager.shared.fetchCompanySettings()
 
-                    if drivers.first(where: {
-                        $0.name == currentDriverName
-                    }) == nil {
+                await MainActor.run {
+
+                    hasCompanyInSupabase = company != nil
+                    checkedCompany = true
+
+                    if company == nil {
 
                         currentDriverName = ""
                         isLoggedIn = false
                         mustChangePassword = false
                     }
                 }
+            }
         }
     }
 }

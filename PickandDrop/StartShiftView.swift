@@ -144,9 +144,9 @@ struct StartShiftView: View {
                     } else {
 
                         Button {
-
-                            startShift()
-
+                            Task {
+                                await startShift()
+                            }
                         } label: {
 
                             HStack(spacing: 14) {
@@ -188,7 +188,7 @@ struct StartShiftView: View {
         }
     }
     
-    func startShift() {
+    func startShift() async {
         let newShift = Shift()
         newShift.driverName = driver.name
         newShift.companyName =
@@ -199,14 +199,13 @@ struct StartShiftView: View {
         do {
             try context.save()
             print("✅ Shift started")
-            Task {
 
-                await DriverSupabaseManager.shared
-                    .updateDutyStatus(
-                        username: driver.username,
-                        dutyStatus: "active"
-                    )
-            }
+            print("🟢 Setting duty active for:", driver.username)
+
+            await DriverSupabaseManager.shared.updateDutyStatus(
+                username: driver.username,
+                dutyStatus: "active"
+            )
 
             dismiss()
 

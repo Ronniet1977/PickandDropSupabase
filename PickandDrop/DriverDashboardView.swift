@@ -29,10 +29,19 @@ struct DriverDashboardView: View {
     }
     
     var pendingDeliveries: [SupabaseLoad] {
-        supabaseLoads.filter {
-            $0.driver_name == driver.name &&
-            ($0.is_archived ?? false) == false &&
-            $0.status != "delivered"
+        supabaseLoads.filter { load in
+
+            guard
+                load.driver_name == driver.name,
+                load.is_archived != true,
+                load.delivered_at == nil,
+                let pickedString = load.picked_up_at,
+                let pickedDate = parseSupabaseDate(pickedString)
+            else {
+                return false
+            }
+
+            return !Calendar.current.isDateInToday(pickedDate)
         }
     }
 
@@ -416,6 +425,19 @@ struct DriverDashboardView: View {
         .frame(height: 120)
         .background(color.gradient)
         .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+    
+    func parseSupabaseDate(_ value: String?) -> Date? {
+
+        guard let value else { return nil }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [
+            .withInternetDateTime,
+            .withFractionalSeconds
+        ]
+
+        return formatter.date(from: value)
     }
 
     

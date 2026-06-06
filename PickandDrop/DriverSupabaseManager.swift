@@ -171,10 +171,12 @@ final class DriverSupabaseManager {
             let data = try JSONSerialization.data(
                 withJSONObject: body
             )
+            print("🔄 Updating \(username) -> \(dutyStatus)")
 
             _ = try await SupabaseRESTManager.shared.request(
-                table: "pickdrop_drivers?username=eq.\(username)",
+                table: "pickdrop_drivers",
                 method: "PATCH",
+                query: "?username=eq.\(username)",
                 body: data
             )
 

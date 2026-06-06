@@ -23,18 +23,11 @@ struct PickupDeliveryView: View {
         supabaseLoads
             .filter {
                 $0.driver_name == driver.name &&
-                $0.is_archived != true
+                $0.is_archived != true &&
+                $0.delivered_at == nil
             }
             .sorted {
-                if $0.delivered_at == nil && $1.delivered_at != nil {
-                    return true
-                }
-
-                if $0.delivered_at != nil && $1.delivered_at == nil {
-                    return false
-                }
-
-                return ($0.created_at ?? "") > ($1.created_at ?? "")
+                ($0.created_at ?? "") > ($1.created_at ?? "")
             }
     }
     

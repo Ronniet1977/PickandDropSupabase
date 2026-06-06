@@ -81,6 +81,40 @@ final class CompanySupabaseManager {
             return nil
         }
     }
+    
+    func createCompanySettings(
+        truckingCompanyName: String,
+        pickupCompanyName: String,
+        dropoffCompanyName: String,
+        companyJoinCode: String,
+        ratePerTon: Double
+    ) async {
+
+        let body: [String: Any] = [
+            "trucking_company_name": truckingCompanyName,
+            "pickup_company_name": pickupCompanyName,
+            "dropoff_company_name": dropoffCompanyName,
+            "company_join_code": companyJoinCode,
+            "rate_per_ton": ratePerTon
+        ]
+
+        do {
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_company_settings",
+                method: "POST",
+                body: data
+            )
+
+            print("✅ Supabase company created")
+
+        } catch {
+            print("❌ Supabase company create failed:", error)
+        }
+    }
 }
 
 final class LoadSupabaseManager {
