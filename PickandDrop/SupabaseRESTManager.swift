@@ -179,4 +179,29 @@ final class LoadSupabaseManager {
             print("❌ Failed delivering load:", error)
         }
     }
+    
+    func archiveLoad(loadID: UUID) async {
+
+        let body: [String: Any] = [
+            "is_archived": true
+        ]
+
+        do {
+
+            let data = try JSONSerialization.data(withJSONObject: body)
+
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                method: "PATCH",
+                query: "?id=eq.\(loadID.uuidString)",
+                body: data
+            )
+
+            print("✅ Archived load")
+
+        } catch {
+
+            print("❌ Failed archiving load:", error)
+        }
+    }
 }

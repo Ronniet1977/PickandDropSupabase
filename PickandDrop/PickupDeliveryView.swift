@@ -7,9 +7,10 @@ struct PickupDeliveryView: View {
     
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query var loads: [LoadItem]
+
     @Query var shifts: [Shift]
-    @Query var companySettings: [CompanySettings]
+    
+    @State private var settings: SupabaseCompanySettings?
     
     @StateObject private var notificationManager = NotificationSyncManager()
     @State private var deliveryTicket = ""
@@ -17,17 +18,6 @@ struct PickupDeliveryView: View {
     
     @State private var supabaseLoads: [SupabaseLoad] = []
     @State private var selectedLoad: SupabaseLoad?
-    
-    var settings: CompanySettings? {
-        companySettings.first
-    }
-    
-    
-    var activeShift: Shift? {
-        shifts.first {
-            $0.driverName == driver.name && $0.status == "active"
-        }
-    }
     
     var driverLoads: [SupabaseLoad] {
         supabaseLoads
@@ -69,14 +59,14 @@ struct PickupDeliveryView: View {
                     VStack(spacing: 6) {
 
                         Text(
-                            settings?.truckingCompanyName
+                            settings?.trucking_company_name
                             ?? "Trucking Company"
                         )
                         .font(.headline)
                         .foregroundStyle(.blue)
 
                         Text(
-                            "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                            "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
                         )
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -141,7 +131,7 @@ struct PickupDeliveryView: View {
                             HStack(spacing: 14) {
 
                                 Button(
-                                    "Deliver (\(settings?.dropoffCompanyName ?? "Dropoff"))"
+                                    "Deliver (\(settings?.dropoff_company_name ?? "Dropoff"))"
                                 ) {
 
                                     deliveryTicket = ""
@@ -170,7 +160,7 @@ struct PickupDeliveryView: View {
             }
         }
         .navigationTitle(
-            "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+            "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
         )
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -178,8 +168,17 @@ struct PickupDeliveryView: View {
             requestNotificationPermission()
 
             Task {
-                supabaseLoads =
+
+                let loadedSettings =
+                    await CompanySupabaseManager.shared.fetchCompanySettings()
+
+                let loadedLoads =
                     await LoadSupabaseManager.shared.fetchLoads()
+
+                await MainActor.run {
+                    settings = loadedSettings
+                    supabaseLoads = loadedLoads
+                }
             }
         }
         .sheet(item: $selectedLoad) { load in
@@ -221,7 +220,7 @@ struct PickupDeliveryView: View {
                                 .foregroundStyle(.white)
 
                             Text(
-                                "\(settings?.pickupCompanyName ?? "Pickup") Ticket \(load.pickup_ticket_number ?? "")"
+                                "\(settings?.pickup_company_name ?? "Pickup") Ticket \(load.pickup_ticket_number ?? "")"
                             )
                             .foregroundStyle(.white.opacity(0.7))
                         }
@@ -231,7 +230,7 @@ struct PickupDeliveryView: View {
                             VStack(alignment: .leading, spacing: 8) {
 
                                 Text(
-                                    "\(settings?.dropoffCompanyName ?? "Dropoff") Ticket"
+                                    "\(settings?.dropoff_company_name ?? "Dropoff") Ticket"
                                 )
                                 .font(.caption.bold())
                                 .foregroundStyle(.white.opacity(0.7))
@@ -250,7 +249,7 @@ struct PickupDeliveryView: View {
                             VStack(alignment: .leading, spacing: 8) {
 
                                 Text(
-                                    "\(settings?.dropoffCompanyName ?? "Dropoff") Tons"
+                                    "\(settings?.dropoff_company_name ?? "Dropoff") Tons"
                                 )
                                 .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
@@ -349,7 +348,7 @@ struct PickupDeliveryView: View {
 
         sendAdminNotification(
             type: "Delivered",
-            message: "\(driver.name) delivered \(settings?.dropoffCompanyName ?? "Dropoff") ticket \(deliveryTicket) • \(tonsValue) tons",
+            message: "\(driver.name) delivered \(settings?.dropoff_company_name ?? "Dropoff") ticket \(deliveryTicket) • \(tonsValue) tons",
             ticket: deliveryTicket
         )
 

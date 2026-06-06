@@ -27,6 +27,8 @@ struct SupabaseDriver: Codable, Identifiable {
     let role: String
     let is_active: Bool
     
+    let duty_status: String?
+    
 }
 
 struct SupabaseLoad: Codable, Identifiable {

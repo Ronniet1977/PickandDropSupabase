@@ -5,26 +5,24 @@ struct LoadListView: View {
     let driver: DriverProfile
     
     @Environment(\.modelContext) private var context
-    @Query var loads: [LoadItem]
-    @Query var companySettings: [CompanySettings]
+    @State private var loads: [SupabaseLoad] = []
+    @State private var settings: SupabaseCompanySettings?
     
-    var settings: CompanySettings? {
-        companySettings.first
-    }
-    
-    var shiftLoads: [LoadItem] {
+    var shiftLoads: [SupabaseLoad] {
         loads
             .filter {
-                $0.driverName == driver.name &&
-                !$0.isArchived
+                $0.driver_name == driver.name &&
+                ($0.is_archived ?? false) == false
             }
-            .sorted { $0.createdAt > $1.createdAt }
+            .sorted {
+                ($0.created_at ?? "") > ($1.created_at ?? "")
+            }
     }
     
     var body: some View {
-
+        
         ZStack {
-
+            
             LinearGradient(
                 colors: [
                     Color(red: 0.08, green: 0.11, blue: 0.18),
@@ -35,63 +33,64 @@ struct LoadListView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-
+            
             ScrollView {
-
+                
                 VStack(spacing: 24) {
-
+                    
                     // HEADER CARD
-
+                    
                     VStack(alignment: .leading, spacing: 18) {
                         Text(
-                            settings?.truckingCompanyName
+                            settings?.trucking_company_name
                             ?? "Trucking Company"
                         )
                         .font(.caption.bold())
                         .foregroundStyle(.blue)
-
+                        
                         Text(driver.name)
                             .font(.largeTitle.bold())
                             .foregroundStyle(.white)
-
+                        
                         Text("Truck \(driver.truckNumber)")
                             .foregroundStyle(.white.opacity(0.7))
-
+                        
                         Divider()
-
-                        let pickupTons = shiftLoads.reduce(0) {
-                            $0 + $1.pickupTons
+                        
+                        let pickupTons = shiftLoads.reduce(0.0) {
+                            $0 + ($1.pickup_tons ?? 0)
                         }
-
-                        let deliveredTons = shiftLoads.reduce(0) {
-                            $0 + $1.deliveryTons
+                        
+                        let deliveredTons = shiftLoads.reduce(0.0) {
+                            $0 + ($1.delivery_tons ?? 0)
                         }
-
+                        
                         let remainingTons = pickupTons - deliveredTons
-
+                        
                         HStack {
-
+                            
                             loadStat(
                                 title: "Loads",
                                 value: "\(shiftLoads.count)"
                             )
-
+                            
                             Spacer()
-
+                            
                             loadStat(
-                                title: settings?.pickupCompanyName ?? "Pickup",
+                                title: settings?.pickup_company_name ?? "Pickup",
                                 value: String(format: "%.0f", pickupTons)
                             )
-
+                            
                             Spacer()
-
+                            
                             loadStat(
-                                title: settings?.dropoffCompanyName ?? "Dropoff",
+                                title: settings?.dropoff_company_name
+                                ?? "Dropoff",
                                 value: String(format: "%.0f", deliveredTons)
                             )
-
+                            
                             Spacer()
-
+                            
                             loadStat(
                                 title: "Remaining",
                                 value: String(format: "%.0f", remainingTons)
@@ -101,55 +100,55 @@ struct LoadListView: View {
                     .padding(24)
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 30))
-
+                    
                     // EMPTY STATE
-
+                    
                     if shiftLoads.isEmpty {
-
+                        
                         VStack(spacing: 16) {
-
+                            
                             Image(systemName: "shippingbox")
                                 .font(.system(size: 54))
                                 .foregroundStyle(.gray)
-
+                            
                             Text("No Loads Yet")
                                 .font(.title2.bold())
                                 .foregroundStyle(.white)
-
+                            
                             Text("Loads added during your shift will appear here.")
                                 .foregroundStyle(.white.opacity(0.7))
                         }
                         .padding(.top, 80)
                     }
-
+                    
                     // LOAD CARDS
-
+                    
                     ForEach(shiftLoads, id: \.id) { load in
-
+                        
                         VStack(alignment: .leading, spacing: 16) {
-
+                            
                             HStack {
-
+                                
                                 VStack(alignment: .leading, spacing: 6) {
-
+                                    
                                     Text(
-                                        "\(settings?.pickupCompanyName ?? "Pickup") Ticket \(load.pickupTicketNumber)"
+                                        "\(settings?.pickup_company_name ?? "Pickup") Ticket \(load.pickup_ticket_number ?? "")"
                                     )
                                     .font(.title3.bold())
                                     .foregroundStyle(.white)
-
+                                    
                                     HStack(spacing: 14) {
-
+                                        
                                         Label(
-                                            "\(String(format: "%.2f", load.pickupTons)) \(settings?.pickupCompanyName ?? "Pickup") Tons",
+                                            "\(String(format: "%.2f", load.pickup_tons ?? 0)) \(settings?.pickup_company_name ?? "Pickup") Tons",
                                             systemImage: "arrow.up.circle.fill"
                                         )
                                         .foregroundStyle(.blue)
-
-                                        if load.isDelivered {
-
+                                        
+                                        if load.status == "delivered" {
+                                            
                                             Label(
-                                                "\(String(format: "%.2f", load.deliveryTons)) \(settings?.dropoffCompanyName ?? "Dropoff") Tons",
+                                                "\(String(format: "%.2f", load.delivery_tons ?? 0)) \(settings?.dropoff_company_name ?? "Dropoff") Tons",
                                                 systemImage: "arrow.down.circle.fill"
                                             )
                                             .foregroundStyle(.orange)
@@ -157,44 +156,42 @@ struct LoadListView: View {
                                     }
                                     .font(.subheadline.bold())
                                 }
-
+                                
                                 Spacer()
-
-                                Text(load.isDelivered ? "Delivered" : "Picked Up")
+                                
+                                Text(load.status == "delivered" ? "Delivered" : "Picked Up")
                                     .font(.caption.bold())
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
                                     .background(
-                                        load.isDelivered
+                                        load.status == "delivered"
                                         ? .green.opacity(0.2)
                                         : .orange.opacity(0.2)
                                     )
                                     .foregroundStyle(
-                                        load.isDelivered
+                                        load.status == "delivered"
                                         ? .green
                                         : .orange
                                     )
                                     .clipShape(Capsule())
                             }
-
-                            Text(
-                                "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                            
+                            Label(
+                                "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")",
+                                systemImage: "arrow.left.arrow.right"
                             )
-                                .font(.caption.bold())
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(.blue.opacity(0.15))
-                                .foregroundStyle(.blue)
-                                .clipShape(Capsule())
-
+                            .font(.caption.bold())
+                            .foregroundStyle(.blue)
+                            
                             Divider()
-
+                            
                             VStack(alignment: .leading, spacing: 8) {
-
-                                if let picked = load.pickedUpAt {
+                                
+                                if let pickedString = load.picked_up_at,
+                                   let pickedDate = parseSupabaseDate(pickedString) {
 
                                     Label(
-                                        picked.formatted(
+                                        pickedDate.formatted(
                                             date: .omitted,
                                             time: .shortened
                                         ),
@@ -204,9 +201,10 @@ struct LoadListView: View {
                                     .foregroundStyle(.orange)
                                 }
                                 
-                                if load.deliveredAt == nil,
-                                   let picked = load.pickedUpAt,
-                                   !Calendar.current.isDateInToday(picked) {
+                                if load.delivered_at == nil,
+                                   let pickedString = load.picked_up_at,
+                                   let pickedDate = parseSupabaseDate(pickedString),
+                                   !Calendar.current.isDateInToday(pickedDate) {
 
                                     Label(
                                         "Pending from previous day",
@@ -215,11 +213,12 @@ struct LoadListView: View {
                                     .font(.caption.bold())
                                     .foregroundStyle(.yellow)
                                 }
-
-                                if let delivered = load.deliveredAt {
+                                
+                                if let deliveredString = load.delivered_at,
+                                   let deliveredDate = parseSupabaseDate(deliveredString) {
 
                                     Label(
-                                        delivered.formatted(
+                                        deliveredDate.formatted(
                                             date: .omitted,
                                             time: .shortened
                                         ),
@@ -228,11 +227,13 @@ struct LoadListView: View {
                                     .font(.caption)
                                     .foregroundStyle(.green)
                                 }
+                                
+                                if let pickedString = load.picked_up_at,
+                                   let deliveredString = load.delivered_at,
+                                   let pickedDate = parseSupabaseDate(pickedString),
+                                   let deliveredDate = parseSupabaseDate(deliveredString) {
 
-                                if let picked = load.pickedUpAt,
-                                   let delivered = load.deliveredAt {
-
-                                    let duration = delivered.timeIntervalSince(picked)
+                                    let duration = deliveredDate.timeIntervalSince(pickedDate)
 
                                     let hours = Int(duration) / 3600
                                     let minutes = (Int(duration) % 3600) / 60
@@ -250,31 +251,57 @@ struct LoadListView: View {
                             RoundedRectangle(cornerRadius: 28)
                                 .stroke(.white.opacity(0.08))
                         )
-                        .contextMenu {
-
-                            Button(role: .destructive) {
-
-                                context.delete(load)
-                                try? context.save()
-
-                            } label: {
-
-                                Label(
-                                    "Delete Load",
-                                    systemImage: "trash"
-                                )
-                            }
-                        }
+                        //.contextMenu {
+                        
+                        //Button(role: .destructive) {
+                        
+                        //context.delete(load)
+                        //try? context.save()
+                        
+                        //} label: {
+                        
+                        //Label(
+                        //"Delete Load",
+                        //systemImage: "trash"
+                        //)
+                        //}
                     }
                 }
-                .padding()
             }
+            .padding()
         }
         .navigationTitle(
-            "\(settings?.pickupCompanyName ?? "Pickup") Loads"
+            "\(settings?.pickup_company_name ?? "Pickup") Loads"
         )
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .onAppear {
+            Task {
+                let loadedLoads =
+                await LoadSupabaseManager.shared.fetchLoads()
+                
+                let loadedSettings =
+                await CompanySupabaseManager.shared.fetchCompanySettings()
+                
+                await MainActor.run {
+                    loads = loadedLoads
+                    settings = loadedSettings
+                }
+            }
+        }
+    }
+    
+    func parseSupabaseDate(_ value: String?) -> Date? {
+
+        guard let value else { return nil }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [
+            .withInternetDateTime,
+            .withFractionalSeconds
+        ]
+
+        return formatter.date(from: value)
     }
     
     func loadStat(
@@ -293,11 +320,7 @@ struct LoadListView: View {
                 .foregroundStyle(.white)
         }
     }
-    
-    func deleteLoad(at offsets: IndexSet) {
-        for index in offsets {
-            context.delete(shiftLoads[index])
-        }
-        try? context.save()
-    }
 }
+
+    
+    

@@ -7,17 +7,18 @@ struct FinishDayView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     
-    @Query var drivers: [DriverProfile]
-    @Query var loads: [LoadItem]
     @Query var shifts: [Shift]
-    @Query var companySettings: [CompanySettings]
+
+    @State private var supabaseLoads: [SupabaseLoad] = []
+    @State private var supabaseSettings: SupabaseCompanySettings?
+    
     
     @StateObject private var notificationManager = NotificationSyncManager()
     
     @State private var didFinish = false
     
-    var settings: CompanySettings? {
-        companySettings.first
+    var settings: SupabaseCompanySettings? {
+        supabaseSettings
     }
     
     var activeShift: Shift? {
@@ -26,20 +27,22 @@ struct FinishDayView: View {
         })
     }
     
-    var shiftLoads: [LoadItem] {
-
-        return loads.filter {
-            $0.driverName == driver.name &&
-            !$0.isArchived &&
-            (
-                activeShift == nil ||
-                $0.createdAt >= activeShift!.startedAt
-            )
+    var shiftLoads: [SupabaseLoad] {
+        supabaseLoads.filter {
+            $0.driver_name == driver.name &&
+            ($0.is_archived ?? false) == false
         }
     }
     
     var totalTons: Double {
-        shiftLoads.reduce(0.0) { $0 + $1.deliveryTons }
+        shiftLoads
+            .filter {
+                $0.status == "delivered" ||
+                $0.delivered_at != nil
+            }
+            .reduce(0.0) {
+                $0 + ($1.delivery_tons ?? 0)
+            }
     }
     
     var body: some View {
@@ -52,7 +55,7 @@ struct FinishDayView: View {
                 
                 Text("Loads: \(shiftLoads.count)")
                 Text(
-                    "\(settings?.dropoffCompanyName ?? "Dropoff") Tons: \(String(format: "%.2f", totalTons))"
+                    "\(settings?.dropoff_company_name ?? "Dropoff") Tons: \(String(format: "%.2f", totalTons))"
                 )
                 
                 if activeShift == nil {
@@ -60,7 +63,9 @@ struct FinishDayView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     Button {
-                        finishDay()
+                        Task {
+                            await finishDay()
+                        }
                     } label: {
                         VStack(spacing: 6) {
                             
@@ -70,14 +75,14 @@ struct FinishDayView: View {
                                 .foregroundStyle(.red)
                             
                             Text(
-                                settings?.truckingCompanyName
+                                settings?.trucking_company_name
                                 ?? "Trucking Company"
                             )
                             .font(.headline)
                             .foregroundStyle(.blue)
                             
                             Text(
-                                "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                                "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
                             )
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -93,6 +98,20 @@ struct FinishDayView: View {
         .onChange(of: didFinish) {
             if didFinish {
                 dismiss()
+            }
+        }
+        .onAppear {
+            Task {
+                let loadedLoads =
+                    await LoadSupabaseManager.shared.fetchLoads()
+
+                let loadedSettings =
+                    await CompanySupabaseManager.shared.fetchCompanySettings()
+
+                await MainActor.run {
+                    supabaseLoads = loadedLoads
+                    supabaseSettings = loadedSettings
+                }
             }
         }
     }
@@ -118,60 +137,60 @@ struct FinishDayView: View {
         notificationManager.sendNotification(note)
     }
     
-    func finishDay() {
+    func finishDay() async {
         guard let shift = activeShift else { return }
 
-        
+        let driverLoads =
+            await LoadSupabaseManager.shared.fetchLoads()
+                .filter {
+                    $0.driver_name == driver.name &&
+                    ($0.is_archived ?? false) == false
+                }
+
+        print("📦 FinishDay Supabase loads:", driverLoads.count)
+
+        for load in driverLoads {
+
+            if load.status == "delivered" ||
+                load.delivered_at != nil {
+
+                await LoadSupabaseManager.shared.archiveLoad(
+                    loadID: load.id
+                )
+
+                print("🗂 Archived delivered:",
+                      load.pickup_ticket_number ?? "")
+            } else {
+
+                print("⏳ Keeping pending:",
+                      load.pickup_ticket_number ?? "")
+            }
+        }
+
+        shift.status = "finished"
+        shift.endedAt = Date()
 
         do {
             try context.save()
-            print("✅ Shift finished")
 
-            let currentShift = shift
-
-            let driverLoads = loads.filter {
-                $0.driverName == driver.name &&
-                !$0.isArchived &&
-                $0.shift?.id == currentShift.id
-            }
-            
-            print("📦 FinishDay driverLoads:", driverLoads.count)
-
-            // ✅ FINAL export
-            let _ = CSVExporter.generateCSV(
-                loads: driverLoads,
-                driver: driver,
-                activeShift: shift,
-                settings: settings,
-                isFinal: true
-            )
-            
             sendAdminNotification(
                 type: "Finished Day",
-                message: "\(driver.name) finished the day • \(driverLoads.count) loads • \(String(format: "%.2f", totalTons)) tons"
+                message: "\(driver.name) finished the day • \(driverLoads.count) loads"
             )
 
-            // ✅ DELETE FINISHED LOCAL LOADS
-            for load in driverLoads {
-                
-                if load.deliveredAt != nil {
-                    load.isArchived = true
-                    print("🗂 ARCHIVING DELIVERED:", load.pickupTicketNumber)
-                } else {
-                    load.isArchived = false
-                    load.status = "pickedUp"
-                    print("⏳ KEEPING PENDING:", load.pickupTicketNumber)
-                }
-            }
-            
-            shift.status = "finished"
-
-            try context.save()
-
-            // ✅ REMOVE ACTIVE FILE
             CSVExporter.deleteActiveCSV(driver: driver)
+            
+            await DriverSupabaseManager.shared
+                .updateDutyStatus(
+                    username: driver.username,
+                    dutyStatus: "off_duty"
+                )
 
-            didFinish = true
+            await MainActor.run {
+                didFinish = true
+            }
+
+            print("✅ Shift finished")
 
         } catch {
             print("❌ Failed to finish day:", error)

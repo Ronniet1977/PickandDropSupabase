@@ -11,13 +11,13 @@ struct LoginView: View {
 
     @Environment(\.modelContext) private var context
 
-    @Query var companySettings: [CompanySettings]
-
     @AppStorage("currentDriverName")
     var currentDriverName = ""
 
     @AppStorage("isLoggedIn")
     var isLoggedIn = false
+    
+    @State private var settings: SupabaseCompanySettings?
 
     @State private var username = ""
     @State private var password = ""
@@ -53,16 +53,16 @@ struct LoginView: View {
                         .foregroundStyle(.white)
 
                     Text(
-                        companySettings.first?.truckingCompanyName
+                        settings?.trucking_company_name
                         ?? "Pick & Drop"
                     )
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(.white)
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.white)
 
                     Text(
-                        "\(companySettings.first?.pickupCompanyName ?? "Pickup") → \(companySettings.first?.dropoffCompanyName ?? "Dropoff")"
+                        "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
                     )
-                        .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.7))
                 }
 
                 VStack(spacing: 18) {
@@ -105,6 +105,19 @@ struct LoginView: View {
                 Spacer()
             }
             .padding()
+        }
+        .onAppear {
+
+            Task {
+
+                let loadedSettings =
+                    await CompanySupabaseManager.shared
+                        .fetchCompanySettings()
+
+                await MainActor.run {
+                    settings = loadedSettings
+                }
+            }
         }
         .sheet(isPresented: $showJoinCompany) {
             JoinCompanyView()

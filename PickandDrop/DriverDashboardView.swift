@@ -15,24 +15,42 @@ struct DriverDashboardView: View {
     @Query var drivers: [DriverProfile]
     @Query var shifts: [Shift]
     @Query var loads: [LoadItem]
-    @Query var companySettings: [CompanySettings]
+
+    @State private var supabaseSettings: SupabaseCompanySettings?
+    @State private var supabaseLoads: [SupabaseLoad] = []
     
     @State private var showPendingDeliveryAlert = false
     @State private var showPickupDeliveryView = false
     
     let driver: DriverProfile
     
-    var settings: CompanySettings? {
-        companySettings.first
+    var settings: SupabaseCompanySettings? {
+        supabaseSettings
     }
     
-    var pendingDeliveries: [LoadItem] {
-        loads.filter {
-            $0.driverName == driver.name &&
-            !$0.isArchived &&
-            $0.pickedUpAt != nil &&
-            $0.deliveredAt == nil
+    var pendingDeliveries: [SupabaseLoad] {
+        supabaseLoads.filter {
+            $0.driver_name == driver.name &&
+            ($0.is_archived ?? false) == false &&
+            $0.status != "delivered"
         }
+    }
+
+    var shiftLoads: [SupabaseLoad] {
+        supabaseLoads.filter {
+            $0.driver_name == driver.name &&
+            ($0.is_archived ?? false) == false
+        }
+    }
+
+    var totalTons: Double {
+        shiftLoads.reduce(0.0) {
+            $0 + ($1.pickup_tons ?? 0)
+        }
+    }
+
+    var todayLoads: [SupabaseLoad] {
+        shiftLoads
     }
     
     var activeShift: Shift? {
@@ -43,34 +61,6 @@ struct DriverDashboardView: View {
     
     var hasActiveShift: Bool {
         activeShift != nil
-    }
-    
-    var shiftLoads: [LoadItem] {
-
-        return loads.filter {
-            $0.driverName == driver.name &&
-            !$0.isArchived &&
-            (
-                activeShift == nil ||
-                $0.createdAt >= activeShift!.startedAt
-            )
-        }
-    }
-    
-    var totalTons: Double {
-        shiftLoads.reduce(0.0) { $0 + $1.pickupTons }
-    }
-    
-    var todayLoads: [LoadItem] {
-
-        loads.filter {
-            $0.driverName == driver.name &&
-            !$0.isArchived &&
-            (
-                activeShift == nil ||
-                $0.createdAt >= activeShift!.startedAt
-            )
-        }
     }
     
     var activeShiftDuration: String {
@@ -130,7 +120,7 @@ struct DriverDashboardView: View {
                                     }
 
                                     Text(
-                                        settings?.truckingCompanyName
+                                        settings?.trucking_company_name
                                         ?? "Trucking Company"
                                     )
                                     .font(.caption.bold())
@@ -144,7 +134,7 @@ struct DriverDashboardView: View {
                                         .foregroundStyle(.white.opacity(0.7))
                                     
                                     Text(
-                                        "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                                        "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
                                     )
                                     .font(.caption.bold())
                                     .padding(.horizontal, 10)
@@ -213,11 +203,11 @@ struct DriverDashboardView: View {
                                 let totalTons = todayLoads.reduce(0.0) {
                                     total,
                                     load in
-                                    total + load.pickupTons
+                                    total + (load.pickup_tons ?? 0)
                                 }
 
                                 dashboardStat(
-                                    title: "\(settings?.pickupCompanyName ?? "Pickup") Tons",
+                                    title: "\(settings?.pickup_company_name ?? "Pickup") Tons",
                                     value: String(
                                         format: "%.0f",
                                         totalTons
@@ -227,11 +217,11 @@ struct DriverDashboardView: View {
                                 Spacer()
 
                                 let deliveredCount = todayLoads.filter {
-                                    $0.isDelivered
+                                    $0.status == "delivered"
                                 }.count
 
                                 dashboardStat(
-                                    title: "\(settings?.dropoffCompanyName ?? "Dropoff")",
+                                    title: "\(settings?.dropoff_company_name ?? "Dropoff")",
                                     value: "\(deliveredCount)"
                                 )
                             }
@@ -347,6 +337,21 @@ struct DriverDashboardView: View {
                 if !pendingDeliveries.isEmpty {
                     showPendingDeliveryAlert = true
                 }
+
+                Task {
+                    let loadedLoads =
+                        await LoadSupabaseManager.shared.fetchLoads()
+                    
+                    let loadedSettings =
+                        await CompanySupabaseManager
+                            .shared
+                            .fetchCompanySettings()
+
+                    await MainActor.run {
+                        supabaseSettings = loadedSettings
+                        supabaseLoads = loadedLoads
+                    }
+                }
             }
 
             .alert(
@@ -416,9 +421,10 @@ struct DriverDashboardView: View {
     
     func logout() {
 
-        DriverSessionManager.logout(
-            username: driver.username
-        )
+        // Old iCloud session tracking disabled
+        // DriverSessionManager.logout(
+        //     username: driver.username
+        // )
 
         hasSetup = false
         currentDriverName = ""

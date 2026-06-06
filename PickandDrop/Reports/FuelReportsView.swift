@@ -62,7 +62,7 @@ struct FuelReportsView: View {
     var body: some View {
         List {
             Section("Year") {
-                Picker("Year", selection: $selectedYear) {
+                Picker("Select Year", selection: $selectedYear) {
                     ForEach(years, id: \.self) { year in
                         Text(String(year)).tag(year)
                     }

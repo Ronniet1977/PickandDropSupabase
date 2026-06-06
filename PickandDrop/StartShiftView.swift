@@ -8,12 +8,8 @@ struct StartShiftView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query var shifts: [Shift]
-    @Query var loads: [LoadItem]
-    @Query var companySettings: [CompanySettings]
     
-    var settings: CompanySettings? {
-        companySettings.first
-    }
+    @State private var settings: SupabaseCompanySettings?
     
     var activeShift: Shift? {
         shifts.first(where: {
@@ -82,14 +78,14 @@ struct StartShiftView: View {
                             .foregroundStyle(.white.opacity(0.7))
                         
                         Text(
-                            settings?.truckingCompanyName
+                            settings?.trucking_company_name
                             ?? "Trucking Company"
                         )
                         .font(.caption.bold())
                         .foregroundStyle(.blue)
 
                         Text(
-                            "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                            "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
                         )
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.7))
@@ -177,37 +173,40 @@ struct StartShiftView: View {
             .padding()
         }
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            Task {
+                let loadedSettings =
+                    await CompanySupabaseManager
+                        .shared
+                        .fetchCompanySettings()
+
+                await MainActor.run {
+                    settings = loadedSettings
+                }
+            }
+        }
     }
     
     func startShift() {
         let newShift = Shift()
         newShift.driverName = driver.name
         newShift.companyName =
-            settings?.truckingCompanyName ?? ""
+            settings?.trucking_company_name ?? ""
 
         context.insert(newShift)
 
         do {
             try context.save()
             print("✅ Shift started")
+            Task {
 
-            let currentShift = activeShift
-
-            let driverLoads = loads.filter {
-                $0.driverName == driver.name &&
-                !$0.isArchived &&
-                (
-                    currentShift == nil ||
-                    $0.createdAt >= currentShift!.startedAt
-                )
+                await DriverSupabaseManager.shared
+                    .updateDutyStatus(
+                        username: driver.username,
+                        dutyStatus: "active"
+                    )
             }
-
-            _ = CSVExporter.generateCSV(
-                loads: driverLoads,
-                driver: driver,
-                activeShift: currentShift,
-                settings: settings
-            )
 
             dismiss()
 

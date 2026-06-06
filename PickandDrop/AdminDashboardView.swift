@@ -25,7 +25,6 @@ struct AdminDashboardView: View {
     @Query var shifts: [Shift]
     @Query(sort: \LoadItem.createdAt, order: .reverse)
     var allLoads: [LoadItem]
-    @Query var companySettings: [CompanySettings]
     
     
     @AppStorage("hasSetup") var hasSetup = true
@@ -103,35 +102,36 @@ struct AdminDashboardView: View {
         supabasePickupTons - supabaseDeliveryTons
     }
     
-    
-    var settings: CompanySettings? {
-        companySettings.first
+    var activeDriverLoads: [SupabaseLoad] {
+        dashboardLoads.filter {
+            $0.status != "delivered"
+        }
     }
-    
+
     var supabaseDriverSummaries: [DriverSummary] {
 
-        let grouped = Dictionary(grouping: dashboardLoads) {
-            $0.driver_name ?? "Unknown"
+        let activeDrivers = supabaseDrivers.filter {
+            $0.duty_status == "active"
         }
 
-        return grouped.map { driverName, loads in
+        return activeDrivers.map { driver in
 
-            let driverProfile = supabaseDrivers.first {
-                $0.name == driverName
+            let driverLoads = dashboardLoads.filter {
+                $0.driver_name == driver.name
             }
 
             return DriverSummary(
-                name: driverName,
-                truck: driverProfile?.truck_number ?? "—",
-                loads: loads.count,
-                pickupTons: loads.reduce(0.0) {
+                name: driver.name,
+                truck: driver.truck_number,
+                loads: driverLoads.count,
+                pickupTons: driverLoads.reduce(0.0) {
                     $0 + ($1.pickup_tons ?? 0)
                 },
-                deliveryTons: loads.reduce(0.0) {
+                deliveryTons: driverLoads.reduce(0.0) {
                     $0 + ($1.delivery_tons ?? 0)
                 },
-                fuel: 0,
-                status: "active",
+                fuel: fuelForDriver(driver.name),
+                status: driver.duty_status ?? "off_duty",
                 isFinished: false
             )
         }
@@ -228,7 +228,7 @@ struct AdminDashboardView: View {
     }
     
     var totalLoads: Int {
-        filteredLoads.count
+        supabaseTotalLoads
     }
     
     //Filter Tabs
@@ -301,11 +301,11 @@ struct AdminDashboardView: View {
     
     //Boss Sumary
     var deliveredLoads: Int {
-        allLoads.filter { $0.deliveredAt != nil }.count
+        supabaseDeliveredLoads
     }
     
     var openLoads: Int {
-        allLoads.filter { $0.pickedUpAt == nil }.count
+        supabaseOpenLoads
     }
     
     var totalFuel: Double {
@@ -315,20 +315,16 @@ struct AdminDashboardView: View {
     }
     
     var totalPickupTons: Double {
-        allLoads
-            .filter { $0.isPickedUp }
-            .reduce(0.0) { $0 + $1.pickupTons }
+        supabasePickupTons
     }
     
     // 🔥 until you track real delivery tons separately:
     var totalDeliveryTons: Double {
-        allLoads
-            .filter { $0.deliveredAt != nil }
-            .reduce(0.0) { $0 + $1.deliveryTons }
+        supabaseDeliveryTons
     }
     
     var tonsDifference: Double {
-        totalPickupTons - totalDeliveryTons
+        supabaseTonsDifference
     }
     
     var body: some View {
@@ -536,14 +532,13 @@ struct AdminDashboardView: View {
                             
                             HStack(spacing: 12) {
                                 BossSummaryCard(
-                                    title: "\(settings?.pickupCompanyName ?? "Pickup") Tons",
+                                    title: "\(supabaseSettings?.pickup_company_name ?? "Pickup") Tons",
                                     value: String(format: "%.0f", supabasePickupTons),
                                     subtitle: "Pickup tons",
                                     systemImage: "arrow.up.circle.fill"
                                 )
-                                
                                 BossSummaryCard(
-                                    title: "\(settings?.dropoffCompanyName ?? "Drop Off") Tons",
+                                    title: "\(supabaseSettings?.dropoff_company_name ?? "Dropoff") Tons",
                                     value: String(format: "%.0f", supabaseDeliveryTons),
                                     subtitle: "Delivery tons",
                                     systemImage: "arrow.down.circle.fill"
@@ -1171,7 +1166,7 @@ struct AdminDashboardView: View {
     }
     
     func exportBossDailyReport() -> URL {
-        var csv = "Driver,Truck,Loads,\(settings?.pickupCompanyName ?? "Pickup") Tons,\(settings?.dropoffCompanyName ?? "Dropoff") Tons,Open Loads,Delivered Loads,Difference\n"
+        var csv = "Driver,Truck,Loads,\(supabaseSettings?.pickup_company_name ?? "Pickup") Tons,\(supabaseSettings?.dropoff_company_name ?? "Dropoff") Tons,Open Loads,Delivered Loads,Difference\n"
         
         let grouped = Dictionary(grouping: allLoads) { $0.driverName }
         
@@ -1697,7 +1692,7 @@ struct AdminDashboardView: View {
         csv += "\n\n"
         
         // LOAD DETAILS
-        csv += "Date,Time,Driver,Truck,\(settings?.pickupCompanyName ?? "Pickup") Ticket,\(settings?.pickupCompanyName ?? "Pickup") Tons,\(settings?.dropoffCompanyName ?? "Dropoff") Ticket,\(settings?.dropoffCompanyName ?? "Dropoff") Tons\n"
+        csv += "Date,Time,Driver,Truck,\(supabaseSettings?.pickup_company_name ?? "Pickup") Ticket,\(supabaseSettings?.pickup_company_name ?? "Pickup") Tons,\(supabaseSettings?.dropoff_company_name ?? "Dropoff") Ticket,\(supabaseSettings?.dropoff_company_name ?? "Dropoff") Tons\n"
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"

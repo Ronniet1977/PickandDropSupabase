@@ -157,6 +157,35 @@ final class DriverSupabaseManager {
         }
     }
     
+    func updateDutyStatus(
+        username: String,
+        dutyStatus: String
+    ) async {
+
+        let body: [String: Any] = [
+            "duty_status": dutyStatus
+        ]
+
+        do {
+
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_drivers?username=eq.\(username)",
+                method: "PATCH",
+                body: data
+            )
+
+            print("✅ Duty status:", dutyStatus)
+
+        } catch {
+
+            print("❌ Duty status failed:", error)
+        }
+    }
+    
     func deleteDriver(
         id: UUID
     ) async {

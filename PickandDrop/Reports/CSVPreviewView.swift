@@ -14,16 +14,13 @@ struct CSVPreviewView: View {
     let generatePickupInvoice: (URL) -> Void
     let generateDeliveryInvoice: (URL) -> Void
     
-    @Query var companySettings: [CompanySettings]
+    @State private var settings: SupabaseCompanySettings?
+    
     @State private var loads: [CSVLoad] = []
     @State private var selectedLoad: CSVLoad?
     @State private var editedPickupTicket = ""
     @State private var editedPickupTons = ""
     @State private var editedDeliveryTons = ""
-    
-    var settings: CompanySettings? {
-        companySettings.first
-    }
 
     var body: some View {
 
@@ -57,13 +54,13 @@ struct CSVPreviewView: View {
                                     HStack(spacing: 12) {
 
                                         Text(
-                                            "\(settings?.pickupCompanyName ?? "Pickup"): \(load.pickupTons, specifier: "%.0f") Tons"
+                                            "\(settings?.pickup_company_name ?? "Pickup"): \(load.pickupTons, specifier: "%.0f") Tons"
                                         )
                                         .fontWeight(.semibold)
                                         .foregroundStyle(.blue)
 
                                         Text(
-                                            "\(settings?.dropoffCompanyName ?? "Dropoff"): \(load.deliveryTons, specifier: "%.0f") Tons"
+                                            "\(settings?.dropoff_company_name ?? "Dropoff"): \(load.deliveryTons, specifier: "%.0f") Tons"
                                         )
                                         .fontWeight(.semibold)
                                         .foregroundStyle(.orange)
@@ -104,7 +101,7 @@ struct CSVPreviewView: View {
                                 Text("Truck: \(load.truck)")
                                     .foregroundStyle(.secondary)
                                 Text(
-                                    "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                                    "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
                                 )
                                     .font(.caption.bold())
                                     .padding(.horizontal, 10)
@@ -116,14 +113,14 @@ struct CSVPreviewView: View {
                                 Divider()
                                 
                                 Text(
-                                    "\(settings?.pickupCompanyName ?? "Pickup") Ticket: \(load.pickupTicket)"
+                                    "\(settings?.pickup_company_name ?? "Pickup") Ticket: \(load.pickupTicket)"
                                 )
                                 .foregroundStyle(.secondary)
 
                                 if load.isDelivered {
                                     
                                     Text(
-                                        "\(settings?.dropoffCompanyName ?? "Dropoff") Ticket: \(load.deliveryTicket)"
+                                        "\(settings?.dropoff_company_name ?? "Dropoff") Ticket: \(load.deliveryTicket)"
                                     )
                                     .foregroundStyle(.secondary)
                                     
@@ -148,7 +145,7 @@ struct CSVPreviewView: View {
                                     HStack {
                                         
                                         Button(
-                                            "\(settings?.pickupCompanyName ?? "Pickup") Invoice"
+                                            "\(settings?.pickup_company_name ?? "Pickup") Invoice"
                                         ) {
                                             generatePickupInvoice(fileURL)
                                         }
@@ -156,7 +153,7 @@ struct CSVPreviewView: View {
                                         .tint(.blue)
                                         
                                         Button(
-                                            "\(settings?.dropoffCompanyName ?? "Dropoff") Invoice"
+                                            "\(settings?.dropoff_company_name ?? "Dropoff") Invoice"
                                         ) {
                                             generateDeliveryInvoice(fileURL)
                                         }
@@ -185,6 +182,21 @@ struct CSVPreviewView: View {
             .padding()
         }
         .navigationTitle(fileURL.lastPathComponent)
+        .onAppear {
+
+            Task {
+
+                let loadedSettings =
+                    await CompanySupabaseManager.shared
+                        .fetchCompanySettings()
+
+                await MainActor.run {
+                    settings = loadedSettings
+                }
+
+                parseCSV()
+            }
+        }
         .sheet(item: $selectedLoad) { load in
 
             NavigationStack {
@@ -208,17 +220,17 @@ struct CSVPreviewView: View {
                         VStack(spacing: 18) {
 
                             TextField(
-                                "\(settings?.pickupCompanyName ?? "Pickup") Ticket",
+                                "\(settings?.pickup_company_name ?? "Pickup") Ticket",
                                 text: $editedPickupTicket
                             )
 
                             TextField(
-                                "\(settings?.pickupCompanyName ?? "Pickup") Tons",
+                                "\(settings?.pickup_company_name ?? "Pickup") Tons",
                                 text: $editedPickupTons
                             )
 
                             TextField(
-                                "\(settings?.dropoffCompanyName ?? "Dropoff") Tons",
+                                "\(settings?.dropoff_company_name ?? "Dropoff") Tons",
                                 text: $editedDeliveryTons
                             )
                         }
@@ -274,7 +286,7 @@ struct CSVPreviewView: View {
                 .font(.largeTitle.bold())
             
             Text(
-                settings?.truckingCompanyName
+                settings?.trucking_company_name
                 ?? "Trucking Company"
             )
             .font(.headline)
@@ -301,7 +313,7 @@ struct CSVPreviewView: View {
                 VStack(alignment: .leading) {
 
                     Text(
-                        "\(settings?.pickupCompanyName ?? "Pickup") Tons"
+                        "\(settings?.pickup_company_name ?? "Pickup") Tons"
                     )
                         .font(.caption)
 
@@ -316,7 +328,7 @@ struct CSVPreviewView: View {
                 VStack(alignment: .leading) {
 
                     Text(
-                        "\(settings?.dropoffCompanyName ?? "Dropoff") Tons"
+                        "\(settings?.dropoff_company_name ?? "Dropoff") Tons"
                     )
                         .font(.caption)
 

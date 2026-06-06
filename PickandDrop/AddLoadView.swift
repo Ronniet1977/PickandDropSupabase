@@ -7,18 +7,14 @@ struct AddLoadView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     
-    @Query var loads: [LoadItem]
     @Query var shifts: [Shift]
-    @Query var companySettings: [CompanySettings]
     
     @StateObject private var notificationManager = NotificationSyncManager()
-    
+    @State private var settings: SupabaseCompanySettings?
+
     @State private var pickupTicket = ""
     @State private var pickupTons = ""
     
-    var settings: CompanySettings? {
-        companySettings.first
-    }
     
     var activeShift: Shift? {
         shifts.first(where: {
@@ -30,18 +26,6 @@ struct AddLoadView: View {
     var isValidLoad: Bool {
         let cleanTicket = pickupTicket.trimmingCharacters(in: .whitespacesAndNewlines)
         return !cleanTicket.isEmpty && Double(pickupTons) != nil
-    }
-    
-    var shiftLoads: [LoadItem] {
-
-        loads.filter {
-            $0.driverName == driver.name &&
-            !$0.isArchived &&
-            (
-                activeShift == nil ||
-                $0.createdAt >= activeShift!.startedAt
-            )
-        }
     }
     
     var body: some View {
@@ -83,7 +67,7 @@ struct AddLoadView: View {
                             .foregroundStyle(.white)
                         
                         Text(
-                            "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                            "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.trucking_company_name ?? "Dropoff")"
                         )
                         .font(.caption.bold())
                         .padding(.horizontal, 10)
@@ -126,7 +110,7 @@ struct AddLoadView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
 
-                                Text("\(settings?.pickupCompanyName ?? "Pickup") Ticket Number")
+                                Text("\(settings?.pickup_company_name ?? "Pickup") Ticket Number")
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
 
@@ -144,7 +128,7 @@ struct AddLoadView: View {
                             VStack(alignment: .leading, spacing: 8) {
 
                                 Text(
-                                    "\(settings?.pickupCompanyName ?? "Pickup") Tons"
+                                    "\(settings?.pickup_company_name ?? "Pickup") Tons"
                                 )
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
@@ -212,6 +196,18 @@ struct AddLoadView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .onAppear {
+            Task {
+                let loadedSettings =
+                    await CompanySupabaseManager
+                        .shared
+                        .fetchCompanySettings()
+
+                await MainActor.run {
+                    settings = loadedSettings
+                }
+            }
+        }
     }
     
     func sendAdminNotification(

@@ -13,15 +13,15 @@ struct ReportsView: View {
     @Environment(\.modelContext) private var context
     @Query var companySettings: [CompanySettings]
     @Query var loads: [LoadItem]
+    
+    @State private var settings: SupabaseCompanySettings?
     @State private var reportFiles: [URL] = []
     @State private var invoiceURL: URL?
     @State private var weeklyInvoiceURL: URL?
     @State private var selectedInvoiceWeek = Date()
     
     
-    var settings: CompanySettings? {
-        companySettings.first
-    }
+    
 
     var body: some View {
 
@@ -53,14 +53,14 @@ struct ReportsView: View {
                                 .foregroundStyle(.white)
                             
                             Text(
-                                settings?.truckingCompanyName
+                                settings?.trucking_company_name
                                 ?? "Trucking Company"
                             )
                             .font(.headline)
                             .foregroundStyle(.blue)
                             
                             Text(
-                                "\(settings?.pickupCompanyName ?? "Pickup") → \(settings?.dropoffCompanyName ?? "Dropoff")"
+                                "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
                             )
                             .font(.caption)
                             .foregroundStyle(.white.opacity(0.7))
@@ -231,7 +231,19 @@ struct ReportsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .onAppear {
+
                 loadFiles()
+
+                Task {
+
+                    let loadedSettings =
+                        await CompanySupabaseManager.shared
+                            .fetchCompanySettings()
+
+                    await MainActor.run {
+                        settings = loadedSettings
+                    }
+                }
             }
             .quickLookPreview($invoiceURL)
             .quickLookPreview($weeklyInvoiceURL)
@@ -311,14 +323,14 @@ struct ReportsView: View {
             }
 
             invoiceURL = InvoiceGenerator.createInvoicePDF(
-                companyName: settings?.truckingCompanyName ?? "Trucking Company",
-                pickupCompany: settings?.pickupCompanyName ?? "Pickup",
-                dropoffCompany: settings?.dropoffCompanyName ?? "Dropoff",
+                companyName: settings?.trucking_company_name ?? "Trucking Company",
+                pickupCompany: settings?.pickup_company_name ?? "Pickup",
+                dropoffCompany: settings?.dropoff_company_name ?? "Dropoff",
                 invoiceTitle: "Invoice",
                 driverName: deliveredLoads.first?.driverName ?? "Unknown",
                 truckNumber: deliveredLoads.first?.truck ?? "Unknown",
                 loads: deliveredLoads,
-                ratePerTon: settings?.ratePerTon ?? 0,
+                ratePerTon: settings?.rate_per_ton ?? 0,
                 useDeliveryTons: true
             )
 
@@ -376,14 +388,14 @@ struct ReportsView: View {
             }
 
             invoiceURL = InvoiceGenerator.createInvoicePDF(
-                companyName: settings?.truckingCompanyName ?? "Trucking Company",
-                pickupCompany: settings?.pickupCompanyName ?? "Pickup",
-                dropoffCompany: settings?.dropoffCompanyName ?? "Dropoff",
-                invoiceTitle: "\(settings?.pickupCompanyName ?? "Pickup") Invoice",
+                companyName: settings?.trucking_company_name ?? "Trucking Company",
+                pickupCompany: settings?.pickup_company_name ?? "Pickup",
+                dropoffCompany: settings?.dropoff_company_name ?? "Dropoff",
+                invoiceTitle: "\(settings?.pickup_company_name ?? "Pickup") Invoice",
                 driverName: pickupLoads.first?.driverName ?? "Unknown",
                 truckNumber: pickupLoads.first?.truck ?? "Unknown",
                 loads: pickupLoads,
-                ratePerTon: settings?.ratePerTon ?? 0,
+                ratePerTon: settings?.rate_per_ton ?? 0,
                 useDeliveryTons: false
             )
 
@@ -441,14 +453,14 @@ struct ReportsView: View {
             }
 
             invoiceURL = InvoiceGenerator.createInvoicePDF(
-                companyName: settings?.truckingCompanyName ?? "Trucking Company",
-                pickupCompany: settings?.pickupCompanyName ?? "Pickup",
-                dropoffCompany: settings?.dropoffCompanyName ?? "Dropoff",
-                invoiceTitle: "\(settings?.dropoffCompanyName ?? "Dropoff") Invoice",
+                companyName: settings?.trucking_company_name ?? "Trucking Company",
+                pickupCompany: settings?.pickup_company_name ?? "Pickup",
+                dropoffCompany: settings?.dropoff_company_name ?? "Dropoff",
+                invoiceTitle: "\(settings?.dropoff_company_name ?? "Dropoff") Invoice",
                 driverName: deliveryLoads.first?.driverName ?? "Unknown",
                 truckNumber: deliveryLoads.first?.truck ?? "Unknown",
                 loads: deliveryLoads,
-                ratePerTon: settings?.ratePerTon ?? 0,
+                ratePerTon: settings?.rate_per_ton ?? 0,
                 useDeliveryTons: true
             )
 
