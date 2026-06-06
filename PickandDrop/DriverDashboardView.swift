@@ -24,6 +24,7 @@ struct DriverDashboardView: View {
     
     @State private var showPendingDeliveryAlert = false
     @State private var showPickupDeliveryView = false
+    @State private var showOldShiftAlert = false
     
     
     let driver: DriverProfile
@@ -48,6 +49,12 @@ struct DriverDashboardView: View {
 
             return pickedDate < shiftStart
         }
+    }
+    
+    var hasOldActiveShift: Bool {
+        guard let shift = activeShift else { return false }
+
+        return !Calendar.current.isDateInToday(shift.startedAt)
     }
 
     var shiftLoads: [SupabaseLoad] {
@@ -363,7 +370,11 @@ struct DriverDashboardView: View {
                         supabaseSettings = loadedSettings
                         supabaseLoads = loadedLoads
 
-                        if !didCheckPendingDeliveries {
+                        if hasOldActiveShift {
+
+                            showOldShiftAlert = true
+
+                        } else if !didCheckPendingDeliveries {
 
                             didCheckPendingDeliveries = true
 
@@ -378,7 +389,24 @@ struct DriverDashboardView: View {
                     }
                 }
             }
+            .alert(
+                "Previous Day Still Open",
+                isPresented: $showOldShiftAlert
+            ) {
+                Button("Finish Previous Day") {
+                    Task {
+                        await finishOldShift()
+                    }
+                }
+            } message: {
+                Text(
+                    """
+                    Your previous shift was not closed.
 
+                    You must finish the previous day before starting a new one.
+                    """
+                )
+            }
             .alert(
                 "Pending Deliveries",
                 isPresented: $showPendingDeliveryAlert
@@ -463,7 +491,46 @@ struct DriverDashboardView: View {
 
         return formatter.date(from: value)
     }
+    
+    func finishOldShift() async {
 
+        let driverLoads =
+            await LoadSupabaseManager.shared.fetchLoads()
+                .filter {
+                    $0.driver_name == driver.name &&
+                    ($0.is_archived ?? false) == false
+                }
+
+        print("📦 Old Shift loads:", driverLoads.count)
+
+        for load in driverLoads {
+
+            if load.status == "delivered" ||
+                load.delivered_at != nil {
+
+                await LoadSupabaseManager.shared.archiveLoad(
+                    loadID: load.id
+                )
+
+                print("🗂 Archived delivered:",
+                      load.pickup_ticket_number ?? "")
+            }
+        }
+
+        await DriverSupabaseManager.shared.updateDutyStatus(
+            username: driver.username,
+            dutyStatus: "off_duty"
+        )
+
+        if let shift = activeShift {
+
+            shift.status = "finished"
+
+            try? context.save()
+        }
+
+        print("✅ Previous shift finished")
+    }
     
     func logout() {
 
