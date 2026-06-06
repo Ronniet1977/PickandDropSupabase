@@ -16,14 +16,19 @@ final class FuelSupabaseManager {
     func addFuel(
         driverName: String,
         truckNumber: String,
-        amount: Double
+        amount: Double,
+        receiptPath: String? = nil
     ) async {
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "driver_name": driverName,
             "truck_number": truckNumber,
             "amount": amount
         ]
+
+        if let receiptPath {
+            body["receipt_path"] = receiptPath
+        }
 
         do {
             let data = try JSONSerialization.data(withJSONObject: body)

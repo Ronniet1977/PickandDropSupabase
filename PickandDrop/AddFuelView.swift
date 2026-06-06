@@ -231,10 +231,24 @@ struct AddFuelView: View {
         guard let amountValue = Double(fuelAmount) else { return }
 
         Task {
+
+            var receiptPath: String?
+
+            if let receiptImage {
+
+                receiptPath =
+                    await FuelReceiptStorageManager.shared
+                        .uploadReceipt(
+                            image: receiptImage,
+                            driverName: driver.name
+                        )
+            }
+
             await FuelSupabaseManager.shared.addFuel(
                 driverName: driver.name,
                 truckNumber: driver.truckNumber,
-                amount: amountValue
+                amount: amountValue,
+                receiptPath: receiptPath
             )
 
             await MainActor.run {
@@ -247,7 +261,7 @@ struct AddFuelView: View {
             type: "Fuel Added",
             message: "\(driver.name) added fuel • $\(String(format: "%.2f", amount))"
         )
-        saveFuelReceipt()
+        //saveFuelReceipt()
 
         do {
             try context.save()
