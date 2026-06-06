@@ -207,6 +207,11 @@ struct StartShiftView: View {
                 dutyStatus: "active"
             )
 
+            UserDefaults.standard.set(
+                false,
+                forKey: "didCheckPendingDeliveries"
+            )
+
             dismiss()
 
         } catch {

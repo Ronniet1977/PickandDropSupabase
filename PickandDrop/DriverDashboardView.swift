@@ -12,6 +12,9 @@ struct DriverDashboardView: View {
     @AppStorage("mustChangePassword")
     var mustChangePassword = false
     
+    @AppStorage("didCheckPendingDeliveries")
+    var didCheckPendingDeliveries = false
+    
     @Query var drivers: [DriverProfile]
     @Query var shifts: [Shift]
     @Query var loads: [LoadItem]
@@ -21,6 +24,7 @@ struct DriverDashboardView: View {
     
     @State private var showPendingDeliveryAlert = false
     @State private var showPickupDeliveryView = false
+    
     
     let driver: DriverProfile
     
@@ -36,12 +40,13 @@ struct DriverDashboardView: View {
                 load.is_archived != true,
                 load.delivered_at == nil,
                 let pickedString = load.picked_up_at,
-                let pickedDate = parseSupabaseDate(pickedString)
+                let pickedDate = parseSupabaseDate(pickedString),
+                let shiftStart = activeShift?.startedAt
             else {
                 return false
             }
 
-            return !Calendar.current.isDateInToday(pickedDate)
+            return pickedDate < shiftStart
         }
     }
 
@@ -343,22 +348,33 @@ struct DriverDashboardView: View {
             }
             .onAppear {
 
-                if !pendingDeliveries.isEmpty {
-                    showPendingDeliveryAlert = true
-                }
-
                 Task {
+
                     let loadedLoads =
                         await LoadSupabaseManager.shared.fetchLoads()
-                    
+
                     let loadedSettings =
                         await CompanySupabaseManager
                             .shared
                             .fetchCompanySettings()
 
                     await MainActor.run {
+
                         supabaseSettings = loadedSettings
                         supabaseLoads = loadedLoads
+
+                        if !didCheckPendingDeliveries {
+
+                            didCheckPendingDeliveries = true
+
+                            if !pendingDeliveries.isEmpty {
+
+                                print("⚠️ Previous pending loads found:",
+                                      pendingDeliveries.count)
+
+                                showPendingDeliveryAlert = true
+                            }
+                        }
                     }
                 }
             }
@@ -427,15 +443,23 @@ struct DriverDashboardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 24))
     }
     
-    func parseSupabaseDate(_ value: String?) -> Date? {
+    func parseSupabaseDate(_ value: String) -> Date? {
 
-        guard let value else { return nil }
+        let iso = ISO8601DateFormatter()
+        if let date = iso.date(from: value) {
+            return date
+        }
 
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [
-            .withInternetDateTime,
-            .withFractionalSeconds
-        ]
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ssXXXXX"
+
+        if let date = formatter.date(from: value) {
+            return date
+        }
+
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSSSSSXXXXX"
 
         return formatter.date(from: value)
     }

@@ -291,15 +291,23 @@ struct LoadListView: View {
         }
     }
     
-    func parseSupabaseDate(_ value: String?) -> Date? {
+    func parseSupabaseDate(_ value: String) -> Date? {
 
-        guard let value else { return nil }
+        let iso = ISO8601DateFormatter()
+        if let date = iso.date(from: value) {
+            return date
+        }
 
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [
-            .withInternetDateTime,
-            .withFractionalSeconds
-        ]
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ssXXXXX"
+
+        if let date = formatter.date(from: value) {
+            return date
+        }
+
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSSSSSXXXXX"
 
         return formatter.date(from: value)
     }
