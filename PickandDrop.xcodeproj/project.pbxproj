@@ -39,6 +39,7 @@
 		8787AAA32FD2155D00A8DC15 /* DriverSupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AAA22FD2155900A8DC15 /* DriverSupabaseManager.swift */; };
 		8787AAAA2FD2A71500A8DC15 /* FuelSupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AAA92FD2A70E00A8DC15 /* FuelSupabaseManager.swift */; };
 		8787AB202FD4CD1000A8DC15 /* FuelReceiptStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AB1F2FD4CD0C00A8DC15 /* FuelReceiptStorageManager.swift */; };
+		8787AB222FD4E8ED00A8DC15 /* FuelReceiptManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AB212FD4E8E900A8DC15 /* FuelReceiptManager.swift */; };
 		8789BB032FB04408004400C5 /* CompanySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB022FB04403004400C5 /* CompanySettings.swift */; };
 		8789BB052FB06063004400C5 /* CompanySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB042FB0604F004400C5 /* CompanySetupView.swift */; };
 		879FD9752FC1564D00DEAC87 /* DriverSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879FD9742FC155FE00DEAC87 /* DriverSessionManager.swift */; };
@@ -82,6 +83,7 @@
 		8787AAA22FD2155900A8DC15 /* DriverSupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverSupabaseManager.swift; sourceTree = "<group>"; };
 		8787AAA92FD2A70E00A8DC15 /* FuelSupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelSupabaseManager.swift; sourceTree = "<group>"; };
 		8787AB1F2FD4CD0C00A8DC15 /* FuelReceiptStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelReceiptStorageManager.swift; sourceTree = "<group>"; };
+		8787AB212FD4E8E900A8DC15 /* FuelReceiptManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelReceiptManager.swift; sourceTree = "<group>"; };
 		8789BB022FB04403004400C5 /* CompanySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySettings.swift; sourceTree = "<group>"; };
 		8789BB042FB0604F004400C5 /* CompanySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySetupView.swift; sourceTree = "<group>"; };
 		879FD9742FC155FE00DEAC87 /* DriverSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverSessionManager.swift; sourceTree = "<group>"; };
@@ -118,6 +120,7 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				8787AB212FD4E8E900A8DC15 /* FuelReceiptManager.swift */,
 				8787AB1F2FD4CD0C00A8DC15 /* FuelReceiptStorageManager.swift */,
 				8787AAA92FD2A70E00A8DC15 /* FuelSupabaseManager.swift */,
 				8787AAA22FD2155900A8DC15 /* DriverSupabaseManager.swift */,
@@ -290,6 +293,7 @@
 				875167AD2FAD689800E8B528 /* ShareSheet.swift in Sources */,
 				875167AE2FAD689800E8B528 /* StartShiftView.swift in Sources */,
 				875167AF2FAD689800E8B528 /* StorageManager.swift in Sources */,
+				8787AB222FD4E8ED00A8DC15 /* FuelReceiptManager.swift in Sources */,
 				8787AA9B2FD2072200A8DC15 /* SupabaseConfig.swift in Sources */,
 				8789BB032FB04408004400C5 /* CompanySettings.swift in Sources */,
 				879FD98C2FC2592E00DEAC87 /* NotificationSyncManager.swift in Sources */,

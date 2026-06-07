@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import Photos
 
 enum AppTheme {
 
@@ -303,6 +304,26 @@ struct WeeklyFuelCardsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                
+                Button {
+                    Task {
+                        await FuelReceiptManager.shared
+                            .saveAllReceiptsToPhotos(
+                                fuelEntries: fuelEntries
+                            )
+
+                        let loaded =
+                            await FuelSupabaseManager.shared.fetchFuel()
+
+                        await MainActor.run {
+                            fuelEntries = loaded
+                        }
+                    }
+                } label: {
+                    Label("Save All Receipts to Photos", systemImage: "square.and.arrow.down.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .background(AppTheme.cardBackground)
@@ -322,6 +343,31 @@ struct WeeklyFuelCardsView: View {
                                 Text("Truck \(entry.truck_number ?? "")")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                
+                                if let receiptPath = entry.receipt_path {
+
+                                    let url =
+                                        "\(SupabaseConfig.projectURL)/storage/v1/object/public/fuel-receipts/\(receiptPath)"
+
+                                    AsyncImage(url: URL(string: url)) { image in
+
+                                        image
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(maxHeight: 220)
+                                            .clipShape(
+                                                RoundedRectangle(cornerRadius: 16)
+                                            )
+
+                                    } placeholder: {
+
+                                        ProgressView()
+                                    }
+
+                                    Text("📸 Receipt Attached")
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                }
                             }
 
                             Spacer()

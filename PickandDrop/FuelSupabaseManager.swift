@@ -45,6 +45,49 @@ final class FuelSupabaseManager {
             print("❌ Supabase fuel add failed:", error)
         }
     }
+    
+    func deleteAllFuel() async {
+
+        do {
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_fuel",
+                method: "DELETE",
+                query: "?id=not.is.null"
+            )
+
+            print("🧹 Supabase fuel cleared")
+
+        } catch {
+            print("❌ Failed clearing fuel:", error)
+        }
+    }
+    
+    func markReceiptSaved(
+        fuelID: UUID
+    ) async {
+
+        let body: [String: Any] = [
+            "receipt_saved_by_admin": true,
+            "receipt_saved_at": ISO8601DateFormatter().string(from: Date()),
+            "receipt_path": NSNull()
+        ]
+
+        do {
+            let data = try JSONSerialization.data(withJSONObject: body)
+
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_fuel",
+                method: "PATCH",
+                query: "?id=eq.\(fuelID.uuidString)",
+                body: data
+            )
+
+            print("✅ Fuel receipt marked saved")
+
+        } catch {
+            print("❌ Failed marking receipt saved:", error)
+        }
+    }
 
     func fetchFuel() async -> [SupabaseFuel] {
 

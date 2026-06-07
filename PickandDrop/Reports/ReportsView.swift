@@ -143,13 +143,19 @@ struct ReportsView: View {
                         }
                         
                         Button(role: .destructive) {
-                            print("Fuel is now Supabase-backed")
-                        } label: {
+                            Task {
+                                let fuel =
+                                    await FuelSupabaseManager.shared.fetchFuel()
 
-                            Label(
-                                "Archive Weekly Fuel",
-                                systemImage: "archivebox.fill"
-                            )
+                                await FuelReceiptManager.shared
+                                    .saveAllReceiptsToPhotos(
+                                        fuelEntries: fuel
+                                    )
+
+                                await FuelSupabaseManager.shared.deleteAllFuel()
+                            }
+                        } label: {
+                            Label("Archive Weekly Fuel", systemImage: "archivebox.fill")
                         }
                         // REPORT CARDS
 

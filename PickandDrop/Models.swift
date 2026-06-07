@@ -61,6 +61,7 @@ struct SupabaseFuel: Codable, Identifiable {
     let truck_number: String?
     let amount: Double?
     let created_at: String?
+    let receipt_path: String?
 }
 
 struct DriverSummary: Identifiable {
