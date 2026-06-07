@@ -466,50 +466,7 @@ struct AdminDashboardView: View {
                                 }
 
                                 ForEach(notificationManager.notifications) { note in
-
-                                    VStack(alignment: .leading, spacing: 6) {
-
-                                        HStack {
-                                            Text(note.type)
-                                                .font(.caption.bold())
-                                                .padding(6)
-                                                .background(.green.opacity(0.2))
-                                                .clipShape(Capsule())
-
-                                            Spacer()
-
-                                            Text(note.createdAt ?? "")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        }
-
-                                        Text(note.message)
-                                            .font(.body)
-
-                                        HStack {
-                                            Text("Driver: \(note.driverName)")
-                                            Spacer()
-                                            Text("Truck: \(note.truckNumber)")
-                                        }
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-
-                                        Button(role: .destructive) {
-
-                                            notificationManager.deleteNotification(note)
-
-                                        } label: {
-
-                                            Label(
-                                                "Clear Notification",
-                                                systemImage: "trash"
-                                            )
-                                        }
-                                        .font(.caption)
-                                    }
-                                    .padding()
-                                    .background(.thinMaterial)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    notificationCard(note)
                                 }
                             }
                             .padding()
@@ -637,53 +594,10 @@ struct AdminDashboardView: View {
                     }
                     .disabled(isRefreshing)
 
-                    Menu {
-                        Button("Reset Shared Folder") {
-                            UserDefaults.standard.removeObject(
-                                forKey: StorageManager.folderBookmarkKey
-                            )
-
-                            print("🧹 Shared folder bookmark cleared")
-
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                showFolderPicker = true
-                            }
-                        }
-
-                        Button {
-                            showImporter = true
-                        } label: {
-                            Label(
-                                "Import CSV",
-                                systemImage: "tray.and.arrow.down"
-                            )
-                        }
-
-                        Divider()
-
-                        Button(role: .destructive) {
-                            showResetAlert = true
-                        } label: {
-                            Label(
-                                "Archive & Reset",
-                                systemImage: "trash.fill"
-                            )
-                        }
-
-                        Divider()
-
-                        Button(role: .destructive) {
-                            logout()
-                        } label: {
-                            Label(
-                                "Log Out",
-                                systemImage: "rectangle.portrait.and.arrow.right"
-                            )
-                        }
-
+                    Button(role: .destructive) {
+                        logout()
                     } label: {
-
-                        Image(systemName: "ellipsis.circle.fill")
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
                     }
                 }
             }
@@ -796,24 +710,6 @@ struct AdminDashboardView: View {
                     }
                 }
             }
-            .fileImporter(
-                isPresented: $showFolderPicker,
-                allowedContentTypes: [.folder]
-            ) { result in
-
-                switch result {
-
-                case .success(let url):
-
-                    StorageManager.saveTruckReportsFolder(url)
-
-                    print("✅ New shared folder selected")
-
-                case .failure(let error):
-
-                    print("❌ Folder picker failed:", error)
-                }
-            }
             .alert(
                 "Archive & Reset?",
                 isPresented: $showResetAlert
@@ -832,6 +728,46 @@ struct AdminDashboardView: View {
                 )
             }
         }
+    }
+    
+    func notificationCard(_ note: AppNotification) -> some View {
+
+        VStack(alignment: .leading, spacing: 6) {
+
+            HStack {
+                Text(note.type)
+                    .font(.caption.bold())
+                    .padding(6)
+                    .background(.green.opacity(0.2))
+                    .clipShape(Capsule())
+
+                Spacer()
+
+                Text(note.createdAt ?? "")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text(note.message)
+
+            HStack {
+                Text("Driver: \(note.driverName)")
+                Spacer()
+                Text("Truck: \(note.truckNumber)")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            Button(role: .destructive) {
+                notificationManager.deleteNotification(note)
+            } label: {
+                Label("Clear Notification", systemImage: "trash")
+            }
+            .font(.caption)
+        }
+        .padding()
+        .background(.thinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
     
     func openDriversFolder() {

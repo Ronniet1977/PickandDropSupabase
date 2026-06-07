@@ -267,74 +267,10 @@ struct AddFuelView: View {
             try context.save()
             print("✅ Fuel saved")
 
-            let currentShift = activeShift
-
-            let driverLoads = loads.filter {
-                $0.driverName == driver.name &&
-                !$0.isArchived &&
-                (
-                    currentShift == nil ||
-                    $0.createdAt >= currentShift!.startedAt
-                )
-            }
-
-            _ = CSVExporter.generateCSV(
-                loads: driverLoads,
-                driver: driver,
-                activeShift: currentShift,
-                settings: settings
-            )
-
             dismiss()
 
         } catch {
             print("❌ Fuel save failed:", error)
-        }
-    }
-    
-    func saveFuelReceipt() {
-
-        guard let receiptImage else { return }
-
-        let folder =
-            StorageManager
-                .driverFuelReceiptFolder(
-                    driverName: driver.name
-                )
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm"
-
-        let safeDriver =
-            driver.name.replacingOccurrences(
-                of: " ",
-                with: "_"
-            )
-
-        let fileName =
-            "\(safeDriver)_Truck\(driver.truckNumber)_Fuel_\(formatter.string(from: Date())).jpg"
-
-        let fileURL =
-            folder.appendingPathComponent(fileName)
-
-        guard let data =
-            receiptImage.jpegData(
-                compressionQuality: 0.8
-            ) else {
-            return
-        }
-
-        do {
-
-            try data.write(to: fileURL)
-
-            print("⛽️ Fuel receipt saved:",
-                  fileURL)
-
-        } catch {
-
-            print("❌ Receipt save failed:",
-                  error)
         }
     }
 }

@@ -29,8 +29,9 @@ struct WeeklyInvoiceRow {
 enum WeeklyInvoiceGenerator {
 
     static func createWeeklyInvoicePDF(
-        settings: CompanySettings,
-        weekDate: Date
+        settings: SupabaseCompanySettings,
+        weekDate: Date,
+        loads: [SupabaseLoad]
     ) -> URL? {
 
         let pageWidth: CGFloat = 792
@@ -55,21 +56,6 @@ enum WeeklyInvoiceGenerator {
             .temporaryDirectory
             .appendingPathComponent(fileName)
 
-    let folder = StorageManager.truckReportsFolder()
-
-    let files =
-        (try? FileManager.default.contentsOfDirectory(
-            at: folder,
-            includingPropertiesForKeys: nil
-        )) ?? []
-
-        let finalCSVs = files.filter {
-            $0.lastPathComponent.contains("FINAL") &&
-            $0.pathExtension == "csv"
-        }
-
-        print("📄 FINAL CSVs:", finalCSVs.count)
-
         let calendar = Calendar.current
 
         guard let weekInterval =
@@ -83,71 +69,45 @@ enum WeeklyInvoiceGenerator {
         
     var rows: [WeeklyInvoiceRow] = []
 
-    let dateFormatter = DateFormatter()
-    dateFormatter.dateFormat = "yyyy-MM-dd"
+        let iso = ISO8601DateFormatter()
 
-    for file in finalCSVs {
+        for load in loads {
 
-        guard let text =
-                try? String(
-                    contentsOf: file,
-                    encoding: .utf8
-                )
-        else { continue }
-
-        let lines = text.components(separatedBy: "\n")
-            .dropFirst()
-
-        for line in lines {
-
-            let columns =
-                line.components(separatedBy: ",")
-
-            if columns.count < 11 { continue }
-
-            let date =
-                dateFormatter.date(from: columns[0])
-                ?? Date()
-            
-            if !weekInterval.contains(date) {
+            guard
+                let deliveredAt = load.delivered_at,
+                let pickupTicket = load.pickup_ticket_number,
+                let deliveryTicket = load.delivery_ticket_number,
+                let driver = load.driver_name
+            else {
                 continue
             }
 
-            let driver =
-                columns[2]
-                    .replacingOccurrences(of: "\"", with: "")
+            guard let deliveredDate = iso.date(from: deliveredAt) else {
+                continue
+            }
 
-            let pickupTicket =
-                columns[4]
-                    .replacingOccurrences(of: "\"", with: "")
+            guard weekInterval.contains(deliveredDate) else {
+                continue
+            }
 
-            let pickupTons =
-                Double(columns[5]) ?? 0
+            let pickupTons = load.pickup_tons ?? 0
 
-            let deliveryTicket =
-                columns[6]
-                    .replacingOccurrences(of: "\"", with: "")
-            
-            if pickupTicket.isEmpty { continue }
-
-            if pickupTons <= 0 {
+            guard pickupTons > 0 else {
                 continue
             }
 
             rows.append(
-
                 WeeklyInvoiceRow(
-                    date: date,
+                    date: deliveredDate,
                     pickupTicket: pickupTicket,
                     pickupTons: pickupTons,
                     deliveryTicket: deliveryTicket,
                     driver: driver,
-                    rate: settings.ratePerTon
+                    rate: settings.rate_per_ton
                 )
             )
         }
-    }
-
+        
         let totalTons = rows.reduce(0.0) {
             $0 + $1.pickupTons
         }
@@ -202,13 +162,13 @@ enum WeeklyInvoiceGenerator {
                 }
 
                 // Header
-                drawText(settings.truckingCompanyName, x: 40, y: y, font: .boldSystemFont(ofSize: 26))
+                drawText(settings.trucking_company_name, x: 40, y: y, font: .boldSystemFont(ofSize: 26))
                 y += 34
 
                 drawText("Weekly Invoice", x: 40, y: y, font: .boldSystemFont(ofSize: 20))
                 y += 30
 
-                drawText("Route: \(settings.pickupCompanyName) → \(settings.dropoffCompanyName)", x: 40, y: y, font: .systemFont(ofSize: 13))
+                drawText("Route: \(settings.pickup_company_name) → \(settings.dropoff_company_name)", x: 40, y: y, font: .systemFont(ofSize: 13))
                 y += 24
 
                 drawText(
@@ -227,9 +187,9 @@ enum WeeklyInvoiceGenerator {
                 ).fill()
 
                 drawText("Date", x: 48, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 55)
-                drawText("\(settings.pickupCompanyName) Ticket", x: 105, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 85)
+                drawText("\(settings.pickup_company_name) Ticket", x: 105, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 85)
                 drawText("Tons", x: 195, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 55)
-                drawText("\(settings.dropoffCompanyName) Ticket", x: 250, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 110)
+                drawText("\(settings.dropoff_company_name) Ticket", x: 250, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 110)
                 drawText("Rate", x: 365, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 60)
                 drawText("Total", x: 430, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 70)
                 drawText("Driver", x: 500, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 70)

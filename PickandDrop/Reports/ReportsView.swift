@@ -10,7 +10,6 @@ import SwiftData
 import QuickLook
 
 struct ReportsView: View {
-    @Query var companySettings: [CompanySettings]
 
     @State private var settings: SupabaseCompanySettings?
     @State private var weeklyInvoiceURL: URL?
@@ -46,13 +45,23 @@ struct ReportsView: View {
                         .foregroundStyle(.white)
                         
                         Button {
-                            if let settings = companySettings.first {
-                                weeklyInvoiceURL =
-                                    WeeklyInvoiceGenerator.createWeeklyInvoicePDF(
-                                        settings: settings,
-                                        weekDate: selectedInvoiceWeek
-                                    )
+
+                            Task {
+
+                                if let settings {
+
+                                    let loads =
+                                        await LoadSupabaseManager.shared.fetchLoads()
+
+                                    weeklyInvoiceURL =
+                                        WeeklyInvoiceGenerator.createWeeklyInvoicePDF(
+                                            settings: settings,
+                                            weekDate: selectedInvoiceWeek,
+                                            loads: loads
+                                        )
+                                }
                             }
+
                         } label: {
                             reportCard(
                                 title: "Weekly Invoice",

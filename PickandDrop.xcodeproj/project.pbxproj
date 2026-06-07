@@ -28,10 +28,6 @@
 		8760FA762FBD7A1600AADD94 /* CameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8760FA752FBD7A1100AADD94 /* CameraPicker.swift */; };
 		8760FA782FBD7E9800AADD94 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8760FA772FBD7E9000AADD94 /* HelpView.swift */; };
 		8760FA7A2FBD818500AADD94 /* DriverFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8760FA792FBD817B00AADD94 /* DriverFilesView.swift */; };
-		876A63412FB18AF8007635FB /* DriverFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 876A63402FB18AF5007635FB /* DriverFile.swift */; };
-		876A63432FB18B14007635FB /* DriverSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 876A63422FB18B10007635FB /* DriverSyncManager.swift */; };
-		876A63452FB199F4007635FB /* CompanyFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 876A63442FB199E9007635FB /* CompanyFile.swift */; };
-		876A63472FB19AA1007635FB /* CompanySyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 876A63462FB19A9E007635FB /* CompanySyncManager.swift */; };
 		8787AA9B2FD2072200A8DC15 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9A2FD2071700A8DC15 /* SupabaseConfig.swift */; };
 		8787AA9D2FD2075100A8DC15 /* SupabaseRESTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9C2FD2074C00A8DC15 /* SupabaseRESTManager.swift */; };
 		8787AA9F2FD20AFC00A8DC15 /* PickDropNotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9E2FD20AF800A8DC15 /* PickDropNotification.swift */; };
@@ -46,7 +42,6 @@
 		879FD9752FC1564D00DEAC87 /* DriverSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879FD9742FC155FE00DEAC87 /* DriverSessionManager.swift */; };
 		879FD98C2FC2592E00DEAC87 /* NotificationSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879FD98B2FC2592B00DEAC87 /* NotificationSyncManager.swift */; };
 		87A18E1D2FBE3CB0005CF62A /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 87A18E1C2FBE3CA5005CF62A /* .gitignore */; };
-		87CBD10A2FB1083E0038E416 /* SharedFolderSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87CBD1092FB1083B0038E416 /* SharedFolderSetupView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -73,10 +68,6 @@
 		8760FA752FBD7A1100AADD94 /* CameraPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPicker.swift; sourceTree = "<group>"; };
 		8760FA772FBD7E9000AADD94 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		8760FA792FBD817B00AADD94 /* DriverFilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverFilesView.swift; sourceTree = "<group>"; };
-		876A63402FB18AF5007635FB /* DriverFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverFile.swift; sourceTree = "<group>"; };
-		876A63422FB18B10007635FB /* DriverSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverSyncManager.swift; sourceTree = "<group>"; };
-		876A63442FB199E9007635FB /* CompanyFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanyFile.swift; sourceTree = "<group>"; };
-		876A63462FB19A9E007635FB /* CompanySyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySyncManager.swift; sourceTree = "<group>"; };
 		8787AA9A2FD2071700A8DC15 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
 		8787AA9C2FD2074C00A8DC15 /* SupabaseRESTManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseRESTManager.swift; sourceTree = "<group>"; };
 		8787AA9E2FD20AF800A8DC15 /* PickDropNotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickDropNotification.swift; sourceTree = "<group>"; };
@@ -91,7 +82,6 @@
 		879FD9742FC155FE00DEAC87 /* DriverSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverSessionManager.swift; sourceTree = "<group>"; };
 		879FD98B2FC2592B00DEAC87 /* NotificationSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSyncManager.swift; sourceTree = "<group>"; };
 		87A18E1C2FBE3CA5005CF62A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
-		87CBD1092FB1083B0038E416 /* SharedFolderSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFolderSetupView.swift; sourceTree = "<group>"; };
 		87DE09572FA52A09007E9268 /* PickandDropLLCSupabase.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PickandDropLLCSupabase.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -137,11 +127,6 @@
 				8760FA792FBD817B00AADD94 /* DriverFilesView.swift */,
 				8760FA772FBD7E9000AADD94 /* HelpView.swift */,
 				8760FA752FBD7A1100AADD94 /* CameraPicker.swift */,
-				876A63462FB19A9E007635FB /* CompanySyncManager.swift */,
-				876A63442FB199E9007635FB /* CompanyFile.swift */,
-				876A63422FB18B10007635FB /* DriverSyncManager.swift */,
-				876A63402FB18AF5007635FB /* DriverFile.swift */,
-				87CBD1092FB1083B0038E416 /* SharedFolderSetupView.swift */,
 				8789BB042FB0604F004400C5 /* CompanySetupView.swift */,
 				8789BB022FB04403004400C5 /* CompanySettings.swift */,
 				875167852FAD689800E8B528 /* AddFuelView.swift */,
@@ -266,7 +251,6 @@
 				8789BB052FB06063004400C5 /* CompanySetupView.swift in Sources */,
 				8787AA9D2FD2075100A8DC15 /* SupabaseRESTManager.swift in Sources */,
 				8751679E2FAD689800E8B528 /* AddFuelView.swift in Sources */,
-				876A63412FB18AF8007635FB /* DriverFile.swift in Sources */,
 				8751679F2FAD689800E8B528 /* AddLoadView.swift in Sources */,
 				8760FA7A2FBD818500AADD94 /* DriverFilesView.swift in Sources */,
 				875167A02FAD689800E8B528 /* AdminDashboardView.swift in Sources */,
@@ -281,19 +265,15 @@
 				8787AA9F2FD20AFC00A8DC15 /* PickDropNotification.swift in Sources */,
 				8787AB202FD4CD1000A8DC15 /* FuelReceiptStorageManager.swift in Sources */,
 				875167A72FAD689800E8B528 /* Models.swift in Sources */,
-				876A63432FB18B14007635FB /* DriverSyncManager.swift in Sources */,
 				8760FA782FBD7E9800AADD94 /* HelpView.swift in Sources */,
 				875167A82FAD689800E8B528 /* MyApp.swift in Sources */,
 				875167A92FAD689800E8B528 /* PickupDeliveryView.swift in Sources */,
-				876A63472FB19AA1007635FB /* CompanySyncManager.swift in Sources */,
 				8760FA762FBD7A1600AADD94 /* CameraPicker.swift in Sources */,
 				8787AAAA2FD2A71500A8DC15 /* FuelSupabaseManager.swift in Sources */,
 				8787AAA12FD20B2A00A8DC15 /* NotificationSupabaseManager.swift in Sources */,
 				875167AB2FAD689800E8B528 /* RootView.swift in Sources */,
 				875167AC2FAD689800E8B528 /* SetupView.swift in Sources */,
 				8749487B2FAEC7E2006E0BFB /* DriverManagerView.swift in Sources */,
-				87CBD10A2FB1083E0038E416 /* SharedFolderSetupView.swift in Sources */,
-				876A63452FB199F4007635FB /* CompanyFile.swift in Sources */,
 				875167AD2FAD689800E8B528 /* ShareSheet.swift in Sources */,
 				875167AE2FAD689800E8B528 /* StartShiftView.swift in Sources */,
 				875167AF2FAD689800E8B528 /* StorageManager.swift in Sources */,

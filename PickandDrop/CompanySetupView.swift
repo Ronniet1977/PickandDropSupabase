@@ -35,33 +35,9 @@ struct CompanySetupView: View {
     @State private var starterDriverTruck = ""
     @State private var starterDriverUsername = ""
     
-    @State private var showFolderPicker = false
-    @State private var selectedFolderName = ""
     @State private var errorText = ""
     @State private var joinExistingCompany = false
     @State private var joinCode = ""
-    
-    
-    
-    private func loadCompanyFromSharedFolder() {
-        guard joinExistingCompany else { return }
-        
-        guard let imported = CompanySyncManager.importCompany() else {
-            errorText = "Could not load CompanyInfo.json from the selected folder"
-            return
-        }
-        
-        truckingCompany = imported.truckingCompanyName
-        pickupCompany = imported.pickupCompanyName
-        dropoffCompany = imported.dropoffCompanyName
-        ratePerTon = String(
-            format: "%.2f",
-            imported.ratePerTon
-        )
-        
-        joinCode = imported.companyJoinCode
-        errorText = ""
-    }
     
     var body: some View {
         
@@ -110,30 +86,6 @@ struct CompanySetupView: View {
                             "Join Existing Company",
                             isOn: $joinExistingCompany
                         )
-                    }
-                    
-                    Section("Shared Reports Folder") {
-                        
-                        Button {
-                            
-                            showFolderPicker = true
-                            
-                        } label: {
-                            
-                            Label(
-                                selectedFolderName.isEmpty
-                                ? "Select Shared Folder"
-                                : selectedFolderName,
-                                systemImage: "folder.fill"
-                            )
-                        }
-                        
-                        if !selectedFolderName.isEmpty {
-                            
-                            Text("Shared folder connected")
-                                .foregroundStyle(.green)
-                                .font(.caption)
-                        }
                     }
                     
                     Section("Company") {
@@ -232,38 +184,6 @@ struct CompanySetupView: View {
                 .scrollContentBackground(.hidden)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar(.hidden, for: .navigationBar)
-                .fileImporter(
-                    isPresented: $showFolderPicker,
-                    allowedContentTypes: [.folder]
-                ) { result in
-                    
-                    switch result {
-                        
-                    case .success(let url):
-                        
-                        let didAccess =
-                        url.startAccessingSecurityScopedResource()
-                        
-                        if didAccess {
-                            
-                            StorageManager.saveTruckReportsFolder(url)
-                            
-                            selectedFolderName =
-                            url.lastPathComponent
-                            
-                            loadCompanyFromSharedFolder()
-                            
-                            print("✅ Shared folder selected:",
-                                  url.path)
-                            
-                            url.stopAccessingSecurityScopedResource()
-                        }
-                        
-                    case .failure(let error):
-                        
-                        print("❌ Folder picker failed:", error)
-                    }
-                }
             }
         }
     }
@@ -287,38 +207,23 @@ struct CompanySetupView: View {
             return
         }
         
-        guard !selectedFolderName.isEmpty else {
-            
-            errorText = "Please select a shared folder"
-            
-            return
-        }
-        
         if joinExistingCompany {
-            
-            let existingCode =
-            CompanySyncManager.importCompany()?.companyJoinCode ?? ""
-            
-            guard
-                joinCode
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .uppercased()
-                    ==
-                    existingCode
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .uppercased()
+
+            guard !joinCode
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty
             else {
-                errorText = "Invalid company code"
+                errorText = "Enter company join code"
                 return
             }
-            
+
         } else {
-            
+
             guard adminPassword.count >= 6 else {
-                
+
                 errorText =
                 "Admin password must be at least 6 characters"
-                
+
                 return
             }
         }
