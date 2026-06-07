@@ -22,13 +22,34 @@ final class FuelReceiptManager {
 
             guard let path = entry.receipt_path else { continue }
 
+            let encodedPath =
+                path.addingPercentEncoding(
+                    withAllowedCharacters: .urlPathAllowed
+                ) ?? path
+
             let urlString =
-                "\(SupabaseConfig.projectURL)/storage/v1/object/public/fuel-receipts/\(path)"
+                "\(SupabaseConfig.projectURL)/storage/v1/object/fuel-receipts/\(encodedPath)"
 
             guard let url = URL(string: urlString) else { continue }
 
+            var request = URLRequest(url: url)
+
+            request.setValue(
+                SupabaseConfig.anonKey,
+                forHTTPHeaderField: "apikey"
+            )
+
+            request.setValue(
+                "Bearer \(SupabaseConfig.anonKey)",
+                forHTTPHeaderField: "Authorization"
+            )
+
             do {
-                let (data, _) = try await URLSession.shared.data(from: url)
+                let (data, response) = try await URLSession.shared.data(for: request)
+
+                if let http = response as? HTTPURLResponse {
+                    print("📸 Download receipt status:", http.statusCode)
+                }
 
                 guard let image = UIImage(data: data) else { continue }
 

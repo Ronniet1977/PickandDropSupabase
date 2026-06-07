@@ -79,7 +79,7 @@ final class FuelReceiptStorageManager {
     func fuelReceiptURL(_ path: String) -> URL? {
         URL(
             string:
-            "\(SupabaseConfig.projectURL)/storage/v1/object/public/fuel-receipts/\(path)"
+            "\(SupabaseConfig.projectURL)/storage/v1/object/fuel-receipts/\(path)"
         )
     }
 }

@@ -346,23 +346,11 @@ struct WeeklyFuelCardsView: View {
                                 
                                 if let receiptPath = entry.receipt_path {
 
-                                    let url =
-                                        "\(SupabaseConfig.projectURL)/storage/v1/object/public/fuel-receipts/\(receiptPath)"
-
-                                    AsyncImage(url: URL(string: url)) { image in
-
-                                        image
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(maxHeight: 220)
-                                            .clipShape(
-                                                RoundedRectangle(cornerRadius: 16)
-                                            )
-
-                                    } placeholder: {
-
-                                        ProgressView()
-                                    }
+                                    SupabaseStorageImage(path: receiptPath)
+                                        .frame(maxHeight: 220)
+                                        .clipShape(
+                                            RoundedRectangle(cornerRadius: 16)
+                                        )
 
                                     Text("📸 Receipt Attached")
                                         .font(.caption)
