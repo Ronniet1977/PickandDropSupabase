@@ -170,10 +170,7 @@ struct LoginView: View {
 
             currentDriverName = driver.name
 
-            mustChangePassword =
-                driver.role == "admin"
-                ? false
-                : (driver.must_change_password ?? true)
+            mustChangePassword = driver.must_change_password ?? true
 
             isLoggedIn = true
 

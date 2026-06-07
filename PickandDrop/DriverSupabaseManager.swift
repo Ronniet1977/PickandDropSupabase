@@ -131,18 +131,15 @@ final class DriverSupabaseManager {
         }
     }
     
-    func resetPassword(
-        id: UUID
-    ) async {
+    func resetPassword(id: UUID) async {
 
         let body: [String: Any] = [
-            "password": "1234"
+            "password": "1234",
+            "must_change_password": true
         ]
 
         do {
-            let data = try JSONSerialization.data(
-                withJSONObject: body
-            )
+            let data = try JSONSerialization.data(withJSONObject: body)
 
             _ = try await SupabaseRESTManager.shared.request(
                 table: "pickdrop_drivers?id=eq.\(id.uuidString)",
