@@ -160,9 +160,36 @@ enum WeeklyInvoiceGenerator {
                         withAttributes: attributes
                     )
                 }
+                
+                let invoiceNumber =
+                "INV-" +
+                Date().formatted(
+                    .dateTime.year().month(.twoDigits).day(.twoDigits)
+                )
+                .replacingOccurrences(of: "/", with: "")
+                
+                let generatedDate =
+                Date().formatted(date: .abbreviated, time: .shortened)
 
                 // Header
                 drawText(settings.trucking_company_name, x: 40, y: y, font: .boldSystemFont(ofSize: 26))
+                drawText(
+                    "Invoice #: \(invoiceNumber)",
+                    x: 560,
+                    y: y,
+                    font: UIFont.boldSystemFont(ofSize: 10),
+                    width: 160,
+                    alignment: .right
+                )
+                
+                drawText(
+                    "Generated: \(generatedDate)",
+                    x: 520,
+                    y: y + 16,
+                    font: UIFont.systemFont(ofSize: 9),
+                    width: 200,
+                    alignment: .right
+                )
                 y += 34
 
                 drawText("Weekly Invoice", x: 40, y: y, font: .boldSystemFont(ofSize: 20))
@@ -173,7 +200,7 @@ enum WeeklyInvoiceGenerator {
 
                 drawText(
                     "Week: \(weekRange)", x: 40, y: y, font: .systemFont(ofSize: 14))
-                y += 34
+                y += 24
 
                 // Table Header
                 UIColor.systemGray5.setFill()
@@ -182,38 +209,33 @@ enum WeeklyInvoiceGenerator {
                         x: 40,
                         y: y,
                         width: 712,
-                        height: 28
+                        height: 20
                     )
                 ).fill()
 
-                drawText("Date", x: 48, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 55)
-                drawText("\(settings.pickup_company_name) Ticket", x: 105, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 85)
-                drawText("Tons", x: 195, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 55)
-                drawText("\(settings.dropoff_company_name) Ticket", x: 250, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 110)
-                drawText("Rate", x: 365, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 60)
-                drawText("Total", x: 430, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 70)
-                drawText("Driver", x: 500, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 70)
+                drawText("Date", x: 48, y: y + 6, font: UIFont.boldSystemFont(ofSize: 8), width: 55)
+                drawText("\(settings.pickup_company_name) Ticket", x: 105, y: y + 6, font: UIFont.boldSystemFont(ofSize: 8), width: 85)
+                drawText("Tons", x: 195, y: y + 6, font: UIFont.boldSystemFont(ofSize: 8), width: 55)
+                drawText("\(settings.dropoff_company_name) Ticket", x: 250, y: y + 6, font: UIFont.boldSystemFont(ofSize: 8), width: 110)
+                drawText("Rate", x: 365, y: y + 6, font: UIFont.boldSystemFont(ofSize: 8), width: 60)
+                drawText("Total", x: 430, y: y + 6, font: UIFont.boldSystemFont(ofSize: 8), width: 70)
+                drawText("Driver", x: 500, y: y + 6, font: UIFont.boldSystemFont(ofSize: 8), width: 70)
 
-                y += 34
+                y += 24
 
                 let formatter = DateFormatter()
                 formatter.dateStyle = .short
 
                 for row in rows {
-                    drawText(formatter.string(from: row.date), x: 48, y: y, font: .systemFont(ofSize: 9), width: 55)
-                    drawText(row.pickupTicket, x: 105, y: y, font: .systemFont(ofSize: 9), width: 85)
-                    drawText(String(format: "%.2f", row.pickupTons), x: 195, y: y, font: .systemFont(ofSize: 9), width: 55)
-                    drawText(row.deliveryTicket, x: 250, y: y, font: .systemFont(ofSize: 9), width: 110)
-                    drawText(String(format: "$%.2f", row.rate), x: 365, y: y, font: .systemFont(ofSize: 9), width: 60)
-                    drawText(String(format: "$%.2f", row.total), x: 430, y: y, font: .systemFont(ofSize: 9), width: 70)
-                    drawText(row.driver, x: 500, y: y, font: .systemFont(ofSize: 9), width: 70)
+                    drawText(formatter.string(from: row.date), x: 48, y: y, font: .systemFont(ofSize: 8), width: 55)
+                    drawText(row.pickupTicket, x: 105, y: y, font: .systemFont(ofSize: 8), width: 85)
+                    drawText(String(format: "%.2f", row.pickupTons), x: 195, y: y, font: .systemFont(ofSize: 8), width: 55)
+                    drawText(row.deliveryTicket, x: 250, y: y, font: .systemFont(ofSize: 8), width: 110)
+                    drawText(String(format: "$%.2f", row.rate), x: 365, y: y, font: .systemFont(ofSize: 8), width: 60)
+                    drawText(String(format: "$%.2f", row.total), x: 430, y: y, font: .systemFont(ofSize: 8), width: 70)
+                    drawText(row.driver, x: 500, y: y, font: .systemFont(ofSize: 8), width: 70)
 
-                    y += 22
-
-                    if y > 700 {
-                        context.beginPage()
-                        y = 40
-                    }
+                    y += 14
                 }
 
                 y += 20
@@ -222,10 +244,10 @@ enum WeeklyInvoiceGenerator {
                 UIColor.black.setStroke()
                 UIBezierPath(rect: CGRect(x: 460, y: y, width: 260, height: 80)).stroke()
 
-                drawText("Total Tons:", x: 480, y: y + 12, font: .boldSystemFont(ofSize: 13), width: 100)
+                drawText("Total Tons:", x: 480, y: y + 12, font: UIFont.boldSystemFont(ofSize: 14), width: 100)
                 drawText(String(format: "%.2f", totalTons), x: 610, y: y + 12, font: .systemFont(ofSize: 13), width: 90)
 
-                drawText("Amount Due:", x: 480, y: y + 42, font: .boldSystemFont(ofSize: 15), width: 120)
+                drawText("Amount Due:", x: 480, y: y + 42, font: UIFont.boldSystemFont(ofSize: 18), width: 120)
                 drawText(String(format: "$%.2f", grandTotal), x: 610, y: y + 42, font: .boldSystemFont(ofSize: 15), width: 100)
             }
 
