@@ -14,6 +14,7 @@ struct ReportsView: View {
     @State private var settings: SupabaseCompanySettings?
     @State private var weeklyInvoiceURL: URL?
     @State private var selectedInvoiceWeek = Date()
+    @State private var showCloseWeekAlert = false
     
     var body: some View {
         NavigationStack {
@@ -70,6 +71,17 @@ struct ReportsView: View {
                                 color: .blue
                             )
                         }
+                        
+                        Button(role: .destructive) {
+                            showCloseWeekAlert = true
+                        } label: {
+                            reportCard(
+                                title: "Close Week",
+                                subtitle: "Archive & reset week",
+                                icon: "archivebox.fill",
+                                color: .red
+                            )
+                        }
 
                         NavigationLink {
                             DailyDriverSummaryView()
@@ -109,6 +121,17 @@ struct ReportsView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
+            .alert("Close Week?", isPresented: $showCloseWeekAlert) {
+                Button("Cancel", role: .cancel) { }
+                
+                Button("Close Week", role: .destructive) {
+                    Task {
+                        await closeWeek()
+                    }
+                }
+            } message: {
+                Text("This will archive completed loads and fuel to local CSV files, save receipts to Photos, clear weekly fuel, and reset the dashboard.")
+            }
             .onAppear {
                 Task {
                     let loadedSettings =
@@ -201,6 +224,42 @@ struct ReportsView: View {
                 .font(.title3.bold())
                 .foregroundStyle(.white)
         }
+    }
+    
+    func closeWeek() async {
+        
+        guard let settings else { return }
+        
+        let loads = await LoadSupabaseManager.shared.fetchLoads()
+        let fuel = await FuelSupabaseManager.shared.fetchFuel()
+        
+        let completedLoads = loads.filter {
+            $0.status == "delivered" &&
+            $0.is_archived != true
+        }
+        
+        print("📦 New loads archived:", completedLoads.count)
+        
+        CloseWeekArchiveExporter.appendLoads(
+            loads: completedLoads,
+            settings: settings
+        )
+        
+        CloseWeekArchiveExporter.appendFuel(
+            fuel: fuel
+        )
+        
+        await FuelReceiptManager.shared.saveAllReceiptsToPhotos(
+            fuelEntries: fuel
+        )
+        
+        await FuelSupabaseManager.shared.deleteAllFuel()
+        
+        //await LoadSupabaseManager.shared.deleteArchivedLoads()
+        
+        await LoadSupabaseManager.shared.archiveDeliveredLoads()
+        
+        print("✅ Week closed")
     }
 }
 
