@@ -288,4 +288,43 @@ final class LoadSupabaseManager {
             print("❌ Failed archiving load:", error)
         }
     }
+    
+    func deleteArchivedLoads() async {
+        
+        do {
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                method: "DELETE",
+                query: "?is_archived=eq.true"
+            )
+            
+            print("🗑 Deleted archived loads")
+            
+        } catch {
+            print("❌ Failed deleting archived loads:", error)
+        }
+    }
+    
+    func archiveDeliveredLoads() async {
+        
+        let body: [String: Any] = [
+            "is_archived": true
+        ]
+        
+        do {
+            let data = try JSONSerialization.data(withJSONObject: body)
+            
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                method: "PATCH",
+                query: "?status=eq.delivered",
+                body: data
+            )
+            
+            print("📦 Delivered loads archived")
+            
+        } catch {
+            print("❌ Failed archiving delivered loads:", error)
+        }
+    }
 }
