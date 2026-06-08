@@ -134,43 +134,11 @@ struct DriverDetailView: View {
             .navigationTitle(driver.name)
             .sheet(item: $selectedLoad) { load in
                 NavigationStack {
-                    Form {
-                        Section(settings?.pickup_company_name ?? "Pickup") {
-                            LabeledContent("Ticket", value: load.pickup_ticket_number ?? "")
-                            LabeledContent("Tons", value: String(format: "%.2f", load.pickup_tons ?? 0))
-                        }
-
-                        Section(settings?.dropoff_company_name ?? "Dropoff") {
-
-                            if load.status == "delivered" {
-
-                                LabeledContent(
-                                    "\(settings?.dropoff_company_name ?? "Dropoff") Ticket",
-                                    value: load.delivery_ticket_number ?? ""
-                                )
-
-                                LabeledContent(
-                                    "\(settings?.dropoff_company_name ?? "Dropoff") Tons",
-                                    value: String(format: "%.2f", load.delivery_tons ?? 0)
-                                )
-
-                            } else {
-
-                                LabeledContent(
-                                    "Status",
-                                    value: "Not delivered to \(settings?.dropoff_company_name ?? "Dropoff") yet"
-                                )
-                            }
-                        }
-                        
-                        Section("Driver") {
-                            LabeledContent(
-                                "Driver",
-                                value: load.driver_name ?? ""
-                            )
-                        }
-                    }
-                    .navigationTitle("Load Details")
+                    EditSupabaseLoadView(
+                        load: load,
+                        settings: settings,
+                        canDelete: true
+                    )
                 }
             }
         }
