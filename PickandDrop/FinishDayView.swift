@@ -192,10 +192,11 @@ struct FinishDayView: View {
                 .isEmpty
         }
         
-        if !loadsMissingPickupTickets.isEmpty {
+        if !missingPickupTickets.isEmpty {
             
             await MainActor.run {
-                missingTicketCount = loadsMissingPickupTickets.count
+                missingTicketCount =
+                missingPickupTickets.count
                 showMissingTicketsAlert = true
             }
             
