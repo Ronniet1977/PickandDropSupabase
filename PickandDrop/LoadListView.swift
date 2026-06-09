@@ -139,6 +139,15 @@ struct LoadListView: View {
                                     .foregroundStyle(.white)
                                     
                                     HStack(spacing: 14) {
+                                        if (load.pickup_ticket_number ?? "").isEmpty {
+                                            
+                                            Label(
+                                                "Pickup Ticket Missing",
+                                                systemImage: "exclamationmark.triangle.fill"
+                                            )
+                                            .font(.caption.bold())
+                                            .foregroundStyle(.yellow)
+                                        }
                                         
                                         Label(
                                             "\(String(format: "%.2f", load.pickup_tons ?? 0)) \(settings?.pickup_company_name ?? "Pickup") Tons",

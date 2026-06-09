@@ -24,8 +24,7 @@ struct AddLoadView: View {
     }
     
     var isValidLoad: Bool {
-        let cleanTicket = pickupTicket.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !cleanTicket.isEmpty && Double(pickupTons) != nil
+        Double(pickupTons) != nil
     }
     
     var body: some View {
@@ -110,12 +109,12 @@ struct AddLoadView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
 
-                                Text("\(settings?.pickup_company_name ?? "Pickup") Ticket Number")
+                                Text("\(settings?.pickup_company_name ?? "Pickup") Ticket Number (Optional)")
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
 
                                 TextField(
-                                    "Enter Ticket Number",
+                                    "Optional - enter later",
                                     text: $pickupTicket
                                 )
                                 .textFieldStyle(.plain)
@@ -228,10 +227,13 @@ struct AddLoadView: View {
     
     func saveLoad() async {
         guard let tonsValue = Double(pickupTons) else { return }
-
-        let cleanTicket = pickupTicket.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanTicket.isEmpty else { return }
-
+        
+        let cleanTicket =
+        pickupTicket.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        let displayTicket =
+        cleanTicket.isEmpty ? "No pickup ticket yet" : cleanTicket
+        
         // ✅ Save load to Supabase
         await LoadSupabaseManager.shared.addLoad(
             driverName: driver.name,
@@ -239,14 +241,14 @@ struct AddLoadView: View {
             pickupTicketNumber: cleanTicket,
             pickupTons: tonsValue
         )
-
+        
         // ✅ Send admin notification to Supabase
         sendAdminNotification(
             type: "Load Added",
-            message: "\(driver.name) picked up \(cleanTicket) • \(tonsValue) tons",
+            message: "\(driver.name) picked up \(displayTicket) • \(tonsValue) tons",
             ticket: cleanTicket
         )
-
+        
         await MainActor.run {
             pickupTicket = ""
             pickupTons = ""
