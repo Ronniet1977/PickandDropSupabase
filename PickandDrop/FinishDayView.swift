@@ -16,6 +16,10 @@ struct FinishDayView: View {
     @StateObject private var notificationManager = NotificationSyncManager()
     
     @State private var didFinish = false
+    @State private var showMissingTicketsAlert = false
+    @State private var showLoadList = false
+    @State private var missingTicketCount = 0
+    
     
     var settings: SupabaseCompanySettings? {
         supabaseSettings
@@ -43,6 +47,14 @@ struct FinishDayView: View {
             .reduce(0.0) {
                 $0 + ($1.delivery_tons ?? 0)
             }
+    }
+    
+    var loadsMissingPickupTickets: [SupabaseLoad] {
+        shiftLoads.filter {
+            ($0.pickup_ticket_number ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty
+        }
     }
     
     var body: some View {
@@ -100,6 +112,21 @@ struct FinishDayView: View {
                 dismiss()
             }
         }
+        .alert("Missing Pickup Tickets",
+               isPresented: $showMissingTicketsAlert) {
+            
+            Button("Edit Loads") {
+                showLoadList = true
+            }
+            
+            Button("Cancel", role: .cancel) { }
+            
+        } message: {
+            
+            Text(
+                "\(missingTicketCount) load(s) are missing pickup ticket numbers. Tap Edit Loads to update them before finishing your day."
+            )
+        }
         .onAppear {
             Task {
                 let loadedLoads =
@@ -113,6 +140,18 @@ struct FinishDayView: View {
                     supabaseSettings = loadedSettings
                 }
             }
+        }
+        .sheet(isPresented: $showLoadList, onDismiss: {
+            Task {
+                let loadedLoads =
+                await LoadSupabaseManager.shared.fetchLoads()
+                
+                await MainActor.run {
+                    supabaseLoads = loadedLoads
+                }
+            }
+        }) {
+            LoadListView(driver: driver)
         }
     }
     
@@ -146,6 +185,22 @@ struct FinishDayView: View {
                     $0.driver_name == driver.name &&
                     ($0.is_archived ?? false) == false
                 }
+        
+        let missingPickupTickets = driverLoads.filter {
+            ($0.pickup_ticket_number ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty
+        }
+        
+        if !loadsMissingPickupTickets.isEmpty {
+            
+            await MainActor.run {
+                missingTicketCount = loadsMissingPickupTickets.count
+                showMissingTicketsAlert = true
+            }
+            
+            return
+        }
 
         print("📦 FinishDay Supabase loads:", driverLoads.count)
 
