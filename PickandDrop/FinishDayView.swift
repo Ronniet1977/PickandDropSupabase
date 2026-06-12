@@ -154,9 +154,9 @@ struct FinishDayView: View {
             if load.status == "delivered" ||
                 load.delivered_at != nil {
 
-                await LoadSupabaseManager.shared.archiveLoad(
-                    loadID: load.id
-                )
+                // await LoadSupabaseManager.shared.archiveLoad(
+                //     loadID: load.id
+                // )
 
                 print("🗂 Archived delivered:",
                       load.pickup_ticket_number ?? "")
