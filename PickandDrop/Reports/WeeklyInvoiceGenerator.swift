@@ -266,7 +266,7 @@ enum WeeklyInvoiceGenerator {
                             x: 40,
                             y: y - 4,
                             width: 712,
-                            height: 20
+                            height: 24
                         )
                     ).fill()
                     drawText(formatter.string(from: row.date), x: 48, y: y, font: .systemFont(ofSize: 9), width: 55)
