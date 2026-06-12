@@ -253,7 +253,22 @@ enum WeeklyInvoiceGenerator {
                 let formatter = DateFormatter()
                 formatter.dateStyle = .short
 
-                for row in rows {
+                for (index, row) in rows.enumerated() {
+
+                    if index % 2 == 0 {
+                        UIColor.systemBlue.withAlphaComponent(0.06).setFill()
+                    } else {
+                        UIColor.white.setFill()
+                    }
+
+                    UIBezierPath(
+                        rect: CGRect(
+                            x: 40,
+                            y: y - 4,
+                            width: 712,
+                            height: 20
+                        )
+                    ).fill()
                     drawText(formatter.string(from: row.date), x: 48, y: y, font: .systemFont(ofSize: 9), width: 55)
                     drawText(row.pickupTicket, x: 105, y: y, font: .systemFont(ofSize: 9), width: 85)
                     drawText(String(format: "%.2f", row.pickupTons), x: 195, y: y, font: .systemFont(ofSize: 9), width: 55)
