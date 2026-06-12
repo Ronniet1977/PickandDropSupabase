@@ -227,14 +227,6 @@ enum WeeklyInvoiceGenerator {
                     width: 200,
                     alignment: .right
                 )
-                y += 34
-
-                drawText("Weekly Invoice", x: 40, y: y, font: .boldSystemFont(ofSize: 20))
-                y += 30
-
-                drawText("Route: \(settings.pickup_company_name) → \(settings.dropoff_company_name)", x: 40, y: y, font: .systemFont(ofSize: 13))
-                y += 24
-
                 y = 100
 
                 // Table Header
