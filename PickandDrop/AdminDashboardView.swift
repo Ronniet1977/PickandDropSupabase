@@ -63,10 +63,16 @@ struct AdminDashboardView: View {
     @State private var supabaseSettings: SupabaseCompanySettings?
     @State private var supabaseFuel: [SupabaseFuel] = []
     
+    @State private var showArchivedLoads = false
+    
     //Supabase Summary Vars
     var dashboardLoads: [SupabaseLoad] {
+        
         supabaseLoads.filter {
-            $0.is_archived != true
+            
+            showArchivedLoads
+            ? $0.is_archived == true
+            : $0.is_archived != true
         }
     }
 
@@ -523,6 +529,14 @@ struct AdminDashboardView: View {
                                     abs(supabaseTonsDifference) < 5 ? .yellow :
                                         .red
                             )
+                            
+                            Toggle(
+                                showArchivedLoads
+                                ? "Showing Archived"
+                                : "Showing Live",
+                                isOn: $showArchivedLoads
+                            )
+                            .padding(.horizontal)
                             
                             Picker("Filter", selection: $selectedFilter) {
                                 ForEach(AdminLoadFilter.allCases) { filter in

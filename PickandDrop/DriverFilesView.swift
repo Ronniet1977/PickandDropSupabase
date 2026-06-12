@@ -34,6 +34,21 @@ struct DriverFilesView: View {
         NavigationStack {
 
             List {
+                Section("Archives") {
+                    
+                    ShareLink(
+                        item: archiveFileURL("Load_Archive.csv")
+                    ) {
+                        Label("Share Load Archive", systemImage: "shippingbox.fill")
+                    }
+                    
+                    ShareLink(
+                        item: archiveFileURL("Fuel_Archive.csv")
+                    ) {
+                        Label("Share Fuel Archive", systemImage: "fuelpump.fill")
+                    }
+                }
+                
                 Section("Admin Files") {
                     NavigationLink("Company Info") {
                         CompanyInfoCardView()
@@ -92,6 +107,14 @@ struct DriverFilesView: View {
                 }
             }
         }
+    }
+    
+    func archiveFileURL(_ fileName: String) -> URL {
+        FileManager.default
+            .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("PickandDrop")
+            .appendingPathComponent("Archives")
+            .appendingPathComponent(fileName)
     }
 
     func loadDriverFolders() {
@@ -312,11 +335,10 @@ struct WeeklyFuelCardsView: View {
                                 fuelEntries: fuelEntries
                             )
 
-                        let loaded =
-                            await FuelSupabaseManager.shared.fetchFuel()
-
+                        await FuelSupabaseManager.shared.deleteAllFuel()
+                        
                         await MainActor.run {
-                            fuelEntries = loaded
+                            fuelEntries = []
                         }
                     }
                 } label: {

@@ -12,7 +12,9 @@ struct DailyDriverSummaryView: View {
     @State private var selectedDate = Date()
     @State private var loads: [SupabaseLoad] = []
     @State private var drivers: [SupabaseDriver] = []
+    @State private var settings: SupabaseCompanySettings?
     @State private var isLoading = true
+    @State private var selectedDriver: DriverSummary?
     
     var filteredLoads: [SupabaseLoad] {
 
@@ -127,10 +129,25 @@ struct DailyDriverSummaryView: View {
                         }
                     }
                     .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedDriver = driver
+                    }
                 }
             }
         }
         .navigationTitle("Daily Summary")
+        .sheet(item: $selectedDriver) { driver in
+            NavigationStack {
+                DriverDetailView(
+                    driver: driver,
+                    loads: filteredLoads.filter {
+                        $0.driver_name == driver.name
+                    },
+                    settings: settings
+                )
+            }
+        }
         .task {
             await loadData()
         }
@@ -142,9 +159,12 @@ struct DailyDriverSummaryView: View {
 
         async let fetchedLoads = LoadSupabaseManager.shared.fetchLoads()
         async let fetchedDrivers = DriverSupabaseManager.shared.fetchDrivers()
+        async let fetchedSettings =
+        CompanySupabaseManager.shared.fetchCompanySettings()
 
         loads = await fetchedLoads
         drivers = await fetchedDrivers
+        settings = await fetchedSettings
 
         isLoading = false
     }

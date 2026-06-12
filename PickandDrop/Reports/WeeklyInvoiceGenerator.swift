@@ -227,6 +227,13 @@ enum WeeklyInvoiceGenerator {
                     width: 200,
                     alignment: .right
                 )
+                y += 34
+
+                drawText("Weekly Invoice", x: 40, y: y, font: .boldSystemFont(ofSize: 20))
+                y += 30
+
+                drawText("Route: \(settings.pickup_company_name) → \(settings.dropoff_company_name)", x: 40, y: y, font: .systemFont(ofSize: 13))
+                y += 24
 
                 y = 100
 
@@ -237,7 +244,7 @@ enum WeeklyInvoiceGenerator {
                         x: 40,
                         y: y,
                         width: 712,
-                        height: 28
+                        height: 20
                     )
                 ).fill()
 
@@ -249,7 +256,7 @@ enum WeeklyInvoiceGenerator {
                 drawText("Total", x: 430, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 70,color: .white)
                 drawText("Driver", x: 500, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 70,color: .white)
 
-                y += 34
+                y += 24
 
                 let formatter = DateFormatter()
                 formatter.dateStyle = .short

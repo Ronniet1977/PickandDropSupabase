@@ -6,6 +6,7 @@ struct LoadListView: View {
     
     @Environment(\.modelContext) private var context
     @State private var loads: [SupabaseLoad] = []
+    @State private var selectedLoad: SupabaseLoad?
     @State private var settings: SupabaseCompanySettings?
     
     var shiftLoads: [SupabaseLoad] {
@@ -138,6 +139,15 @@ struct LoadListView: View {
                                     .foregroundStyle(.white)
                                     
                                     HStack(spacing: 14) {
+                                        if (load.pickup_ticket_number ?? "").isEmpty {
+                                            
+                                            Label(
+                                                "Pickup Ticket Missing",
+                                                systemImage: "exclamationmark.triangle.fill"
+                                            )
+                                            .font(.caption.bold())
+                                            .foregroundStyle(.yellow)
+                                        }
                                         
                                         Label(
                                             "\(String(format: "%.2f", load.pickup_tons ?? 0)) \(settings?.pickup_company_name ?? "Pickup") Tons",
@@ -251,6 +261,10 @@ struct LoadListView: View {
                             RoundedRectangle(cornerRadius: 28)
                                 .stroke(.white.opacity(0.08))
                         )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedLoad = load
+                        }
                         //.contextMenu {
                         
                         //Button(role: .destructive) {
@@ -273,6 +287,15 @@ struct LoadListView: View {
         .navigationTitle(
             "\(settings?.pickup_company_name ?? "Pickup") Loads"
         )
+        .sheet(item: $selectedLoad) { load in
+            NavigationStack {
+                EditSupabaseLoadView(
+                    load: load,
+                    settings: settings,
+                    canDelete: false
+                )
+            }
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {

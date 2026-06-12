@@ -214,6 +214,56 @@ final class LoadSupabaseManager {
         }
     }
     
+    func updateLoad(
+        id: UUID,
+        pickupTicketNumber: String,
+        pickupTons: Double,
+        deliveryTicketNumber: String,
+        deliveryTons: Double,
+        status: String
+    ) async {
+        
+        let body: [String: Any] = [
+            "pickup_ticket_number": pickupTicketNumber,
+            "pickup_tons": pickupTons,
+            "delivery_ticket_number": deliveryTicketNumber,
+            "delivery_tons": deliveryTons,
+            "status": status
+        ]
+        
+        do {
+            let data = try JSONSerialization.data(withJSONObject: body)
+            
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                method: "PATCH",
+                query: "?id=eq.\(id.uuidString)",
+                body: data
+            )
+            
+            print("✅ Supabase load updated")
+            
+        } catch {
+            print("❌ Failed updating Supabase load:", error)
+        }
+    }
+    
+    func deleteLoad(id: UUID) async {
+        
+        do {
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                method: "DELETE",
+                query: "?id=eq.\(id.uuidString)"
+            )
+            
+            print("🗑 Supabase load deleted")
+            
+        } catch {
+            print("❌ Failed deleting Supabase load:", error)
+        }
+    }
+    
     func archiveLoad(loadID: UUID) async {
 
         let body: [String: Any] = [
@@ -236,6 +286,45 @@ final class LoadSupabaseManager {
         } catch {
 
             print("❌ Failed archiving load:", error)
+        }
+    }
+    
+    func deleteArchivedLoads() async {
+        
+        do {
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                method: "DELETE",
+                query: "?is_archived=eq.true"
+            )
+            
+            print("🗑 Deleted archived loads")
+            
+        } catch {
+            print("❌ Failed deleting archived loads:", error)
+        }
+    }
+    
+    func archiveDeliveredLoads() async {
+        
+        let body: [String: Any] = [
+            "is_archived": true
+        ]
+        
+        do {
+            let data = try JSONSerialization.data(withJSONObject: body)
+            
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                method: "PATCH",
+                query: "?status=eq.delivered",
+                body: data
+            )
+            
+            print("📦 Delivered loads archived")
+            
+        } catch {
+            print("❌ Failed archiving delivered loads:", error)
         }
     }
 }
