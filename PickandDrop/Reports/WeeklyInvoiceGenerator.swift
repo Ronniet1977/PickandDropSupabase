@@ -185,7 +185,7 @@ enum WeeklyInvoiceGenerator {
                             x: x,
                             y: y,
                             width: width,
-                            height: 16
+                            height: 26
                         ),
                         withAttributes: attributes
                     )
@@ -193,55 +193,65 @@ enum WeeklyInvoiceGenerator {
                 
                 func drawInvoiceHeader() {
                     
+                    let pageMargin: CGFloat = 30
+                    
+                    let leftWidth: CGFloat = 260
+                    let centerWidth: CGFloat = 210
+                    let rightWidth: CGFloat = 220
+                    
+                    let leftX = pageMargin
+                    let centerX = (pageWidth - centerWidth) / 2
+                    let rightX = pageWidth - pageMargin - rightWidth
+                    
                     drawText(
                         settings.trucking_company_name,
-                        x: 30,
-                        y: 24,
-                        font: .boldSystemFont(ofSize: 22),
-                        width: 235
+                        x: leftX,
+                        y: 22,
+                        font: .boldSystemFont(ofSize: 20),
+                        width: leftWidth
                     )
                     
                     drawText(
                         "Route: \(settings.pickup_company_name) → \(settings.dropoff_company_name)",
-                        x: 30,
-                        y: 53,
-                        font: .systemFont(ofSize: 10),
-                        width: 235
+                        x: leftX,
+                        y: 49,
+                        font: .systemFont(ofSize: 9.5),
+                        width: leftWidth
                     )
                     
                     drawText(
                         "Weekly Invoice",
-                        x: 270,
-                        y: 25,
-                        font: .boldSystemFont(ofSize: 21),
-                        width: 250,
+                        x: centerX,
+                        y: 22,
+                        font: .boldSystemFont(ofSize: 20),
+                        width: centerWidth,
                         alignment: .center
                     )
                     
                     drawText(
                         "Week: \(weekRange)",
-                        x: 270,
-                        y: 52,
-                        font: .systemFont(ofSize: 12),
-                        width: 250,
+                        x: centerX,
+                        y: 49,
+                        font: .systemFont(ofSize: 11),
+                        width: centerWidth,
                         alignment: .center
                     )
                     
                     drawText(
                         "Invoice #: \(invoiceNumber)",
-                        x: 540,
-                        y: 27,
+                        x: rightX,
+                        y: 24,
                         font: .boldSystemFont(ofSize: 8),
-                        width: 220,
+                        width: rightWidth,
                         alignment: .right
                     )
                     
                     drawText(
                         "Generated: \(generatedDate)",
-                        x: 540,
-                        y: 43,
+                        x: rightX,
+                        y: 41,
                         font: .systemFont(ofSize: 7.5),
-                        width: 220,
+                        width: rightWidth,
                         alignment: .right
                     )
                 }
@@ -518,7 +528,7 @@ enum WeeklyInvoiceGenerator {
                 context.beginPage()
                 drawInvoiceHeader()
                 
-                y = 78
+                y = 72
                 drawTableHeader(at: y)
                 y += tableHeaderHeight
                 
