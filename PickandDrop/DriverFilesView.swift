@@ -57,6 +57,15 @@ struct DriverFilesView: View {
                     NavigationLink("Drivers") {
                         DriversCardView()
                     }
+                    
+                    NavigationLink {
+                        AdminLoadManagementView()
+                    } label: {
+                        Label(
+                            "Manage Loads",
+                            systemImage: "shippingbox.and.arrow.backward.fill"
+                        )
+                    }
 
                     NavigationLink("Weekly Fuel") {
                         WeeklyFuelCardsView()
@@ -425,32 +434,40 @@ struct CompanySettingsDTO: Codable {
 }
 
 struct CompanyInfoCardView: View {
-
+    
     @State private var settings: SupabaseCompanySettings?
-
+    @State private var showEditSheet = false
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-
+                
                 if let settings {
-
+                    
                     VStack(alignment: .leading, spacing: 14) {
                         Text(settings.trucking_company_name)
                             .font(.largeTitle.bold())
-
-                        Label(settings.pickup_company_name, systemImage: "arrow.up.circle.fill")
-                        Label(settings.dropoff_company_name, systemImage: "arrow.down.circle.fill")
+                        
+                        Label(
+                            settings.pickup_company_name,
+                            systemImage: "arrow.up.circle.fill"
+                        )
+                        
+                        Label(
+                            settings.dropoff_company_name,
+                            systemImage: "arrow.down.circle.fill"
+                        )
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(AppTheme.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 24))
-
+                    
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Join Company Code")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-
+                        
                         Text(settings.company_join_code)
                             .font(.title2.bold())
                             .foregroundStyle(AppTheme.accent)
@@ -459,12 +476,12 @@ struct CompanyInfoCardView: View {
                     .padding()
                     .background(.blue.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 18))
-
+                    
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Rate Per Ton")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-
+                        
                         Text("$\(settings.rate_per_ton, specifier: "%.2f")")
                             .font(.title2.bold())
                             .foregroundStyle(AppTheme.success)
@@ -473,33 +490,50 @@ struct CompanyInfoCardView: View {
                     .padding()
                     .background(.green.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 18))
-
+                    
+                    Button {
+                        showEditSheet = true
+                    } label: {
+                        Label(
+                            "Edit Company Info",
+                            systemImage: "pencil.circle.fill"
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    
                 } else {
-                    Text("No company info found")
-                        .foregroundStyle(.secondary)
+                    ProgressView("Loading company info...")
                 }
             }
             .padding()
         }
         .navigationTitle("Company Info")
-        .onAppear {
-            loadCompanyInfo()
+        .task {
+            await loadCompanyInfo()
         }
-    }
-
-    func loadCompanyInfo() {
-
-        Task {
-
-            let company =
-                await CompanySupabaseManager
-                    .shared
-                    .fetchCompanySettings()
-
-            await MainActor.run {
-                settings = company
+        .sheet(isPresented: $showEditSheet) {
+            if let settings {
+                NavigationStack {
+                    EditCompanyInfoView(
+                        settings: settings,
+                        onSaved: {
+                            Task {
+                                await loadCompanyInfo()
+                            }
+                        }
+                    )
+                }
             }
         }
+    }
+    
+    @MainActor
+    func loadCompanyInfo() async {
+        settings =
+        await CompanySupabaseManager
+            .shared
+            .fetchCompanySettings()
     }
 }
 

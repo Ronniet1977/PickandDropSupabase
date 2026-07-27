@@ -82,6 +82,42 @@ final class CompanySupabaseManager {
         }
     }
     
+    func updateCompanySettings(
+        id: UUID,
+        truckingCompanyName: String,
+        pickupCompanyName: String,
+        dropoffCompanyName: String,
+        companyJoinCode: String,
+        ratePerTon: Double
+    ) async {
+        
+        let body: [String: Any] = [
+            "trucking_company_name": truckingCompanyName,
+            "pickup_company_name": pickupCompanyName,
+            "dropoff_company_name": dropoffCompanyName,
+            "company_join_code": companyJoinCode,
+            "rate_per_ton": ratePerTon
+        ]
+        
+        do {
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_company_settings",
+                method: "PATCH",
+                query: "?id=eq.\(id.uuidString)",
+                body: data
+            )
+            
+            print("✅ Company settings updated")
+            
+        } catch {
+            print("❌ Company settings update failed:", error)
+        }
+    }
+    
     func createCompanySettings(
         truckingCompanyName: String,
         pickupCompanyName: String,
@@ -245,6 +281,36 @@ final class LoadSupabaseManager {
             
         } catch {
             print("❌ Failed updating Supabase load:", error)
+        }
+    }
+    
+    func moveLoad(
+        id: UUID,
+        driverName: String,
+        truckNumber: String
+    ) async {
+        
+        let body: [String: Any] = [
+            "driver_name": driverName,
+            "truck_number": truckNumber
+        ]
+        
+        do {
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                method: "PATCH",
+                query: "?id=eq.\(id.uuidString)",
+                body: data
+            )
+            
+            print("✅ Load moved to \(driverName)")
+            
+        } catch {
+            print("❌ Failed moving load:", error)
         }
     }
     
