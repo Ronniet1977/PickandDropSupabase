@@ -88,7 +88,8 @@ final class CompanySupabaseManager {
         pickupCompanyName: String,
         dropoffCompanyName: String,
         companyJoinCode: String,
-        ratePerTon: Double
+        ratePerTon: Double,
+        fuelSurchargePerTon: Double
     ) async {
         
         let body: [String: Any] = [
@@ -96,7 +97,8 @@ final class CompanySupabaseManager {
             "pickup_company_name": pickupCompanyName,
             "dropoff_company_name": dropoffCompanyName,
             "company_join_code": companyJoinCode,
-            "rate_per_ton": ratePerTon
+            "rate_per_ton": ratePerTon,
+            "fuel_surcharge_per_ton": fuelSurchargePerTon
         ]
         
         do {

@@ -12,6 +12,7 @@ struct SupabaseCompanySettings: Codable, Identifiable {
     let dropoff_company_name: String
     let company_join_code: String
     let rate_per_ton: Double
+    let fuel_surcharge_per_ton: Double
 }
 
 struct SupabaseDriver: Codable, Identifiable {

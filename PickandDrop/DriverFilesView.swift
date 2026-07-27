@@ -425,12 +425,13 @@ struct WeeklyFuelCardsView: View {
 }
 
 struct CompanySettingsDTO: Codable {
-
+    
     let truckingCompanyName: String
     let pickupCompanyName: String
     let dropoffCompanyName: String
     let companyJoinCode: String
     let ratePerTon: Double
+    let fuelSurchargePerTon: Double
 }
 
 struct CompanyInfoCardView: View {
@@ -477,16 +478,30 @@ struct CompanyInfoCardView: View {
                     .background(.blue.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                     
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Rate Per Ton")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    HStack {
                         
-                        Text("$\(settings.rate_per_ton, specifier: "%.2f")")
-                            .font(.title2.bold())
-                            .foregroundStyle(AppTheme.success)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Rate Per Ton")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            Text("$\(settings.rate_per_ton, specifier: "%.2f")")
+                                .font(.title2.bold())
+                                .foregroundStyle(AppTheme.success)
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 6) {
+                            Text("Fuel Surcharge")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            Text("$\(settings.fuel_surcharge_per_ton, specifier: "%.2f")")
+                                .font(.title2.bold())
+                                .foregroundStyle(.orange)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(.green.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 18))
@@ -948,6 +963,7 @@ struct EditCompanyInfoView: View {
     @State private var dropoffCompanyName = ""
     @State private var companyJoinCode = ""
     @State private var ratePerTon = ""
+    @State private var fuelSurchargePerTon = ""
     
     @State private var isSaving = false
     
@@ -982,12 +998,29 @@ struct EditCompanyInfoView: View {
                 .autocorrectionDisabled()
             }
             
-            Section("Billing") {
-                TextField(
-                    "Rate Per Ton",
-                    text: $ratePerTon
-                )
-                .keyboardType(.decimalPad)
+            Section("Invoice Rates") {
+                
+                HStack {
+                    Text("Rate Per Ton")
+                    
+                    Spacer()
+                    
+                    TextField("0.00", text: $ratePerTon)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
+                }
+                
+                HStack {
+                    Text("Fuel Surcharge / Ton")
+                    
+                    Spacer()
+                    
+                    TextField("0.00", text: $fuelSurchargePerTon)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
+                }
             }
             
             Button {
@@ -995,13 +1028,23 @@ struct EditCompanyInfoView: View {
                     await saveSettings()
                 }
             } label: {
-                Label(
-                    isSaving ? "Saving..." : "Save Changes",
-                    systemImage: "checkmark.circle.fill"
-                )
+                HStack {
+                    Spacer()
+                    
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Label(
+                            "Save Changes",
+                            systemImage: "checkmark.circle.fill"
+                        )
+                    }
+                    
+                    Spacer()
+                }
             }
-            .disabled(!isValid || isSaving)
         }
+        .disabled(!hasRequiredNames || isSaving)
         .navigationTitle("Edit Company Info")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -1029,10 +1072,15 @@ struct EditCompanyInfoView: View {
                 format: "%.2f",
                 settings.rate_per_ton
             )
+            fuelSurchargePerTon =
+            String(
+                format: "%.2f",
+                settings.fuel_surcharge_per_ton
+            )
         }
     }
     
-    private var isValid: Bool {
+    private var hasRequiredNames: Bool {
         !truckingCompanyName
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .isEmpty &&
@@ -1041,8 +1089,7 @@ struct EditCompanyInfoView: View {
             .isEmpty &&
         !dropoffCompanyName
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .isEmpty &&
-        (Double(ratePerTon) ?? -1) >= 0
+            .isEmpty
     }
     
     private func saveSettings() async {
@@ -1051,7 +1098,12 @@ struct EditCompanyInfoView: View {
             return
         }
         
-        guard let rate = Double(ratePerTon) else {
+        guard
+            let rate = Double(ratePerTon),
+            rate >= 0,
+            let fuelSurcharge = Double(fuelSurchargePerTon),
+            fuelSurcharge >= 0
+        else {
             return
         }
         
@@ -1077,7 +1129,8 @@ struct EditCompanyInfoView: View {
                 companyJoinCode.trimmingCharacters(
                     in: .whitespacesAndNewlines
                 ),
-            ratePerTon: rate
+            ratePerTon: rate,
+            fuelSurchargePerTon: fuelSurcharge
         )
         
         await MainActor.run {
