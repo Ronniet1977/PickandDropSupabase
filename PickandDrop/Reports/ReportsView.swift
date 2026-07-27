@@ -315,9 +315,7 @@ struct ReportsView: View {
             fuelEntries: fuel
         )
         
-        await FuelSupabaseManager.shared.deleteAllFuel()
-        
-        //await LoadSupabaseManager.shared.deleteArchivedLoads()
+        await FuelSupabaseManager.shared.archiveAllFuel()
         
         await LoadSupabaseManager.shared.archiveDeliveredLoads()
         

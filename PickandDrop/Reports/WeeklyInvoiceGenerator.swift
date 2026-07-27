@@ -9,20 +9,29 @@ import PDFKit
 import UIKit
 
 struct WeeklyInvoiceRow {
-
+    
     let date: Date
-
+    
     let pickupTicket: String
     let pickupTons: Double
-
+    
     let deliveryTicket: String
-
+    
     let driver: String
-
+    
     let rate: Double
-
-    var total: Double {
+    let fuelSurchargePerTon: Double
+    
+    var loadRevenue: Double {
         pickupTons * rate
+    }
+    
+    var fuelSurcharge: Double {
+        pickupTons * fuelSurchargePerTon
+    }
+    
+    var total: Double {
+        loadRevenue + fuelSurcharge
     }
 }
 
@@ -103,6 +112,21 @@ enum WeeklyInvoiceGenerator {
                 continue
             }
 
+            let storedRate = load.rate_per_ton ?? 0
+            let storedFuelSurcharge = load.fuel_surcharge_per_ton ?? 0
+            
+            let rate =
+            storedRate > 0
+            ? storedRate
+            : settings.rate_per_ton
+            
+            let fuelSurchargePerTon =
+            storedFuelSurcharge > 0
+            ? storedFuelSurcharge
+            : settings.fuel_surcharge_per_ton
+            
+            print("Stored Rate:", load.rate_per_ton as Any)
+            print("Stored Fuel:", load.fuel_surcharge_per_ton as Any)
             rows.append(
                 WeeklyInvoiceRow(
                     date: deliveredDate,
@@ -110,7 +134,8 @@ enum WeeklyInvoiceGenerator {
                     pickupTons: pickupTons,
                     deliveryTicket: deliveryTicket,
                     driver: driver,
-                    rate: settings.rate_per_ton
+                    rate: rate,
+                    fuelSurchargePerTon: fuelSurchargePerTon
                 )
             )
         }
@@ -122,11 +147,13 @@ enum WeeklyInvoiceGenerator {
         
         let loadRevenue =
         rows.reduce(0.0) {
-            $0 + $1.total
+            $0 + $1.loadRevenue
         }
         
         let fuelSurcharge =
-        totalTons * settings.fuel_surcharge_per_ton
+        rows.reduce(0.0) {
+            $0 + $1.fuelSurcharge
+        }
         
         let invoiceTotal =
         loadRevenue + fuelSurcharge
@@ -323,7 +350,7 @@ enum WeeklyInvoiceGenerator {
                         )
                     ).fill()
                     
-                    let font = UIFont.boldSystemFont(ofSize: 7.5)
+                    let font = UIFont.boldSystemFont(ofSize: 7.25)
                     let textY = y + 4
                     
                     drawText(
@@ -338,7 +365,43 @@ enum WeeklyInvoiceGenerator {
                     
                     drawText(
                         "Date",
-                        x: 60,
+                        x: 58,
+                        y: textY,
+                        font: font,
+                        width: 48,
+                        color: .white
+                    )
+                    
+                    drawText(
+                        "\(settings.pickup_company_name) Ticket",
+                        x: 108,
+                        y: textY,
+                        font: font,
+                        width: 82,
+                        color: .white
+                    )
+                    
+                    drawText(
+                        "Tons",
+                        x: 192,
+                        y: textY,
+                        font: font,
+                        width: 42,
+                        color: .white
+                    )
+                    
+                    drawText(
+                        "\(settings.dropoff_company_name) Ticket",
+                        x: 236,
+                        y: textY,
+                        font: font,
+                        width: 92,
+                        color: .white
+                    )
+                    
+                    drawText(
+                        "Rate/Ton",
+                        x: 330,
                         y: textY,
                         font: font,
                         width: 50,
@@ -346,35 +409,8 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        "\(settings.pickup_company_name) Ticket",
-                        x: 112,
-                        y: textY,
-                        font: font,
-                        width: 86,
-                        color: .white
-                    )
-                    
-                    drawText(
-                        "Tons",
-                        x: 200,
-                        y: textY,
-                        font: font,
-                        width: 46,
-                        color: .white
-                    )
-                    
-                    drawText(
-                        "\(settings.dropoff_company_name) Ticket",
-                        x: 248,
-                        y: textY,
-                        font: font,
-                        width: 100,
-                        color: .white
-                    )
-                    
-                    drawText(
-                        "Rate",
-                        x: 350,
+                        "Fuel/Ton",
+                        x: 382,
                         y: textY,
                         font: font,
                         width: 52,
@@ -383,19 +419,19 @@ enum WeeklyInvoiceGenerator {
                     
                     drawText(
                         "Total",
-                        x: 404,
+                        x: 436,
                         y: textY,
                         font: font,
-                        width: 58,
+                        width: 62,
                         color: .white
                     )
                     
                     drawText(
                         "Driver",
-                        x: 464,
+                        x: 500,
                         y: textY,
                         font: font,
-                        width: 290,
+                        width: 254,
                         color: .white
                     )
                 }
@@ -423,7 +459,7 @@ enum WeeklyInvoiceGenerator {
                         )
                     ).fill()
                     
-                    let font = UIFont.systemFont(ofSize: 7.25)
+                    let font = UIFont.systemFont(ofSize: 7.1)
                     let textY = y + 2.5
                     
                     drawText(
@@ -437,39 +473,50 @@ enum WeeklyInvoiceGenerator {
                     
                     drawText(
                         formatter.string(from: row.date),
-                        x: 60,
+                        x: 58,
+                        y: textY,
+                        font: font,
+                        width: 48
+                    )
+                    
+                    drawText(
+                        row.pickupTicket,
+                        x: 108,
+                        y: textY,
+                        font: font,
+                        width: 82
+                    )
+                    
+                    drawText(
+                        String(format: "%.2f", row.pickupTons),
+                        x: 192,
+                        y: textY,
+                        font: font,
+                        width: 42
+                    )
+                    
+                    drawText(
+                        row.deliveryTicket,
+                        x: 236,
+                        y: textY,
+                        font: font,
+                        width: 92
+                    )
+                    
+                    drawText(
+                        String(format: "$%.2f", row.rate),
+                        x: 330,
                         y: textY,
                         font: font,
                         width: 50
                     )
                     
                     drawText(
-                        row.pickupTicket,
-                        x: 112,
-                        y: textY,
-                        font: font,
-                        width: 86
-                    )
-                    
-                    drawText(
-                        String(format: "%.2f", row.pickupTons),
-                        x: 200,
-                        y: textY,
-                        font: font,
-                        width: 46
-                    )
-                    
-                    drawText(
-                        row.deliveryTicket,
-                        x: 248,
-                        y: textY,
-                        font: font,
-                        width: 100
-                    )
-                    
-                    drawText(
-                        String(format: "$%.2f", row.rate),
-                        x: 350,
+                        String(
+                            format: "$%.2f",
+                            row.fuelSurchargePerTon
+                        ),
+                        x: 382,
                         y: textY,
                         font: font,
                         width: 52
@@ -477,18 +524,18 @@ enum WeeklyInvoiceGenerator {
                     
                     drawText(
                         String(format: "$%.2f", row.total),
-                        x: 404,
+                        x: 436,
                         y: textY,
                         font: font,
-                        width: 58
+                        width: 62
                     )
                     
                     drawText(
                         row.driver,
-                        x: 464,
+                        x: 500,
                         y: textY,
                         font: font,
-                        width: 290
+                        width: 254
                     )
                 }
                 
