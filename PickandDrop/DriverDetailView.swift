@@ -1,8 +1,10 @@
 import SwiftUI
-import SwiftData
 
 struct DriverDetailView: View {
-
+    
+    let driver: DriverSummary
+    let settings: SupabaseCompanySettings?
+    
     @State private var selectedLoad: SupabaseLoad?
     @State private var showAddLoad = false
     @State private var loads: [SupabaseLoad]
@@ -16,157 +18,57 @@ struct DriverDetailView: View {
         self.settings = settings
         _loads = State(initialValue: loads)
     }
-
-    let driver: DriverSummary
-    let settings: SupabaseCompanySettings?
     
-    var grouped: [String: [SupabaseLoad]] {
-        [
-            "\(settings?.pickup_company_name ?? "Pickup") Loads": loads
-        ]
-    }
-    
-    var sortedCompanies: [String] {
-        grouped.keys.sorted()
+    private var totalPickupTons: Double {
+        loads.reduce(0) {
+            $0 + ($1.pickup_tons ?? 0)
+        }
     }
     
     var body: some View {
-        NavigationStack {
-            ZStack {
-                LinearGradient(
-                    colors: [.blue.opacity(0.3), .black.opacity(0.2)],
-                    startPoint: .top,
-                    endPoint: .bottom
+        ZStack {
+            LinearGradient(
+                colors: [
+                    .blue.opacity(0.3),
+                    .black.opacity(0.2)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            List {
+                driverHeaderSection
+                loadSection
+            }
+            .scrollContentBackground(.hidden)
+        }
+        .navigationTitle(driver.name)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showAddLoad = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .sheet(item: $selectedLoad) { load in
+            NavigationStack {
+                EditSupabaseLoadView(
+                    load: load,
+                    settings: settings,
+                    canDelete: true,
+                    onSaved: {
+                        Task {
+                            await refreshLoads()
+                        }
+                    }
                 )
-                .ignoresSafeArea()
-                
-                List {
-                    Section {
-                        VStack(alignment: .leading) {
-                            Text(
-                                settings?.trucking_company_name
-                                ?? "Trucking Company"
-                            )
-                            .font(.caption.bold())
-                            .foregroundStyle(.blue)
-                            
-                            Text(driver.name)
-                                .font(.title.bold())
-                            
-                            if driver.isFinished {
-
-                                Text("✅ Finished")
-                                    .font(.caption)
-                                    .foregroundStyle(.green)
-
-                            } else {
-
-                                Text("🟢 Active")
-                                    .font(.caption)
-                                    .foregroundStyle(.blue)
-                            }
-                            
-                            Text("Truck \(driver.truck)")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    
-                    ForEach(sortedCompanies, id: \.self) { company in
-                        
-                        if let loads = grouped[company] {
-                            
-                            let total = loads.reduce(0.0) {
-                                $0 + ($1.pickup_tons ?? 0)
-                            }
-                            
-                            Section(
-                                header:
-                                    VStack(alignment: .leading) {
-                                        
-                                        Text(company)
-                                            .font(.headline)
-                                        
-                                        Text(
-                                            "\(loads.count) loads • \(String(format: "%.0f", total)) tons"
-                                        )
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    }
-                            ) {
-                                
-                                ForEach(loads) { load in
-                                    
-                                    VStack(alignment: .leading, spacing: 8) {
-
-                                        HStack {
-
-                                            Text(
-                                                "\(settings?.pickup_company_name ?? "Pickup") Ticket \(load.pickup_ticket_number ?? "")"
-                                            )
-
-                                            Spacer()
-
-                                            Text(
-                                                "\(load.pickup_tons ?? 0, specifier: "%.0f") Tons"
-                                            )
-                                            .foregroundStyle(.blue)
-                                            .fontWeight(.semibold)
-                                        }
-
-                                        if load.status == "delivered" {
-
-                                            HStack {
-
-                                                Text(
-                                                    "\(settings?.dropoff_company_name ?? "Dropoff") Ticket \(load.delivery_ticket_number ?? "")"
-                                                )
-
-                                                Spacer()
-
-                                                Text(
-                                                    "\(load.delivery_tons ?? 0, specifier: "%.0f") Tons"
-                                                )
-                                                .foregroundStyle(.green)
-                                                .fontWeight(.semibold)
-                                            }
-                                        }
-                                    }
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        selectedLoad = load
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                .scrollContentBackground(.hidden)
             }
-            .navigationTitle(driver.name)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showAddLoad = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                }
-            }
-            .sheet(item: $selectedLoad) { load in
-                NavigationStack {
-                    EditSupabaseLoadView(
-                        load: load,
-                        settings: settings,
-                        canDelete: true,
-                        onSaved: {
-                            Task {
-                                await refreshLoads()
-                            }
-                        }
-                    )
-                }
-            }
-            .sheet(isPresented: $showAddLoad) {
+        }
+        .sheet(isPresented: $showAddLoad) {
+            NavigationStack {
                 AdminAddLoadView(
                     driverName: driver.name,
                     truckNumber: driver.truck,
@@ -181,16 +83,182 @@ struct DriverDetailView: View {
         }
     }
     
-    func refreshLoads() async {
-        
-        let allLoads = await LoadSupabaseManager.shared.fetchLoads()
-        
-        await MainActor.run {
-            loads = allLoads.filter {
-                $0.driver_name == driver.name &&
-                $0.is_archived != true
+    private var driverHeaderSection: some View {
+        Section {
+            DriverDetailHeader(
+                driver: driver,
+                companyName:
+                    settings?.trucking_company_name
+                ?? "Trucking Company"
+            )
+        }
+    }
+    
+    private var loadSection: some View {
+        Section {
+            if loads.isEmpty {
+                ContentUnavailableView(
+                    "No Loads",
+                    systemImage: "shippingbox",
+                    description: Text(
+                        "Tap the plus button to add a load for \(driver.name)."
+                    )
+                )
+            } else {
+                ForEach(loads) { load in
+                    DriverLoadRow(
+                        load: load,
+                        pickupCompany:
+                            settings?.pickup_company_name
+                        ?? "Pickup",
+                        dropoffCompany:
+                            settings?.dropoff_company_name
+                        ?? "Dropoff"
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedLoad = load
+                    }
+                }
+            }
+        } header: {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(
+                    "\(settings?.pickup_company_name ?? "Pickup") Loads"
+                )
+                .font(.headline)
+                
+                Text(
+                    "\(loads.count) loads • "
+                    + String(
+                        format: "%.0f tons",
+                        totalPickupTons
+                    )
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
+    }
+    
+    @MainActor
+    private func refreshLoads() async {
+        let allLoads =
+        await LoadSupabaseManager.shared.fetchLoads()
+        
+        loads = allLoads.filter {
+            $0.driver_name == driver.name &&
+            $0.is_archived != true
+        }
+    }
+}
+
+private struct DriverDetailHeader: View {
+    
+    let driver: DriverSummary
+    let companyName: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(companyName)
+                .font(.caption.bold())
+                .foregroundStyle(.blue)
+            
+            Text(driver.name)
+                .font(.title.bold())
+            
+            Label(
+                statusText,
+                systemImage: statusIcon
+            )
+            .font(.caption)
+            .foregroundStyle(statusColor)
+            
+            Text("Truck \(driver.truck)")
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private var statusText: String {
+        driver.isFinished ? "Finished" : driver.status
+    }
+    
+    private var statusIcon: String {
+        driver.isFinished
+        ? "checkmark.circle.fill"
+        : "circle.fill"
+    }
+    
+    private var statusColor: Color {
+        driver.isFinished ? .green : .blue
+    }
+}
+
+private struct DriverLoadRow: View {
+    
+    let load: SupabaseLoad
+    let pickupCompany: String
+    let dropoffCompany: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(pickupDescription)
+                
+                Spacer()
+                
+                Text(
+                    "\(load.pickup_tons ?? 0, specifier: "%.2f") Tons"
+                )
+                .foregroundStyle(.blue)
+                .fontWeight(.semibold)
+            }
+            
+            if load.status == "delivered" {
+                HStack {
+                    Text(deliveryDescription)
+                    
+                    Spacer()
+                    
+                    Text(
+                        "\(load.delivery_tons ?? 0, specifier: "%.2f") Tons"
+                    )
+                    .foregroundStyle(.green)
+                    .fontWeight(.semibold)
+                }
+            } else {
+                Label(
+                    "Awaiting delivery",
+                    systemImage: "clock.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.orange)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private var pickupDescription: String {
+        let ticket = load.pickup_ticket_number?
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            ) ?? ""
+        
+        return ticket.isEmpty
+        ? "\(pickupCompany) Ticket — Missing"
+        : "\(pickupCompany) Ticket \(ticket)"
+    }
+    
+    private var deliveryDescription: String {
+        let ticket = load.delivery_ticket_number?
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            ) ?? ""
+        
+        return ticket.isEmpty
+        ? "\(dropoffCompany) Ticket — Missing"
+        : "\(dropoffCompany) Ticket \(ticket)"
     }
 }
 
@@ -227,7 +295,6 @@ struct EditSupabaseLoadView: View {
     
     @State private var drivers: [SupabaseDriver] = []
     @State private var selectedDriverName = ""
-    @State private var selectedTruckNumber = ""
     @State private var showMoveLoad = false
     @State private var isMoving = false
     
@@ -309,6 +376,13 @@ struct EditSupabaseLoadView: View {
                     drivers = loadedDrivers
                 }
             }
+        }
+        .alert("Load Updated", isPresented: $showSavedAlert) {
+            Button("OK") {
+                dismiss()
+            }
+        } message: {
+            Text("The load changes were saved.")
         }
         .alert("Delete Load?", isPresented: $showDeleteAlert) {
             Button("Cancel", role: .cancel) { }
