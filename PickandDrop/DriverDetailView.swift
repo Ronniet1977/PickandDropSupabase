@@ -590,13 +590,19 @@ struct AdminAddLoadView: View {
             isSaving = true
         }
         
+        guard let settings else {
+            return
+        }
+        
         await LoadSupabaseManager.shared.addLoad(
             driverName: driverName,
             truckNumber: truckNumber,
             pickupTicketNumber: pickupTicket.trimmingCharacters(
                 in: .whitespacesAndNewlines
             ),
-            pickupTons: tons
+            pickupTons: tons,
+            ratePerTon: settings.rate_per_ton,
+            fuelSurchargePerTon: settings.fuel_surcharge_per_ton
         )
         
         await MainActor.run {

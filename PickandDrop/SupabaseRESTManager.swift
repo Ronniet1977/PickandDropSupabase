@@ -189,9 +189,11 @@ final class LoadSupabaseManager {
         driverName: String,
         truckNumber: String,
         pickupTicketNumber: String,
-        pickupTons: Double
+        pickupTons: Double,
+        ratePerTon: Double,
+        fuelSurchargePerTon: Double
     ) async {
-
+        
         let body: [String: Any] = [
             "driver_name": driverName,
             "truck_number": truckNumber,
@@ -199,20 +201,26 @@ final class LoadSupabaseManager {
             "pickup_tons": pickupTons,
             "status": "pickedUp",
             "picked_up_at": ISO8601DateFormatter().string(from: Date()),
-            "is_archived": false
+            "is_archived": false,
+            "rate_per_ton": ratePerTon,
+            "fuel_surcharge_per_ton": fuelSurchargePerTon
         ]
-
+        
         do {
-            let data = try JSONSerialization.data(withJSONObject: body)
-
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
             _ = try await SupabaseRESTManager.shared.request(
                 table: "pickdrop_loads",
                 method: "POST",
                 body: data
             )
-
+            
             print("✅ Supabase load added")
-
+            print("💵 Rate stored:", ratePerTon)
+            print("⛽ Surcharge stored:", fuelSurchargePerTon)
+            
         } catch {
             print("❌ Failed adding Supabase load:", error)
         }

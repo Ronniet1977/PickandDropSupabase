@@ -90,23 +90,67 @@ final class FuelSupabaseManager {
     }
 
     func fetchFuel() async -> [SupabaseFuel] {
-
+        
+        do {
+            let data = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_fuel",
+                query: "?select=*&is_archived=eq.false&order=created_at.desc"
+            )
+            
+            let fuel = try JSONDecoder()
+                .decode([SupabaseFuel].self, from: data)
+            
+            print("✅ Loaded active fuel:", fuel.count)
+            
+            return fuel
+            
+        } catch {
+            print("❌ Failed loading fuel:", error)
+            return []
+        }
+    }
+    
+    func fetchAllFuel() async -> [SupabaseFuel] {
+        
         do {
             let data = try await SupabaseRESTManager.shared.request(
                 table: "pickdrop_fuel",
                 query: "?select=*&order=created_at.desc"
             )
-
+            
             let fuel = try JSONDecoder()
                 .decode([SupabaseFuel].self, from: data)
-
-            print("✅ Loaded fuel:", fuel.count)
-
+            
+            print("✅ Loaded all fuel:", fuel.count)
+            
             return fuel
-
+            
         } catch {
-            print("❌ Failed loading fuel:", error)
+            print("❌ Failed loading all fuel:", error)
             return []
+        }
+    }
+    
+    func archiveAllFuel() async {
+        
+        let body: [String: Any] = [
+            "is_archived": true
+        ]
+        
+        do {
+            let data = try JSONSerialization.data(withJSONObject: body)
+            
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_fuel",
+                method: "PATCH",
+                query: "?is_archived=eq.false",
+                body: data
+            )
+            
+            print("⛽ Fuel archived")
+            
+        } catch {
+            print("❌ Failed archiving fuel:", error)
         }
     }
 }
