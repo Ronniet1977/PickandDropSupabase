@@ -31,7 +31,8 @@ enum WeeklyInvoiceGenerator {
     static func createWeeklyInvoicePDF(
         settings: SupabaseCompanySettings,
         weekDate: Date,
-        loads: [SupabaseLoad]
+        loads: [SupabaseLoad],
+        archived: Bool = false
     ) -> URL? {
 
         let pageWidth: CGFloat = 792
@@ -50,7 +51,9 @@ enum WeeklyInvoiceGenerator {
         fileFormatter.dateFormat = "yyyy-MM-dd"
 
         let fileName =
-            "Weekly-Invoice-\(fileFormatter.string(from: Date())).pdf"
+        archived
+        ? "Archived-Weekly-Invoice-\(fileFormatter.string(from: Date())).pdf"
+        : "Weekly-Invoice-\(fileFormatter.string(from: Date())).pdf"
 
         let url = FileManager.default
             .temporaryDirectory
@@ -73,7 +76,7 @@ enum WeeklyInvoiceGenerator {
         let iso = ISO8601DateFormatter()
 
         for load in loads {
-            if load.is_archived == true {
+            guard load.is_archived == archived else {
                 continue
             }
 
@@ -112,13 +115,21 @@ enum WeeklyInvoiceGenerator {
             )
         }
         
-        let totalTons = rows.reduce(0.0) {
+        let totalTons =
+        rows.reduce(0.0) {
             $0 + $1.pickupTons
         }
-
-        let grandTotal = rows.reduce(0.0) {
+        
+        let loadRevenue =
+        rows.reduce(0.0) {
             $0 + $1.total
         }
+        
+        let fuelSurcharge =
+        totalTons * settings.fuel_surcharge_per_ton
+        
+        let invoiceTotal =
+        loadRevenue + fuelSurcharge
 
         let startDate = weekInterval.start
 
@@ -220,7 +231,21 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        "Weekly Invoice",
+                        String(
+                            format: "Rate: $%.2f/ton  •  Fuel Surcharge: $%.2f/ton",
+                            settings.rate_per_ton,
+                            settings.fuel_surcharge_per_ton
+                        ),
+                        x: leftX,
+                        y: 61,
+                        font: .systemFont(ofSize: 8.5),
+                        width: leftWidth
+                    )
+                    
+                    drawText(
+                        archived
+                        ? "Archived Weekly Invoice"
+                        : "Weekly Invoice",
                         x: centerX,
                         y: 22,
                         font: .boldSystemFont(ofSize: 20),
@@ -472,52 +497,104 @@ enum WeeklyInvoiceGenerator {
                     drawText(
                         "Invoice Totals",
                         x: 30,
-                        y: y + 10,
+                        y: y + 18,
                         font: .boldSystemFont(ofSize: 15),
                         width: 180
                     )
                     
+                    let boxX: CGFloat = 485
+                    let boxWidth: CGFloat = 275
+                    let boxHeight: CGFloat = 92
+                    
                     UIColor.black.setStroke()
                     
                     UIBezierPath(
-                        rect: CGRect(
-                            x: 505,
+                        roundedRect: CGRect(
+                            x: boxX,
                             y: y,
-                            width: 255,
-                            height: 55
-                        )
+                            width: boxWidth,
+                            height: boxHeight
+                        ),
+                        cornerRadius: 8
                     ).stroke()
                     
                     drawText(
                         "Total Tons:",
-                        x: 520,
-                        y: y + 9,
-                        font: .boldSystemFont(ofSize: 10),
-                        width: 90
+                        x: boxX + 15,
+                        y: y + 10,
+                        font: .boldSystemFont(ofSize: 9.5),
+                        width: 105
                     )
                     
                     drawText(
                         String(format: "%.2f", totalTons),
-                        x: 640,
-                        y: y + 9,
-                        font: .systemFont(ofSize: 10),
-                        width: 100
+                        x: boxX + 145,
+                        y: y + 10,
+                        font: .systemFont(ofSize: 9.5),
+                        width: 110,
+                        alignment: .right
                     )
                     
                     drawText(
-                        "Amount Due:",
-                        x: 520,
-                        y: y + 30,
-                        font: .boldSystemFont(ofSize: 11),
-                        width: 100
+                        "Load Revenue:",
+                        x: boxX + 15,
+                        y: y + 29,
+                        font: .boldSystemFont(ofSize: 9.5),
+                        width: 110
                     )
                     
                     drawText(
-                        String(format: "$%.2f", grandTotal),
-                        x: 640,
-                        y: y + 30,
+                        String(format: "$%.2f", loadRevenue),
+                        x: boxX + 145,
+                        y: y + 29,
+                        font: .systemFont(ofSize: 9.5),
+                        width: 110,
+                        alignment: .right
+                    )
+                    
+                    drawText(
+                        "Fuel Surcharge:",
+                        x: boxX + 15,
+                        y: y + 48,
+                        font: .boldSystemFont(ofSize: 9.5),
+                        width: 110
+                    )
+                    
+                    drawText(
+                        String(format: "$%.2f", fuelSurcharge),
+                        x: boxX + 145,
+                        y: y + 48,
+                        font: .systemFont(ofSize: 9.5),
+                        width: 110,
+                        alignment: .right
+                    )
+                    
+                    let dividerY = y + 69
+                    
+                    UIBezierPath(
+                        rect: CGRect(
+                            x: boxX + 12,
+                            y: dividerY,
+                            width: boxWidth - 24,
+                            height: 0.5
+                        )
+                    ).fill()
+                    
+                    drawText(
+                        "Grand Total:",
+                        x: boxX + 15,
+                        y: y + 73,
                         font: .boldSystemFont(ofSize: 11),
-                        width: 100
+                        width: 110
+                    )
+                    
+                    drawText(
+                        String(format: "$%.2f", invoiceTotal),
+                        x: boxX + 145,
+                        y: y + 73,
+                        font: .boldSystemFont(ofSize: 11),
+                        width: 110,
+                        alignment: .right
                     )
                 }
                 
@@ -528,7 +605,7 @@ enum WeeklyInvoiceGenerator {
                 context.beginPage()
                 drawInvoiceHeader()
                 
-                y = 72
+                y = 82
                 drawTableHeader(at: y)
                 y += tableHeaderHeight
                 
@@ -559,7 +636,7 @@ enum WeeklyInvoiceGenerator {
                 
                 y += 10
                 
-                if y + 55 > pageHeight - 20 {
+                if y + 92 > pageHeight - 20 {
                     
                     currentPage += 1
                     context.beginPage()
