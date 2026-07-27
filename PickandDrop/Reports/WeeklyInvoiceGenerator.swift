@@ -138,187 +138,430 @@ enum WeeklyInvoiceGenerator {
         do {
 
             try renderer.writePDF(to: url) { context in
-
-                context.beginPage()
-
-                var y: CGFloat = 40
-
+                
+                let tableX: CGFloat = 30
+                let tableWidth: CGFloat = 732
+                let tableHeaderHeight: CGFloat = 17
+                let rowHeight: CGFloat = 12
+                let rowsPerPage = 36
+                
+                let invoiceNumber =
+                "INV-" +
+                Date().formatted(
+                    .dateTime.year().month(.twoDigits).day(.twoDigits)
+                )
+                .replacingOccurrences(of: "/", with: "")
+                
+                let generatedDate =
+                Date().formatted(
+                    date: .abbreviated,
+                    time: .shortened
+                )
+                
+                let formatter = DateFormatter()
+                formatter.dateStyle = .short
+                
                 func drawText(
                     _ text: String,
                     x: CGFloat,
                     y: CGFloat,
                     font: UIFont,
-                    width: CGFloat = 520,
+                    width: CGFloat,
                     alignment: NSTextAlignment = .left,
                     color: UIColor = .black
                 ) {
                     let paragraph = NSMutableParagraphStyle()
                     paragraph.alignment = alignment
-
+                    paragraph.lineBreakMode = .byTruncatingTail
+                    
                     let attributes: [NSAttributedString.Key: Any] = [
                         .font: font,
                         .foregroundColor: color,
                         .paragraphStyle: paragraph
                     ]
-
+                    
                     text.draw(
-                        in: CGRect(x: x, y: y, width: width, height: 30),
+                        in: CGRect(
+                            x: x,
+                            y: y,
+                            width: width,
+                            height: 16
+                        ),
                         withAttributes: attributes
                     )
                 }
                 
-                let invoiceNumber =
-                    "INV-" +
-                    Date().formatted(
-                        .dateTime.year().month(.twoDigits).day(.twoDigits)
+                func drawInvoiceHeader() {
+                    
+                    drawText(
+                        settings.trucking_company_name,
+                        x: 30,
+                        y: 24,
+                        font: .boldSystemFont(ofSize: 22),
+                        width: 235
                     )
-                    .replacingOccurrences(of: "/", with: "")
-
-                let generatedDate =
-                    Date().formatted(date: .abbreviated, time: .shortened)
-
-                // Header
-                drawText(
-                    settings.trucking_company_name,
-                    x: 40,
-                    y: 35,
-                    font: .boldSystemFont(ofSize: 26)
-                )
-
-                drawText(
-                    "Route: \(settings.pickup_company_name) → \(settings.dropoff_company_name)",
-                    x: 40,
-                    y: 70,
-                    font: .systemFont(ofSize: 13)
-                )
-
-                drawText(
-                    "Weekly Invoice",
-                    x: 260,
-                    y: 35,
-                    font: .boldSystemFont(ofSize: 24),
-                    width: 260,
-                    alignment: .center
-                )
-
-                drawText(
-                    "Week: \(weekRange)",
-                    x: 260,
-                    y: 68,
-                    font: .systemFont(ofSize: 16),
-                    width: 260,
-                    alignment: .center
-                )
-
-                drawText(
-                    "Invoice #: \(invoiceNumber)",
-                    x: 560,
-                    y: 35,
-                    font: .boldSystemFont(ofSize: 10),
-                    width: 160,
-                    alignment: .right
-                )
-
-                drawText(
-                    "Generated: \(generatedDate)",
-                    x: 520,
-                    y: 52,
-                    font: .systemFont(ofSize: 9),
-                    width: 200,
-                    alignment: .right
-                )
-                y = 100
-
-                // Table Header
-                UIColor.systemBlue.setFill()
-                UIBezierPath(
-                    rect: CGRect(
-                        x: 40,
-                        y: y,
-                        width: 712,
-                        height: 20
+                    
+                    drawText(
+                        "Route: \(settings.pickup_company_name) → \(settings.dropoff_company_name)",
+                        x: 30,
+                        y: 53,
+                        font: .systemFont(ofSize: 10),
+                        width: 235
                     )
-                ).fill()
-
-                drawText("Date", x: 48, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 55,color: .white)
-                drawText("\(settings.pickup_company_name) Ticket", x: 105, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 85,color: .white)
-                drawText("Tons", x: 195, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 55,color: .white)
-                drawText("\(settings.dropoff_company_name) Ticket", x: 250, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 110,color: .white)
-                drawText("Rate", x: 365, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 60,color: .white)
-                drawText("Total", x: 430, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 70,color: .white)
-                drawText("Driver", x: 500, y: y + 6, font: .boldSystemFont(ofSize: 10), width: 70,color: .white)
-
-                y += 24
-
-                let formatter = DateFormatter()
-                formatter.dateStyle = .short
-
-                for (index, row) in rows.enumerated() {
-
-                    if index % 2 == 0 {
-                        UIColor.systemBlue.withAlphaComponent(0.06).setFill()
+                    
+                    drawText(
+                        "Weekly Invoice",
+                        x: 270,
+                        y: 25,
+                        font: .boldSystemFont(ofSize: 21),
+                        width: 250,
+                        alignment: .center
+                    )
+                    
+                    drawText(
+                        "Week: \(weekRange)",
+                        x: 270,
+                        y: 52,
+                        font: .systemFont(ofSize: 12),
+                        width: 250,
+                        alignment: .center
+                    )
+                    
+                    drawText(
+                        "Invoice #: \(invoiceNumber)",
+                        x: 540,
+                        y: 27,
+                        font: .boldSystemFont(ofSize: 8),
+                        width: 220,
+                        alignment: .right
+                    )
+                    
+                    drawText(
+                        "Generated: \(generatedDate)",
+                        x: 540,
+                        y: 43,
+                        font: .systemFont(ofSize: 7.5),
+                        width: 220,
+                        alignment: .right
+                    )
+                }
+                
+                func drawContinuationHeader(pageNumber: Int) {
+                    
+                    drawText(
+                        settings.trucking_company_name,
+                        x: 30,
+                        y: 20,
+                        font: .boldSystemFont(ofSize: 15),
+                        width: 250
+                    )
+                    
+                    drawText(
+                        "Weekly Invoice — Continued",
+                        x: 270,
+                        y: 20,
+                        font: .boldSystemFont(ofSize: 15),
+                        width: 250,
+                        alignment: .center
+                    )
+                    
+                    drawText(
+                        "Page \(pageNumber)",
+                        x: 650,
+                        y: 22,
+                        font: .systemFont(ofSize: 8),
+                        width: 110,
+                        alignment: .right
+                    )
+                }
+                
+                func drawTableHeader(at y: CGFloat) {
+                    
+                    UIColor.systemBlue.setFill()
+                    
+                    UIBezierPath(
+                        rect: CGRect(
+                            x: tableX,
+                            y: y,
+                            width: tableWidth,
+                            height: tableHeaderHeight
+                        )
+                    ).fill()
+                    
+                    let font = UIFont.boldSystemFont(ofSize: 7.5)
+                    let textY = y + 4
+                    
+                    drawText(
+                        "#",
+                        x: 34,
+                        y: textY,
+                        font: font,
+                        width: 22,
+                        alignment: .center,
+                        color: .white
+                    )
+                    
+                    drawText(
+                        "Date",
+                        x: 60,
+                        y: textY,
+                        font: font,
+                        width: 50,
+                        color: .white
+                    )
+                    
+                    drawText(
+                        "\(settings.pickup_company_name) Ticket",
+                        x: 112,
+                        y: textY,
+                        font: font,
+                        width: 86,
+                        color: .white
+                    )
+                    
+                    drawText(
+                        "Tons",
+                        x: 200,
+                        y: textY,
+                        font: font,
+                        width: 46,
+                        color: .white
+                    )
+                    
+                    drawText(
+                        "\(settings.dropoff_company_name) Ticket",
+                        x: 248,
+                        y: textY,
+                        font: font,
+                        width: 100,
+                        color: .white
+                    )
+                    
+                    drawText(
+                        "Rate",
+                        x: 350,
+                        y: textY,
+                        font: font,
+                        width: 52,
+                        color: .white
+                    )
+                    
+                    drawText(
+                        "Total",
+                        x: 404,
+                        y: textY,
+                        font: font,
+                        width: 58,
+                        color: .white
+                    )
+                    
+                    drawText(
+                        "Driver",
+                        x: 464,
+                        y: textY,
+                        font: font,
+                        width: 290,
+                        color: .white
+                    )
+                }
+                
+                func drawRow(
+                    _ row: WeeklyInvoiceRow,
+                    number: Int,
+                    at y: CGFloat
+                ) {
+                    
+                    if number.isMultiple(of: 2) {
+                        UIColor.systemBlue
+                            .withAlphaComponent(0.06)
+                            .setFill()
                     } else {
                         UIColor.white.setFill()
                     }
-
+                    
                     UIBezierPath(
                         rect: CGRect(
-                            x: 40,
-                            y: y - 4,
-                            width: 712,
-                            height: 24
+                            x: tableX,
+                            y: y,
+                            width: tableWidth,
+                            height: rowHeight
                         )
                     ).fill()
-                    drawText(formatter.string(from: row.date), x: 48, y: y, font: .systemFont(ofSize: 9), width: 55)
-                    drawText(row.pickupTicket, x: 105, y: y, font: .systemFont(ofSize: 9), width: 85)
-                    drawText(String(format: "%.2f", row.pickupTons), x: 195, y: y, font: .systemFont(ofSize: 9), width: 55)
-                    drawText(row.deliveryTicket, x: 250, y: y, font: .systemFont(ofSize: 9), width: 110)
-                    drawText(String(format: "$%.2f", row.rate), x: 365, y: y, font: .systemFont(ofSize: 9), width: 60)
-                    drawText(String(format: "$%.2f", row.total), x: 430, y: y, font: .systemFont(ofSize: 9), width: 70)
-                    drawText(row.driver, x: 500, y: y, font: .systemFont(ofSize: 9), width: 70)
-
-                    y += 20
-
-                    if y > 700 {
-                        context.beginPage()
-                        y = 40
-                    }
+                    
+                    let font = UIFont.systemFont(ofSize: 7.25)
+                    let textY = y + 2.5
+                    
+                    drawText(
+                        "\(number)",
+                        x: 34,
+                        y: textY,
+                        font: font,
+                        width: 22,
+                        alignment: .center
+                    )
+                    
+                    drawText(
+                        formatter.string(from: row.date),
+                        x: 60,
+                        y: textY,
+                        font: font,
+                        width: 50
+                    )
+                    
+                    drawText(
+                        row.pickupTicket,
+                        x: 112,
+                        y: textY,
+                        font: font,
+                        width: 86
+                    )
+                    
+                    drawText(
+                        String(format: "%.2f", row.pickupTons),
+                        x: 200,
+                        y: textY,
+                        font: font,
+                        width: 46
+                    )
+                    
+                    drawText(
+                        row.deliveryTicket,
+                        x: 248,
+                        y: textY,
+                        font: font,
+                        width: 100
+                    )
+                    
+                    drawText(
+                        String(format: "$%.2f", row.rate),
+                        x: 350,
+                        y: textY,
+                        font: font,
+                        width: 52
+                    )
+                    
+                    drawText(
+                        String(format: "$%.2f", row.total),
+                        x: 404,
+                        y: textY,
+                        font: font,
+                        width: 58
+                    )
+                    
+                    drawText(
+                        row.driver,
+                        x: 464,
+                        y: textY,
+                        font: font,
+                        width: 290
+                    )
                 }
-
-                y += 20
-
-                let pageHeight = renderer.format.bounds.height
-
-                if y + 100 > pageHeight - 40 {
-                    context.beginPage()
-                    y = 40
-
+                
+                func drawTotals(at y: CGFloat) {
+                    
                     drawText(
                         "Invoice Totals",
-                        x: 40,
-                        y: y,
-                        font: .boldSystemFont(ofSize: 20)
+                        x: 30,
+                        y: y + 10,
+                        font: .boldSystemFont(ofSize: 15),
+                        width: 180
                     )
-
-                    y += 40
+                    
+                    UIColor.black.setStroke()
+                    
+                    UIBezierPath(
+                        rect: CGRect(
+                            x: 505,
+                            y: y,
+                            width: 255,
+                            height: 55
+                        )
+                    ).stroke()
+                    
+                    drawText(
+                        "Total Tons:",
+                        x: 520,
+                        y: y + 9,
+                        font: .boldSystemFont(ofSize: 10),
+                        width: 90
+                    )
+                    
+                    drawText(
+                        String(format: "%.2f", totalTons),
+                        x: 640,
+                        y: y + 9,
+                        font: .systemFont(ofSize: 10),
+                        width: 100
+                    )
+                    
+                    drawText(
+                        "Amount Due:",
+                        x: 520,
+                        y: y + 30,
+                        font: .boldSystemFont(ofSize: 11),
+                        width: 100
+                    )
+                    
+                    drawText(
+                        String(format: "$%.2f", grandTotal),
+                        x: 640,
+                        y: y + 30,
+                        font: .boldSystemFont(ofSize: 11),
+                        width: 100
+                    )
                 }
-
-                // Totals Box
-                UIColor.black.setStroke()
-                UIBezierPath(
-                    rect: CGRect(
-                        x: 430,
-                        y: y,
-                        width: 260,
-                        height: 80
+                
+                var currentPage = 1
+                var rowsOnCurrentPage = 0
+                var y: CGFloat = 0
+                
+                context.beginPage()
+                drawInvoiceHeader()
+                
+                y = 78
+                drawTableHeader(at: y)
+                y += tableHeaderHeight
+                
+                for (index, row) in rows.enumerated() {
+                    
+                    if rowsOnCurrentPage == rowsPerPage {
+                        
+                        currentPage += 1
+                        rowsOnCurrentPage = 0
+                        
+                        context.beginPage()
+                        drawContinuationHeader(pageNumber: currentPage)
+                        
+                        y = 45
+                        drawTableHeader(at: y)
+                        y += tableHeaderHeight
+                    }
+                    
+                    drawRow(
+                        row,
+                        number: index + 1,
+                        at: y
                     )
-                ).stroke()
-
-                drawText("Total Tons:", x: 450, y: y + 12, font: .boldSystemFont(ofSize: 13), width: 100)
-                drawText(String(format: "%.2f", totalTons), x: 580, y: y + 12, font: .systemFont(ofSize: 13), width: 90)
-
-                drawText("Amount Due:", x: 450, y: y + 42, font: .boldSystemFont(ofSize: 15), width: 120)
-                drawText(String(format: "$%.2f", grandTotal), x: 580, y: y + 42, font: .boldSystemFont(ofSize: 15), width: 100)
+                    
+                    y += rowHeight
+                    rowsOnCurrentPage += 1
+                }
+                
+                y += 10
+                
+                if y + 55 > pageHeight - 20 {
+                    
+                    currentPage += 1
+                    context.beginPage()
+                    
+                    drawContinuationHeader(pageNumber: currentPage)
+                    
+                    drawTotals(at: 65)
+                    
+                } else {
+                    
+                    drawTotals(at: y)
+                }
             }
 
             print("✅ Weekly Invoice PDF:", url)
