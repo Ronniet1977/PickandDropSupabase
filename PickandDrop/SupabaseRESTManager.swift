@@ -82,6 +82,44 @@ final class CompanySupabaseManager {
         }
     }
     
+    func updateCompanySettings(
+        id: UUID,
+        truckingCompanyName: String,
+        pickupCompanyName: String,
+        dropoffCompanyName: String,
+        companyJoinCode: String,
+        ratePerTon: Double,
+        fuelSurchargePerTon: Double
+    ) async {
+        
+        let body: [String: Any] = [
+            "trucking_company_name": truckingCompanyName,
+            "pickup_company_name": pickupCompanyName,
+            "dropoff_company_name": dropoffCompanyName,
+            "company_join_code": companyJoinCode,
+            "rate_per_ton": ratePerTon,
+            "fuel_surcharge_per_ton": fuelSurchargePerTon
+        ]
+        
+        do {
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_company_settings",
+                method: "PATCH",
+                query: "?id=eq.\(id.uuidString)",
+                body: data
+            )
+            
+            print("✅ Company settings updated")
+            
+        } catch {
+            print("❌ Company settings update failed:", error)
+        }
+    }
+    
     func createCompanySettings(
         truckingCompanyName: String,
         pickupCompanyName: String,
@@ -151,9 +189,11 @@ final class LoadSupabaseManager {
         driverName: String,
         truckNumber: String,
         pickupTicketNumber: String,
-        pickupTons: Double
+        pickupTons: Double,
+        ratePerTon: Double,
+        fuelSurchargePerTon: Double
     ) async {
-
+        
         let body: [String: Any] = [
             "driver_name": driverName,
             "truck_number": truckNumber,
@@ -161,20 +201,26 @@ final class LoadSupabaseManager {
             "pickup_tons": pickupTons,
             "status": "pickedUp",
             "picked_up_at": ISO8601DateFormatter().string(from: Date()),
-            "is_archived": false
+            "is_archived": false,
+            "rate_per_ton": ratePerTon,
+            "fuel_surcharge_per_ton": fuelSurchargePerTon
         ]
-
+        
         do {
-            let data = try JSONSerialization.data(withJSONObject: body)
-
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
             _ = try await SupabaseRESTManager.shared.request(
                 table: "pickdrop_loads",
                 method: "POST",
                 body: data
             )
-
+            
             print("✅ Supabase load added")
-
+            print("💵 Rate stored:", ratePerTon)
+            print("⛽ Surcharge stored:", fuelSurchargePerTon)
+            
         } catch {
             print("❌ Failed adding Supabase load:", error)
         }
@@ -245,6 +291,36 @@ final class LoadSupabaseManager {
             
         } catch {
             print("❌ Failed updating Supabase load:", error)
+        }
+    }
+    
+    func moveLoad(
+        id: UUID,
+        driverName: String,
+        truckNumber: String
+    ) async {
+        
+        let body: [String: Any] = [
+            "driver_name": driverName,
+            "truck_number": truckNumber
+        ]
+        
+        do {
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_loads",
+                method: "PATCH",
+                query: "?id=eq.\(id.uuidString)",
+                body: data
+            )
+            
+            print("✅ Load moved to \(driverName)")
+            
+        } catch {
+            print("❌ Failed moving load:", error)
         }
     }
     

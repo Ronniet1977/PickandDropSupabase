@@ -235,11 +235,18 @@ struct AddLoadView: View {
         cleanTicket.isEmpty ? "No pickup ticket yet" : cleanTicket
         
         // ✅ Save load to Supabase
+        guard let settings else {
+            print("❌ Company settings missing")
+            return
+        }
+        
         await LoadSupabaseManager.shared.addLoad(
             driverName: driver.name,
             truckNumber: driver.truckNumber,
             pickupTicketNumber: cleanTicket,
-            pickupTons: tonsValue
+            pickupTons: tonsValue,
+            ratePerTon: settings.rate_per_ton,
+            fuelSurchargePerTon: settings.fuel_surcharge_per_ton
         )
         
         // ✅ Send admin notification to Supabase

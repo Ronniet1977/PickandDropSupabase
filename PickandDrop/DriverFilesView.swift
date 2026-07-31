@@ -57,6 +57,15 @@ struct DriverFilesView: View {
                     NavigationLink("Drivers") {
                         DriversCardView()
                     }
+                    
+                    NavigationLink {
+                        AdminLoadManagementView()
+                    } label: {
+                        Label(
+                            "Manage Loads",
+                            systemImage: "shippingbox.and.arrow.backward.fill"
+                        )
+                    }
 
                     NavigationLink("Weekly Fuel") {
                         WeeklyFuelCardsView()
@@ -416,41 +425,50 @@ struct WeeklyFuelCardsView: View {
 }
 
 struct CompanySettingsDTO: Codable {
-
+    
     let truckingCompanyName: String
     let pickupCompanyName: String
     let dropoffCompanyName: String
     let companyJoinCode: String
     let ratePerTon: Double
+    let fuelSurchargePerTon: Double
 }
 
 struct CompanyInfoCardView: View {
-
+    
     @State private var settings: SupabaseCompanySettings?
-
+    @State private var showEditSheet = false
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-
+                
                 if let settings {
-
+                    
                     VStack(alignment: .leading, spacing: 14) {
                         Text(settings.trucking_company_name)
                             .font(.largeTitle.bold())
-
-                        Label(settings.pickup_company_name, systemImage: "arrow.up.circle.fill")
-                        Label(settings.dropoff_company_name, systemImage: "arrow.down.circle.fill")
+                        
+                        Label(
+                            settings.pickup_company_name,
+                            systemImage: "arrow.up.circle.fill"
+                        )
+                        
+                        Label(
+                            settings.dropoff_company_name,
+                            systemImage: "arrow.down.circle.fill"
+                        )
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(AppTheme.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 24))
-
+                    
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Join Company Code")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-
+                        
                         Text(settings.company_join_code)
                             .font(.title2.bold())
                             .foregroundStyle(AppTheme.accent)
@@ -459,47 +477,78 @@ struct CompanyInfoCardView: View {
                     .padding()
                     .background(.blue.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 18))
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Rate Per Ton")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Text("$\(settings.rate_per_ton, specifier: "%.2f")")
-                            .font(.title2.bold())
-                            .foregroundStyle(AppTheme.success)
+                    
+                    HStack {
+                        
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Rate Per Ton")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            Text("$\(settings.rate_per_ton, specifier: "%.2f")")
+                                .font(.title2.bold())
+                                .foregroundStyle(AppTheme.success)
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 6) {
+                            Text("Fuel Surcharge")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            Text("$\(settings.fuel_surcharge_per_ton, specifier: "%.2f")")
+                                .font(.title2.bold())
+                                .foregroundStyle(.orange)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(.green.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 18))
-
+                    
+                    Button {
+                        showEditSheet = true
+                    } label: {
+                        Label(
+                            "Edit Company Info",
+                            systemImage: "pencil.circle.fill"
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    
                 } else {
-                    Text("No company info found")
-                        .foregroundStyle(.secondary)
+                    ProgressView("Loading company info...")
                 }
             }
             .padding()
         }
         .navigationTitle("Company Info")
-        .onAppear {
-            loadCompanyInfo()
+        .task {
+            await loadCompanyInfo()
         }
-    }
-
-    func loadCompanyInfo() {
-
-        Task {
-
-            let company =
-                await CompanySupabaseManager
-                    .shared
-                    .fetchCompanySettings()
-
-            await MainActor.run {
-                settings = company
+        .sheet(isPresented: $showEditSheet) {
+            if let settings {
+                NavigationStack {
+                    EditCompanyInfoView(
+                        settings: settings,
+                        onSaved: {
+                            Task {
+                                await loadCompanyInfo()
+                            }
+                        }
+                    )
+                }
             }
         }
+    }
+    
+    @MainActor
+    func loadCompanyInfo() async {
+        settings =
+        await CompanySupabaseManager
+            .shared
+            .fetchCompanySettings()
     }
 }
 
@@ -703,3 +752,390 @@ struct DriverSessionsCardView: View {
     }
 }
 
+//AdminLoadManagementView
+struct AdminLoadManagementView: View {
+    
+    @State private var drivers: [SupabaseDriver] = []
+    @State private var loads: [SupabaseLoad] = []
+    @State private var settings: SupabaseCompanySettings?
+    @State private var isLoading = false
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                
+                if isLoading && drivers.isEmpty {
+                    ProgressView("Loading drivers...")
+                        .padding(.top, 40)
+                }
+                
+                if !isLoading && drivers.isEmpty {
+                    ContentUnavailableView(
+                        "No Drivers",
+                        systemImage: "person.3.fill",
+                        description: Text("No drivers were found in Supabase.")
+                    )
+                    .padding(.top, 40)
+                }
+                
+                ForEach(drivers, id: \.id) { driver in
+                    AdminDriverLoadCard(
+                        driver: driver,
+                        loads: loads,
+                        settings: settings
+                    )
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Manage Loads")
+        .refreshable {
+            await loadData()
+        }
+        .task {
+            await loadData()
+        }
+    }
+    
+    @MainActor
+    private func loadData() async {
+        guard !isLoading else {
+            return
+        }
+        
+        isLoading = true
+        
+        async let loadedDrivers =
+        DriverSupabaseManager.shared.fetchDrivers()
+        
+        async let loadedLoads =
+        LoadSupabaseManager.shared.fetchLoads()
+        
+        async let loadedSettings =
+        CompanySupabaseManager.shared.fetchCompanySettings()
+        
+        drivers = await loadedDrivers
+        loads = await loadedLoads
+        settings = await loadedSettings
+        
+        isLoading = false
+    }
+}
+
+struct AdminDriverLoadCard: View {
+    
+    let driver: SupabaseDriver
+    let loads: [SupabaseLoad]
+    let settings: SupabaseCompanySettings?
+    
+    private var driverLoads: [SupabaseLoad] {
+        loads.filter {
+            $0.driver_name == driver.name &&
+            $0.is_archived != true
+        }
+    }
+    
+    private var pickupTons: Double {
+        driverLoads.reduce(0.0) {
+            $0 + ($1.pickup_tons ?? 0)
+        }
+    }
+    
+    private var deliveryTons: Double {
+        driverLoads.reduce(0.0) {
+            $0 + ($1.delivery_tons ?? 0)
+        }
+    }
+    
+    private var deliveredCount: Int {
+        driverLoads.filter {
+            $0.status == "delivered"
+        }
+        .count
+    }
+    
+    private var driverSummary: DriverSummary {
+        DriverSummary(
+            name: driver.name,
+            truck: driver.truck_number,
+            loads: driverLoads.count,
+            pickupTons: pickupTons,
+            deliveryTons: deliveryTons,
+            fuel: 0,
+            status: driver.is_active ? "Active" : "Inactive",
+            isFinished: false
+        )
+    }
+    
+    var body: some View {
+        NavigationLink {
+            DriverDetailView(
+                driver: driverSummary,
+                loads: driverLoads,
+                settings: settings
+            )
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(driver.name)
+                            .font(.title2.bold())
+                        
+                        Text("Truck \(driver.truck_number)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                }
+                
+                HStack {
+                    Label(
+                        "\(driverLoads.count) Loads",
+                        systemImage: "shippingbox.fill"
+                    )
+                    
+                    Spacer()
+                    
+                    Label(
+                        "\(deliveredCount) Delivered",
+                        systemImage: "checkmark.circle.fill"
+                    )
+                    .foregroundStyle(.green)
+                }
+                .font(.caption)
+                
+                Divider()
+                
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Pickup Tons")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        
+                        Text("\(pickupTons, specifier: "%.2f")")
+                            .font(.headline)
+                            .foregroundStyle(.blue)
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("Delivery Tons")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        
+                        Text("\(deliveryTons, specifier: "%.2f")")
+                            .font(.headline)
+                            .foregroundStyle(.green)
+                    }
+                }
+            }
+            .frame(
+                maxWidth: .infinity,
+                alignment: .leading
+            )
+            .padding()
+            .background(AppTheme.cardBackground)
+            .clipShape(
+                RoundedRectangle(cornerRadius: 24)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+//EditCompanyInfoView
+struct EditCompanyInfoView: View {
+    
+    let settings: SupabaseCompanySettings
+    var onSaved: (() -> Void)? = nil
+    
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var truckingCompanyName = ""
+    @State private var pickupCompanyName = ""
+    @State private var dropoffCompanyName = ""
+    @State private var companyJoinCode = ""
+    @State private var ratePerTon = ""
+    @State private var fuelSurchargePerTon = ""
+    
+    @State private var isSaving = false
+    
+    var body: some View {
+        Form {
+            
+            Section("Company") {
+                TextField(
+                    "Trucking Company Name",
+                    text: $truckingCompanyName
+                )
+            }
+            
+            Section("Route") {
+                TextField(
+                    "Pickup Company",
+                    text: $pickupCompanyName
+                )
+                
+                TextField(
+                    "Dropoff Company",
+                    text: $dropoffCompanyName
+                )
+            }
+            
+            Section("Company Access") {
+                TextField(
+                    "Join Company Code",
+                    text: $companyJoinCode
+                )
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled()
+            }
+            
+            Section("Invoice Rates") {
+                
+                HStack {
+                    Text("Rate Per Ton")
+                    
+                    Spacer()
+                    
+                    TextField("0.00", text: $ratePerTon)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
+                }
+                
+                HStack {
+                    Text("Fuel Surcharge / Ton")
+                    
+                    Spacer()
+                    
+                    TextField("0.00", text: $fuelSurchargePerTon)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
+                }
+            }
+            
+            Button {
+                Task {
+                    await saveSettings()
+                }
+            } label: {
+                HStack {
+                    Spacer()
+                    
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Label(
+                            "Save Changes",
+                            systemImage: "checkmark.circle.fill"
+                        )
+                    }
+                    
+                    Spacer()
+                }
+            }
+        }
+        .disabled(!hasRequiredNames || isSaving)
+        .navigationTitle("Edit Company Info")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
+        }
+        .onAppear {
+            truckingCompanyName =
+            settings.trucking_company_name
+            
+            pickupCompanyName =
+            settings.pickup_company_name
+            
+            dropoffCompanyName =
+            settings.dropoff_company_name
+            
+            companyJoinCode =
+            settings.company_join_code
+            
+            ratePerTon =
+            String(
+                format: "%.2f",
+                settings.rate_per_ton
+            )
+            fuelSurchargePerTon =
+            String(
+                format: "%.2f",
+                settings.fuel_surcharge_per_ton
+            )
+        }
+    }
+    
+    private var hasRequiredNames: Bool {
+        !truckingCompanyName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty &&
+        !pickupCompanyName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty &&
+        !dropoffCompanyName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty
+    }
+    
+    private func saveSettings() async {
+        
+        guard !isSaving else {
+            return
+        }
+        
+        guard
+            let rate = Double(ratePerTon),
+            rate >= 0,
+            let fuelSurcharge = Double(fuelSurchargePerTon),
+            fuelSurcharge >= 0
+        else {
+            return
+        }
+        
+        await MainActor.run {
+            isSaving = true
+        }
+        
+        await CompanySupabaseManager.shared.updateCompanySettings(
+            id: settings.id,
+            truckingCompanyName:
+                truckingCompanyName.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ),
+            pickupCompanyName:
+                pickupCompanyName.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ),
+            dropoffCompanyName:
+                dropoffCompanyName.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ),
+            companyJoinCode:
+                companyJoinCode.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ),
+            ratePerTon: rate,
+            fuelSurchargePerTon: fuelSurcharge
+        )
+        
+        await MainActor.run {
+            onSaved?()
+            dismiss()
+        }
+    }
+}

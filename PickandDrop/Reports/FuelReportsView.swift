@@ -88,7 +88,7 @@ struct FuelReportsView: View {
         .onAppear {
             Task {
                 fuelEntries =
-                    await FuelSupabaseManager.shared.fetchFuel()
+                await FuelSupabaseManager.shared.fetchAllFuel()
                 
                 print("Fuel entries:", fuelEntries.count)
 

@@ -15,6 +15,7 @@ struct ReportsView: View {
     @State private var weeklyInvoiceURL: URL?
     @State private var selectedInvoiceWeek = Date()
     @State private var showCloseWeekAlert = false
+    @State private var showInvoiceRates = false
     
     var body: some View {
         NavigationStack {
@@ -46,29 +47,71 @@ struct ReportsView: View {
                         .foregroundStyle(.white)
                         
                         Button {
-
+                            
                             Task {
-
+                                
                                 if let settings {
-
+                                    
                                     let loads =
-                                        await LoadSupabaseManager.shared.fetchLoads()
-
+                                    await LoadSupabaseManager.shared.fetchLoads()
+                                    
                                     weeklyInvoiceURL =
-                                        WeeklyInvoiceGenerator.createWeeklyInvoicePDF(
-                                            settings: settings,
-                                            weekDate: selectedInvoiceWeek,
-                                            loads: loads
-                                        )
+                                    WeeklyInvoiceGenerator.createWeeklyInvoicePDF(
+                                        settings: settings,
+                                        weekDate: selectedInvoiceWeek,
+                                        loads: loads
+                                        // archived defaults to false
+                                    )
                                 }
                             }
-
+                            
                         } label: {
+                            
                             reportCard(
                                 title: "Weekly Invoice",
                                 subtitle: "Generate weekly invoice PDF",
                                 icon: "doc.richtext.fill",
                                 color: .blue
+                            )
+                        }
+                        
+                        Button {
+                            
+                            Task {
+                                
+                                if let settings {
+                                    
+                                    let loads =
+                                    await LoadSupabaseManager.shared.fetchLoads()
+                                    
+                                    weeklyInvoiceURL =
+                                    WeeklyInvoiceGenerator.createWeeklyInvoicePDF(
+                                        settings: settings,
+                                        weekDate: selectedInvoiceWeek,
+                                        loads: loads,
+                                        archived: true
+                                    )
+                                }
+                            }
+                            
+                        } label: {
+                            
+                            reportCard(
+                                title: "Archived Weekly Invoice",
+                                subtitle: "Generate invoice from archived loads",
+                                icon: "archivebox.fill",
+                                color: .purple
+                            )
+                        }
+                        
+                        Button {
+                            showInvoiceRates = true
+                        } label: {
+                            reportCard(
+                                title: "Invoice Rates",
+                                subtitle: "Update rate & fuel surcharge",
+                                icon: "dollarsign.circle.fill",
+                                color: .green
                             )
                         }
                         
@@ -139,6 +182,25 @@ struct ReportsView: View {
 
                     await MainActor.run {
                         settings = loadedSettings
+                    }
+                }
+            }
+            .sheet(isPresented: $showInvoiceRates) {
+                if let settings {
+                    NavigationStack {
+                        EditCompanyInfoView(
+                            settings: settings,
+                            onSaved: {
+                                Task {
+                                    let loadedSettings =
+                                    await CompanySupabaseManager.shared.fetchCompanySettings()
+                                    
+                                    await MainActor.run {
+                                        self.settings = loadedSettings
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -253,9 +315,7 @@ struct ReportsView: View {
             fuelEntries: fuel
         )
         
-        await FuelSupabaseManager.shared.deleteAllFuel()
-        
-        //await LoadSupabaseManager.shared.deleteArchivedLoads()
+        await FuelSupabaseManager.shared.archiveAllFuel()
         
         await LoadSupabaseManager.shared.archiveDeliveredLoads()
         

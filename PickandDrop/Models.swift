@@ -12,6 +12,7 @@ struct SupabaseCompanySettings: Codable, Identifiable {
     let dropoff_company_name: String
     let company_join_code: String
     let rate_per_ton: Double
+    let fuel_surcharge_per_ton: Double
 }
 
 struct SupabaseDriver: Codable, Identifiable {
@@ -53,6 +54,8 @@ struct SupabaseLoad: Codable, Identifiable {
     let created_at: String?
 
     let is_archived: Bool?
+    let rate_per_ton: Double?
+    let fuel_surcharge_per_ton: Double?
 }
 
 struct SupabaseFuel: Codable, Identifiable {
@@ -62,6 +65,7 @@ struct SupabaseFuel: Codable, Identifiable {
     let amount: Double?
     let created_at: String?
     let receipt_path: String?
+    let is_archived: Bool?
 }
 
 struct DriverSummary: Identifiable {
