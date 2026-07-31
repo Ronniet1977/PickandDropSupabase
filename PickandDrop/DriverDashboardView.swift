@@ -508,12 +508,19 @@ struct DriverDashboardView: View {
             if load.status == "delivered" ||
                 load.delivered_at != nil {
 
-                await LoadSupabaseManager.shared.archiveLoad(
-                    loadID: load.id
-                )
+                // Do not archive here.
+                // Close Week is the only action that should archive loads.
 
-                print("🗂 Archived delivered:",
-                      load.pickup_ticket_number ?? "")
+                print(
+                    "✅ Delivered load kept active:",
+                    load.pickup_ticket_number ?? ""
+                )
+            } else {
+
+                print(
+                    "⏳ Pending load kept active:",
+                    load.pickup_ticket_number ?? ""
+                )
             }
         }
 
@@ -523,9 +530,7 @@ struct DriverDashboardView: View {
         )
 
         if let shift = activeShift {
-
             shift.status = "finished"
-
             try? context.save()
         }
 

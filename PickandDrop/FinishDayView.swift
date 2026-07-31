@@ -214,8 +214,10 @@ struct FinishDayView: View {
                 //     loadID: load.id
                 // )
 
-                print("🗂 Archived delivered:",
-                      load.pickup_ticket_number ?? "")
+                print(
+                    "✅ Delivered load kept active:",
+                    load.pickup_ticket_number ?? ""
+                )
             } else {
 
                 print("⏳ Keeping pending:",
