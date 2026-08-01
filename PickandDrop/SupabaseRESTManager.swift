@@ -266,10 +266,11 @@ final class LoadSupabaseManager {
         pickupTons: Double,
         deliveryTicketNumber: String,
         deliveryTons: Double,
-        status: String
+        status: String,
+        existingDeliveredAt: String?
     ) async {
         
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "pickup_ticket_number": pickupTicketNumber,
             "pickup_tons": pickupTons,
             "delivery_ticket_number": deliveryTicketNumber,
@@ -277,8 +278,18 @@ final class LoadSupabaseManager {
             "status": status
         ]
         
+        if status == "delivered" {
+            body["delivered_at"] =
+                existingDeliveredAt ??
+                ISO8601DateFormatter().string(from: Date())
+        } else {
+            body["delivered_at"] = NSNull()
+        }
+        
         do {
-            let data = try JSONSerialization.data(withJSONObject: body)
+            let data = try JSONSerialization.data(
+                withJSONObject: body
+            )
             
             _ = try await SupabaseRESTManager.shared.request(
                 table: "pickdrop_loads",

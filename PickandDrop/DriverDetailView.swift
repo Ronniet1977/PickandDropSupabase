@@ -460,7 +460,8 @@ struct EditSupabaseLoadView: View {
             pickupTons: Double(pickupTons) ?? 0,
             deliveryTicketNumber: deliveryTicket,
             deliveryTons: Double(deliveryTons) ?? 0,
-            status: status
+            status: status,
+            existingDeliveredAt: load.delivered_at
         )
         
         await MainActor.run {
