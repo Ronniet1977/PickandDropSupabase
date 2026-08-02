@@ -39,6 +39,7 @@
 		8787AB2F2FD526B500A8DC15 /* SupabaseStorageImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AB2E2FD526B100A8DC15 /* SupabaseStorageImage.swift */; };
 		8789BB032FB04408004400C5 /* CompanySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB022FB04403004400C5 /* CompanySettings.swift */; };
 		8789BB052FB06063004400C5 /* CompanySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8789BB042FB0604F004400C5 /* CompanySetupView.swift */; };
+		879F500B301EFCFC007C5D1C /* ScaleTicketOCR.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879F500A301EFCF7007C5D1C /* ScaleTicketOCR.swift */; };
 		879FD9752FC1564D00DEAC87 /* DriverSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879FD9742FC155FE00DEAC87 /* DriverSessionManager.swift */; };
 		879FD98C2FC2592E00DEAC87 /* NotificationSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879FD98B2FC2592B00DEAC87 /* NotificationSyncManager.swift */; };
 		87A18E1D2FBE3CB0005CF62A /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 87A18E1C2FBE3CA5005CF62A /* .gitignore */; };
@@ -79,6 +80,7 @@
 		8787AB2E2FD526B100A8DC15 /* SupabaseStorageImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseStorageImage.swift; sourceTree = "<group>"; };
 		8789BB022FB04403004400C5 /* CompanySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySettings.swift; sourceTree = "<group>"; };
 		8789BB042FB0604F004400C5 /* CompanySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanySetupView.swift; sourceTree = "<group>"; };
+		879F500A301EFCF7007C5D1C /* ScaleTicketOCR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleTicketOCR.swift; sourceTree = "<group>"; };
 		879FD9742FC155FE00DEAC87 /* DriverSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverSessionManager.swift; sourceTree = "<group>"; };
 		879FD98B2FC2592B00DEAC87 /* NotificationSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSyncManager.swift; sourceTree = "<group>"; };
 		87A18E1C2FBE3CA5005CF62A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
@@ -112,6 +114,7 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				879F500A301EFCF7007C5D1C /* ScaleTicketOCR.swift */,
 				8787AB2E2FD526B100A8DC15 /* SupabaseStorageImage.swift */,
 				8787AB212FD4E8E900A8DC15 /* FuelReceiptManager.swift */,
 				8787AB1F2FD4CD0C00A8DC15 /* FuelReceiptStorageManager.swift */,
@@ -273,6 +276,7 @@
 				8787AAA12FD20B2A00A8DC15 /* NotificationSupabaseManager.swift in Sources */,
 				875167AB2FAD689800E8B528 /* RootView.swift in Sources */,
 				875167AC2FAD689800E8B528 /* SetupView.swift in Sources */,
+				879F500B301EFCFC007C5D1C /* ScaleTicketOCR.swift in Sources */,
 				8749487B2FAEC7E2006E0BFB /* DriverManagerView.swift in Sources */,
 				875167AD2FAD689800E8B528 /* ShareSheet.swift in Sources */,
 				875167AE2FAD689800E8B528 /* StartShiftView.swift in Sources */,

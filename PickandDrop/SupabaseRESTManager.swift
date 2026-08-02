@@ -185,6 +185,72 @@ final class LoadSupabaseManager {
         }
     }
     
+    func addAdminLoad(
+        driverName: String,
+        truckNumber: String,
+        pickupTicketNumber: String,
+        pickupTons: Double,
+        deliveryTicketNumber: String,
+        deliveryTons: Double,
+        status: String,
+        ratePerTon: Double,
+        fuelSurchargePerTon: Double
+    ) async {
+
+        let now =
+            ISO8601DateFormatter()
+                .string(from: Date())
+
+        var body: [String: Any] = [
+            "driver_name": driverName,
+            "truck_number": truckNumber,
+            "pickup_ticket_number":
+                pickupTicketNumber,
+            "pickup_tons": pickupTons,
+            "status": status,
+            "picked_up_at": now,
+            "is_archived": false,
+            "rate_per_ton": ratePerTon,
+            "fuel_surcharge_per_ton":
+                fuelSurchargePerTon
+        ]
+
+        if status == "delivered" {
+            body["delivery_ticket_number"] =
+                deliveryTicketNumber
+
+            body["delivery_tons"] =
+                deliveryTons
+
+            body["delivered_at"] =
+                now
+        }
+
+        do {
+            let data =
+                try JSONSerialization.data(
+                    withJSONObject: body
+                )
+
+            _ = try await SupabaseRESTManager
+                .shared
+                .request(
+                    table: "pickdrop_loads",
+                    method: "POST",
+                    body: data
+                )
+
+            print("✅ Admin load added")
+            print("📷 Scanned load:", status)
+
+        } catch {
+            print(
+                "❌ Failed adding admin load:",
+                error
+            )
+        }
+    }
+    
     func addLoad(
         driverName: String,
         truckNumber: String,

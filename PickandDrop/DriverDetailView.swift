@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct DriverDetailView: View {
     
@@ -6,8 +7,17 @@ struct DriverDetailView: View {
     let settings: SupabaseCompanySettings?
     
     @State private var selectedLoad: SupabaseLoad?
-    @State private var showAddLoad = false
     @State private var loads: [SupabaseLoad]
+    
+    @State private var showAddLoad = false
+    @State private var showScanCamera = false
+    
+    @State private var ticketImage: UIImage?
+    @State private var scannedLoad: ScannedLoadTicketData?
+    
+    @State private var isScanning = false
+    @State private var scanError = ""
+    @State private var showScanError = false
     
     init(
         driver: DriverSummary,
@@ -46,11 +56,32 @@ struct DriverDetailView: View {
         .navigationTitle(driver.name)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showAddLoad = true
+                Menu {
+                    Button {
+                        scannedLoad = nil
+                        showAddLoad = true
+                    } label: {
+                        Label(
+                            "Add Load Manually",
+                            systemImage: "plus.circle.fill"
+                        )
+                    }
+                    
+                    Button {
+                        showScanCamera = true
+                    } label: {
+                        Label(
+                            "Scan Ticket",
+                            systemImage: "doc.viewfinder.fill"
+                        )
+                    }
                 } label: {
-                    Image(systemName: "plus")
+                    Label(
+                        isScanning ? "Scanning..." : "Load",
+                        systemImage: "shippingbox.fill"
+                    )
                 }
+                .disabled(isScanning)
             }
         }
         .sheet(item: $selectedLoad) { load in
@@ -67,12 +98,16 @@ struct DriverDetailView: View {
                 )
             }
         }
+        .sheet(isPresented: $showScanCamera) {
+            CameraPicker(image: $ticketImage)
+        }
         .sheet(isPresented: $showAddLoad) {
             NavigationStack {
                 AdminAddLoadView(
                     driverName: driver.name,
                     truckNumber: driver.truck,
                     settings: settings,
+                    scannedLoad: scannedLoad,
                     onSaved: {
                         Task {
                             await refreshLoads()
@@ -80,6 +115,23 @@ struct DriverDetailView: View {
                     }
                 )
             }
+        }
+        .onChange(of: ticketImage) { _, newImage in
+            guard let newImage else {
+                return
+            }
+            
+            Task {
+                await scanNewLoad(image: newImage)
+            }
+        }
+        .alert(
+            "Ticket Scan Failed",
+            isPresented: $showScanError
+        ) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(scanError)
         }
     }
     
@@ -101,7 +153,7 @@ struct DriverDetailView: View {
                     "No Loads",
                     systemImage: "shippingbox",
                     description: Text(
-                        "Tap the plus button to add a load for \(driver.name)."
+                        "Use the Load menu to add or scan a load for \(driver.name)."
                     )
                 )
             } else {
@@ -138,6 +190,46 @@ struct DriverDetailView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
+        }
+    }
+    
+    @MainActor
+    private func scanNewLoad(
+        image: UIImage
+    ) async {
+        guard !isScanning else {
+            return
+        }
+        
+        isScanning = true
+        
+        defer {
+            isScanning = false
+            ticketImage = nil
+        }
+        
+        do {
+            let result =
+            try await ScaleTicketOCR.scan(
+                image: image
+            )
+            
+            scannedLoad = result
+            showScanCamera = false
+            
+            // Give the camera sheet time to dismiss.
+            try? await Task.sleep(
+                for: .milliseconds(250)
+            )
+            
+            showAddLoad = true
+            
+            print("✅ New load ticket scan complete")
+            print(result.rawText)
+            
+        } catch {
+            scanError = error.localizedDescription
+            showScanError = true
         }
     }
     
@@ -300,7 +392,6 @@ struct EditSupabaseLoadView: View {
     
     var body: some View {
         Form {
-            
             Section(settings?.pickup_company_name ?? "Pickup") {
                 
                 TextField("Ticket Number", text: $pickupTicket)
@@ -520,6 +611,7 @@ struct AdminAddLoadView: View {
     let driverName: String
     let truckNumber: String
     let settings: SupabaseCompanySettings?
+    let scannedLoad: ScannedLoadTicketData?
     
     var onSaved: (() -> Void)? = nil
     
@@ -527,20 +619,35 @@ struct AdminAddLoadView: View {
     
     @State private var pickupTicket = ""
     @State private var pickupTons = ""
+    
+    @State private var deliveryTicket = ""
+    @State private var deliveryTons = ""
+    
+    @State private var status = "pickedUp"
     @State private var isSaving = false
     
     var body: some View {
         Form {
-            
             Section(driverName) {
                 Text("Truck \(truckNumber)")
                     .foregroundStyle(.secondary)
+                
+                if scannedLoad != nil {
+                    Label(
+                        "Values filled from ticket scan",
+                        systemImage: "doc.viewfinder.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                }
             }
             
-            Section(settings?.pickup_company_name ?? "Pickup") {
-                
+            Section(
+                settings?.pickup_company_name
+                ?? "Pickup"
+            ) {
                 TextField(
-                    "Ticket Number (Optional)",
+                    "Ticket Number",
                     text: $pickupTicket
                 )
                 
@@ -551,31 +658,112 @@ struct AdminAddLoadView: View {
                 .keyboardType(.decimalPad)
             }
             
+            Section(
+                settings?.dropoff_company_name
+                ?? "Dropoff"
+            ) {
+                TextField(
+                    "Ticket Number",
+                    text: $deliveryTicket
+                )
+                
+                TextField(
+                    "Tons",
+                    text: $deliveryTons
+                )
+                .keyboardType(.decimalPad)
+            }
+            
+            Section("Status") {
+                Picker(
+                    "Status",
+                    selection: $status
+                ) {
+                    Text("Picked Up")
+                        .tag("pickedUp")
+                    
+                    Text("Delivered")
+                        .tag("delivered")
+                }
+                .pickerStyle(.segmented)
+            }
+            
             Button {
                 Task {
                     await addLoad()
                 }
             } label: {
-                Label(
-                    isSaving ? "Adding Load..." : "Add Load",
-                    systemImage: "plus.circle.fill"
-                )
+                HStack {
+                    Spacer()
+                    
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Label(
+                            "Save Load",
+                            systemImage: "checkmark.circle.fill"
+                        )
+                    }
+                    
+                    Spacer()
+                }
             }
             .disabled(!isValidLoad || isSaving)
         }
-        .navigationTitle("Add Load")
+        .navigationTitle(
+            scannedLoad == nil
+            ? "Add Load"
+            : "Review Scanned Load"
+        )
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
+            ToolbarItem(
+                placement: .cancellationAction
+            ) {
                 Button("Cancel") {
                     dismiss()
                 }
             }
         }
+        .onAppear {
+            guard let scannedLoad else {
+                return
+            }
+            
+            pickupTicket =
+            scannedLoad.pickupTicket
+            
+            pickupTons =
+            scannedLoad.pickupTons
+            
+            deliveryTicket =
+            scannedLoad.deliveryTicket
+            
+            deliveryTons =
+            scannedLoad.deliveryTons
+            
+            if !deliveryTicket.isEmpty &&
+                (Double(deliveryTons) ?? 0) > 0 {
+                
+                status = "delivered"
+            }
+        }
     }
     
     private var isValidLoad: Bool {
-        (Double(pickupTons) ?? 0) > 0
+
+        guard (Double(pickupTons) ?? 0) > 0 else {
+            return false
+        }
+
+        if status != "delivered" {
+            return true
+        }
+
+        return !deliveryTicket
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty &&
+            (Double(deliveryTons) ?? 0) > 0
     }
     
     private func addLoad() async {
@@ -583,28 +771,42 @@ struct AdminAddLoadView: View {
             return
         }
         
-        guard let tons = Double(pickupTons), tons > 0 else {
+        guard
+            let settings,
+            let pickupTonsValue =
+                Double(pickupTons),
+            pickupTonsValue > 0
+        else {
             return
         }
+        
+        let deliveryTonsValue =
+        Double(deliveryTons) ?? 0
         
         await MainActor.run {
             isSaving = true
         }
         
-        guard let settings else {
-            return
-        }
-        
-        await LoadSupabaseManager.shared.addLoad(
-            driverName: driverName,
-            truckNumber: truckNumber,
-            pickupTicketNumber: pickupTicket.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            ),
-            pickupTons: tons,
-            ratePerTon: settings.rate_per_ton,
-            fuelSurchargePerTon: settings.fuel_surcharge_per_ton
-        )
+        await LoadSupabaseManager.shared
+            .addAdminLoad(
+                driverName: driverName,
+                truckNumber: truckNumber,
+                pickupTicketNumber:
+                    pickupTicket.trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    ),
+                pickupTons: pickupTonsValue,
+                deliveryTicketNumber:
+                    deliveryTicket.trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    ),
+                deliveryTons: deliveryTonsValue,
+                status: status,
+                ratePerTon:
+                    settings.rate_per_ton,
+                fuelSurchargePerTon:
+                    settings.fuel_surcharge_per_ton
+            )
         
         await MainActor.run {
             onSaved?()
@@ -612,4 +814,7 @@ struct AdminAddLoadView: View {
         }
     }
 }
+    
+    
+
 
