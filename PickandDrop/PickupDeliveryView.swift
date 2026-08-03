@@ -19,6 +19,12 @@ struct PickupDeliveryView: View {
     @State private var supabaseLoads: [SupabaseLoad] = []
     @State private var selectedLoad: SupabaseLoad?
     
+    @State private var ticketImage: UIImage?
+    @State private var showTicketCamera = false
+    @State private var isScanningTicket = false
+    @State private var scanError = ""
+    @State private var showScanError = false
+    
     var driverLoads: [SupabaseLoad] {
         supabaseLoads
             .filter {
@@ -221,6 +227,27 @@ struct PickupDeliveryView: View {
                         VStack(spacing: 18) {
 
                             VStack(alignment: .leading, spacing: 8) {
+                                Button {
+                                    showTicketCamera = true
+                                } label: {
+                                    HStack {
+                                        Spacer()
+                                        
+                                        if isScanningTicket {
+                                            ProgressView()
+                                        } else {
+                                            Label(
+                                                "Scan HoneyGo Ticket",
+                                                systemImage: "doc.viewfinder.fill"
+                                            )
+                                        }
+                                        
+                                        Spacer()
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.green)
+                                .disabled(isScanningTicket)
 
                                 Text(
                                     "\(settings?.dropoff_company_name ?? "Dropoff") Ticket"
@@ -300,7 +327,65 @@ struct PickupDeliveryView: View {
                         .foregroundStyle(.white)
                     }
                 }
+                .sheet(isPresented: $showTicketCamera) {
+                    CameraPicker(image: $ticketImage)
+                }
+                .onChange(of: ticketImage) { _, newImage in
+                    guard let newImage else {
+                        return
+                    }
+                    
+                    Task {
+                        await scanDeliveryTicket(newImage)
+                    }
+                }
+                .alert(
+                    "Ticket Scan Failed",
+                    isPresented: $showScanError
+                ) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(scanError)
+                }
             }
+        }
+    }
+    
+    @MainActor
+    private func scanDeliveryTicket(
+        _ image: UIImage
+    ) async {
+        
+        guard !isScanningTicket else {
+            return
+        }
+        
+        isScanningTicket = true
+        
+        defer {
+            isScanningTicket = false
+            ticketImage = nil
+        }
+        
+        do {
+            let result =
+            try await ScaleTicketOCR.scan(
+                image: image
+            )
+            
+            if !result.deliveryTicket.isEmpty {
+                deliveryTicket = result.deliveryTicket
+            }
+            
+            if !result.deliveryTons.isEmpty {
+                deliveryTons = result.deliveryTons
+            }
+            
+            print("✅ HoneyGo ticket scanned")
+            
+        } catch {
+            scanError = error.localizedDescription
+            showScanError = true
         }
     }
     

@@ -390,8 +390,37 @@ struct EditSupabaseLoadView: View {
     @State private var showMoveLoad = false
     @State private var isMoving = false
     
+    @State private var ticketImage: UIImage?
+    @State private var showTicketCamera = false
+    @State private var isScanningTickets = false
+    @State private var scanError = ""
+    @State private var showScanError = false
+    
     var body: some View {
         Form {
+            Section {
+                Button {
+                    showTicketCamera = true
+                } label: {
+                    HStack {
+                        Spacer()
+                        
+                        if isScanningTickets {
+                            ProgressView()
+                        } else {
+                            Label(
+                                "Scan Scale Tickets",
+                                systemImage: "doc.viewfinder.fill"
+                            )
+                        }
+                        
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isScanningTickets)
+            }
+            
             Section(settings?.pickup_company_name ?? "Pickup") {
                 
                 TextField("Ticket Number", text: $pickupTicket)
@@ -486,6 +515,9 @@ struct EditSupabaseLoadView: View {
         } message: {
             Text("This will permanently delete this load from Supabase.")
         }
+        .sheet(isPresented: $showTicketCamera) {
+            CameraPicker(image: $ticketImage)
+        }
         .sheet(isPresented: $showMoveLoad) {
             NavigationStack {
                 Form {
@@ -540,6 +572,23 @@ struct EditSupabaseLoadView: View {
                     }
                 }
             }
+        }
+        .onChange(of: ticketImage) { _, newImage in
+            guard let newImage else {
+                return
+            }
+            
+            Task {
+                await scanTicketImage(newImage)
+            }
+        }
+        .alert(
+            "Ticket Scan Failed",
+            isPresented: $showScanError
+        ) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(scanError)
         }
     }
     
@@ -600,6 +649,66 @@ struct EditSupabaseLoadView: View {
         await MainActor.run {
             onSaved?()
             dismiss()
+        }
+    }
+    
+    @MainActor
+    private func scanTicketImage(
+        _ image: UIImage
+    ) async {
+        
+        guard !isScanningTickets else {
+            return
+        }
+        
+        isScanningTickets = true
+        
+        defer {
+            isScanningTickets = false
+            ticketImage = nil
+        }
+        
+        do {
+            let result =
+            try await ScaleTicketOCR.scan(
+                image: image
+            )
+            
+            if !result.pickupTicket.isEmpty {
+                pickupTicket = result.pickupTicket
+            }
+            
+            if !result.pickupTons.isEmpty {
+                pickupTons = result.pickupTons
+            }
+            
+            if !result.deliveryTicket.isEmpty {
+                deliveryTicket = result.deliveryTicket
+            }
+            
+            if !result.deliveryTons.isEmpty {
+                deliveryTons = result.deliveryTons
+            }
+            
+            if !deliveryTicket
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+                    .isEmpty &&
+                (Double(deliveryTons) ?? 0) > 0 {
+                
+                status = "delivered"
+            }
+            
+            print("✅ Edit load ticket scan complete")
+            print("Pickup:", result.pickupTicket)
+            print("Pickup tons:", result.pickupTons)
+            print("Delivery:", result.deliveryTicket)
+            print("Delivery tons:", result.deliveryTons)
+            
+        } catch {
+            scanError = error.localizedDescription
+            showScanError = true
         }
     }
 }

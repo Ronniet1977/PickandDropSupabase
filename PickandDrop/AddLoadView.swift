@@ -15,6 +15,12 @@ struct AddLoadView: View {
     @State private var pickupTicket = ""
     @State private var pickupTons = ""
     
+    @State private var ticketImage: UIImage?
+    @State private var showTicketCamera = false
+    @State private var isScanningTicket = false
+    @State private var scanError = ""
+    @State private var showScanError = false
+    
     
     var activeShift: Shift? {
         shifts.first(where: {
@@ -24,7 +30,7 @@ struct AddLoadView: View {
     }
     
     var isValidLoad: Bool {
-        Double(pickupTons) != nil
+        (Double(pickupTons) ?? 0) > 0
     }
     
     var body: some View {
@@ -108,6 +114,26 @@ struct AddLoadView: View {
                         VStack(spacing: 22) {
 
                             VStack(alignment: .leading, spacing: 8) {
+                                Button {
+                                    showTicketCamera = true
+                                } label: {
+                                    HStack {
+                                        Spacer()
+                                        
+                                        if isScanningTicket {
+                                            ProgressView()
+                                        } else {
+                                            Label(
+                                                "Scan BRC Ticket",
+                                                systemImage: "doc.viewfinder.fill"
+                                            )
+                                        }
+                                        
+                                        Spacer()
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(isScanningTicket)
 
                                 Text("\(settings?.pickup_company_name ?? "Pickup") Ticket Number (Optional)")
                                     .font(.caption.bold())
@@ -206,6 +232,66 @@ struct AddLoadView: View {
                     settings = loadedSettings
                 }
             }
+        }
+        .sheet(isPresented: $showTicketCamera) {
+            CameraPicker(image: $ticketImage)
+        }
+        .onChange(of: ticketImage) { _, newImage in
+            guard let newImage else {
+                return
+            }
+            
+            Task {
+                await scanPickupTicket(newImage)
+            }
+        }
+        .alert(
+            "Ticket Scan Failed",
+            isPresented: $showScanError
+        ) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(scanError)
+        }
+    }
+    
+    @MainActor
+    private func scanPickupTicket(
+        _ image: UIImage
+    ) async {
+        
+        guard !isScanningTicket else {
+            return
+        }
+        
+        isScanningTicket = true
+        
+        defer {
+            isScanningTicket = false
+            ticketImage = nil
+        }
+        
+        do {
+            let result =
+            try await ScaleTicketOCR.scan(
+                image: image
+            )
+            
+            if !result.pickupTicket.isEmpty {
+                pickupTicket = result.pickupTicket
+            }
+            
+            if !result.pickupTons.isEmpty {
+                pickupTons = result.pickupTons
+            }
+            
+            print("✅ BRC ticket scanned")
+            print("Ticket:", result.pickupTicket)
+            print("Tons:", result.pickupTons)
+            
+        } catch {
+            scanError = error.localizedDescription
+            showScanError = true
         }
     }
     
