@@ -274,7 +274,8 @@ struct AddLoadView: View {
         do {
             let result =
             try await ScaleTicketOCR.scan(
-                image: image
+                image: image,
+                mode: .pickupOnly
             )
             
             if !result.pickupTicket.isEmpty {

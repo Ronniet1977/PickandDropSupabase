@@ -1,6 +1,9 @@
 import SwiftUI
 import UIKit
 
+import SwiftUI
+import UIKit
+
 struct DriverDetailView: View {
     
     let driver: DriverSummary
@@ -15,6 +18,7 @@ struct DriverDetailView: View {
     @State private var ticketImage: UIImage?
     @State private var scannedLoad: ScannedLoadTicketData?
     
+    @State private var selectedScanMode: TicketScanMode = .pickupOnly
     @State private var isScanning = false
     @State private var scanError = ""
     @State private var showScanError = false
@@ -68,11 +72,22 @@ struct DriverDetailView: View {
                     }
                     
                     Button {
+                        selectedScanMode = .pickupOnly
                         showScanCamera = true
                     } label: {
                         Label(
-                            "Scan Ticket",
-                            systemImage: "doc.viewfinder.fill"
+                            "Scan BRC Ticket",
+                            systemImage: "arrow.up.doc.fill"
+                        )
+                    }
+                    
+                    Button {
+                        selectedScanMode = .deliveryOnly
+                        showScanCamera = true
+                    } label: {
+                        Label(
+                            "Scan HoneyGo Ticket",
+                            systemImage: "arrow.down.doc.fill"
                         )
                     }
                 } label: {
@@ -211,20 +226,20 @@ struct DriverDetailView: View {
         do {
             let result =
             try await ScaleTicketOCR.scan(
-                image: image
+                image: image,
+                mode: selectedScanMode
             )
             
             scannedLoad = result
             showScanCamera = false
             
-            // Give the camera sheet time to dismiss.
             try? await Task.sleep(
                 for: .milliseconds(250)
             )
             
             showAddLoad = true
             
-            print("✅ New load ticket scan complete")
+            print("✅ New admin ticket scan complete")
             print(result.rawText)
             
         } catch {
@@ -373,6 +388,7 @@ struct EditSupabaseLoadView: View {
     let load: SupabaseLoad
     let settings: SupabaseCompanySettings?
     let canDelete: Bool
+    
     var onSaved: (() -> Void)? = nil
     
     @Environment(\.dismiss) private var dismiss
@@ -382,6 +398,7 @@ struct EditSupabaseLoadView: View {
     @State private var deliveryTicket = ""
     @State private var deliveryTons = ""
     @State private var status = "pickedUp"
+    
     @State private var showDeleteAlert = false
     @State private var showSavedAlert = false
     
@@ -392,56 +409,88 @@ struct EditSupabaseLoadView: View {
     
     @State private var ticketImage: UIImage?
     @State private var showTicketCamera = false
-    @State private var isScanningTickets = false
+    @State private var selectedScanMode: TicketScanMode = .pickupOnly
+    @State private var isScanningTicket = false
     @State private var scanError = ""
     @State private var showScanError = false
     
     var body: some View {
         Form {
-            Section {
+            Section("Scan Ticket") {
                 Button {
+                    selectedScanMode = .pickupOnly
                     showTicketCamera = true
                 } label: {
+                    Label(
+                        "Scan BRC Ticket",
+                        systemImage: "arrow.up.doc.fill"
+                    )
+                }
+                
+                Button {
+                    selectedScanMode = .deliveryOnly
+                    showTicketCamera = true
+                } label: {
+                    Label(
+                        "Scan HoneyGo Ticket",
+                        systemImage: "arrow.down.doc.fill"
+                    )
+                }
+            }
+            .disabled(isScanningTicket)
+            
+            if isScanningTicket {
+                Section {
                     HStack {
                         Spacer()
-                        
-                        if isScanningTickets {
-                            ProgressView()
-                        } else {
-                            Label(
-                                "Scan Scale Tickets",
-                                systemImage: "doc.viewfinder.fill"
-                            )
-                        }
-                        
+                        ProgressView("Scanning ticket...")
                         Spacer()
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isScanningTickets)
             }
             
-            Section(settings?.pickup_company_name ?? "Pickup") {
+            Section(
+                settings?.pickup_company_name
+                ?? "Pickup"
+            ) {
+                TextField(
+                    "Ticket Number",
+                    text: $pickupTicket
+                )
                 
-                TextField("Ticket Number", text: $pickupTicket)
-                
-                TextField("Tons", text: $pickupTons)
-                    .keyboardType(.decimalPad)
+                TextField(
+                    "Tons",
+                    text: $pickupTons
+                )
+                .keyboardType(.decimalPad)
             }
             
-            Section(settings?.dropoff_company_name ?? "Dropoff") {
+            Section(
+                settings?.dropoff_company_name
+                ?? "Dropoff"
+            ) {
+                TextField(
+                    "Ticket Number",
+                    text: $deliveryTicket
+                )
                 
-                TextField("Ticket Number", text: $deliveryTicket)
-                
-                TextField("Tons", text: $deliveryTons)
-                    .keyboardType(.decimalPad)
+                TextField(
+                    "Tons",
+                    text: $deliveryTons
+                )
+                .keyboardType(.decimalPad)
             }
             
             Section("Status") {
-                
-                Picker("Status", selection: $status) {
-                    Text("Picked Up").tag("pickedUp")
-                    Text("Delivered").tag("delivered")
+                Picker(
+                    "Status",
+                    selection: $status
+                ) {
+                    Text("Picked Up")
+                        .tag("pickedUp")
+                    
+                    Text("Delivered")
+                        .tag("delivered")
                 }
                 .pickerStyle(.segmented)
             }
@@ -451,7 +500,10 @@ struct EditSupabaseLoadView: View {
                     await save()
                 }
             } label: {
-                Label("Save Changes", systemImage: "checkmark.circle.fill")
+                Label(
+                    "Save Changes",
+                    systemImage: "checkmark.circle.fill"
+                )
             }
             
             Button {
@@ -459,61 +511,92 @@ struct EditSupabaseLoadView: View {
             } label: {
                 Label(
                     "Move Load",
-                    systemImage: "arrow.left.arrow.right.circle.fill"
+                    systemImage:
+                        "arrow.left.arrow.right.circle.fill"
                 )
             }
             
             if canDelete {
-                
                 Button(role: .destructive) {
                     showDeleteAlert = true
                 } label: {
-                    Label("Delete Load", systemImage: "trash.fill")
+                    Label(
+                        "Delete Load",
+                        systemImage: "trash.fill"
+                    )
                 }
             }
         }
         .navigationTitle("Edit Load")
         .onAppear {
-            pickupTicket = load.pickup_ticket_number ?? ""
-            pickupTons = String(
+            pickupTicket =
+            load.pickup_ticket_number ?? ""
+            
+            pickupTons =
+            String(
                 format: "%.2f",
                 load.pickup_tons ?? 0
             )
             
-            deliveryTicket = load.delivery_ticket_number ?? ""
-            deliveryTons = String(
+            deliveryTicket =
+            load.delivery_ticket_number ?? ""
+            
+            deliveryTons =
+            String(
                 format: "%.2f",
                 load.delivery_tons ?? 0
             )
             
-            status = load.status ?? "pickedUp"
+            status =
+            load.status ?? "pickedUp"
             
             Task {
                 let loadedDrivers =
-                await DriverSupabaseManager.shared.fetchDrivers()
+                await DriverSupabaseManager
+                    .shared
+                    .fetchDrivers()
                 
                 await MainActor.run {
                     drivers = loadedDrivers
                 }
             }
         }
-        .alert("Load Updated", isPresented: $showSavedAlert) {
+        .alert(
+            "Load Updated",
+            isPresented: $showSavedAlert
+        ) {
             Button("OK") {
                 dismiss()
             }
         } message: {
             Text("The load changes were saved.")
         }
-        .alert("Delete Load?", isPresented: $showDeleteAlert) {
+        .alert(
+            "Delete Load?",
+            isPresented: $showDeleteAlert
+        ) {
             Button("Cancel", role: .cancel) { }
             
-            Button("Delete", role: .destructive) {
+            Button(
+                "Delete",
+                role: .destructive
+            ) {
                 Task {
                     await deleteLoad()
                 }
             }
         } message: {
-            Text("This will permanently delete this load from Supabase.")
+            Text(
+                "This will permanently delete this load from Supabase."
+            )
+        }
+        .alert(
+            "Ticket Scan Failed",
+            isPresented: $showScanError
+        ) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(scanError)
         }
         .sheet(isPresented: $showTicketCamera) {
             CameraPicker(image: $ticketImage)
@@ -521,12 +604,16 @@ struct EditSupabaseLoadView: View {
         .sheet(isPresented: $showMoveLoad) {
             NavigationStack {
                 Form {
-                    
                     Section("Current Driver") {
-                        Text(load.driver_name ?? "Unknown Driver")
+                        Text(
+                            load.driver_name
+                            ?? "Unknown Driver"
+                        )
                         
-                        Text("Truck \(load.truck_number ?? "")")
-                            .foregroundStyle(.secondary)
+                        Text(
+                            "Truck \(load.truck_number ?? "")"
+                        )
+                        .foregroundStyle(.secondary)
                     }
                     
                     Section("Move To") {
@@ -537,7 +624,10 @@ struct EditSupabaseLoadView: View {
                             Text("Select Driver")
                                 .tag("")
                             
-                            ForEach(drivers, id: \.id) { driver in
+                            ForEach(
+                                drivers,
+                                id: \.id
+                            ) { driver in
                                 Text(
                                     "\(driver.name) • Truck \(driver.truck_number)"
                                 )
@@ -552,20 +642,26 @@ struct EditSupabaseLoadView: View {
                         }
                     } label: {
                         Label(
-                            isMoving ? "Moving Load..." : "Move Load",
-                            systemImage: "arrow.right.circle.fill"
+                            isMoving
+                            ? "Moving Load..."
+                            : "Move Load",
+                            systemImage:
+                                "arrow.right.circle.fill"
                         )
                     }
                     .disabled(
                         selectedDriverName.isEmpty ||
-                        selectedDriverName == load.driver_name ||
+                        selectedDriverName ==
+                        load.driver_name ||
                         isMoving
                     )
                 }
                 .navigationTitle("Move Load")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
+                    ToolbarItem(
+                        placement: .cancellationAction
+                    ) {
                         Button("Cancel") {
                             showMoveLoad = false
                         }
@@ -579,29 +675,29 @@ struct EditSupabaseLoadView: View {
             }
             
             Task {
-                await scanTicketImage(newImage)
+                await scanSingleTicket(newImage)
             }
-        }
-        .alert(
-            "Ticket Scan Failed",
-            isPresented: $showScanError
-        ) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(scanError)
         }
     }
     
     func save() async {
-        
         await LoadSupabaseManager.shared.updateLoad(
             id: load.id,
-            pickupTicketNumber: pickupTicket,
-            pickupTons: Double(pickupTons) ?? 0,
-            deliveryTicketNumber: deliveryTicket,
-            deliveryTons: Double(deliveryTons) ?? 0,
+            pickupTicketNumber:
+                pickupTicket.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ),
+            pickupTons:
+                Double(pickupTons) ?? 0,
+            deliveryTicketNumber:
+                deliveryTicket.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ),
+            deliveryTons:
+                Double(deliveryTons) ?? 0,
             status: status,
-            existingDeliveredAt: load.delivered_at
+            existingDeliveredAt:
+                load.delivered_at
         )
         
         await MainActor.run {
@@ -611,14 +707,15 @@ struct EditSupabaseLoadView: View {
     }
     
     func moveLoad() async {
-        
         guard !isMoving else {
             return
         }
         
-        guard let selectedDriver = drivers.first(where: {
-            $0.name == selectedDriverName
-        }) else {
+        guard let selectedDriver =
+                drivers.first(where: {
+                    $0.name == selectedDriverName
+                })
+        else {
             return
         }
         
@@ -629,7 +726,8 @@ struct EditSupabaseLoadView: View {
         await LoadSupabaseManager.shared.moveLoad(
             id: load.id,
             driverName: selectedDriver.name,
-            truckNumber: selectedDriver.truck_number
+            truckNumber:
+                selectedDriver.truck_number
         )
         
         await MainActor.run {
@@ -641,7 +739,6 @@ struct EditSupabaseLoadView: View {
     }
     
     func deleteLoad() async {
-        
         await LoadSupabaseManager.shared.deleteLoad(
             id: load.id
         )
@@ -653,68 +750,78 @@ struct EditSupabaseLoadView: View {
     }
     
     @MainActor
-    private func scanTicketImage(
+    private func scanSingleTicket(
         _ image: UIImage
     ) async {
-        
-        guard !isScanningTickets else {
+        guard !isScanningTicket else {
             return
         }
         
-        isScanningTickets = true
+        isScanningTicket = true
         
         defer {
-            isScanningTickets = false
+            isScanningTicket = false
             ticketImage = nil
         }
         
         do {
             let result =
             try await ScaleTicketOCR.scan(
-                image: image
+                image: image,
+                mode: selectedScanMode
             )
             
-            if !result.pickupTicket.isEmpty {
-                pickupTicket = result.pickupTicket
-            }
-            
-            if !result.pickupTons.isEmpty {
-                pickupTons = result.pickupTons
-            }
-            
-            if !result.deliveryTicket.isEmpty {
-                deliveryTicket = result.deliveryTicket
-            }
-            
-            if !result.deliveryTons.isEmpty {
-                deliveryTons = result.deliveryTons
-            }
-            
-            if !deliveryTicket
-                .trimmingCharacters(
-                    in: .whitespacesAndNewlines
-                )
-                    .isEmpty &&
-                (Double(deliveryTons) ?? 0) > 0 {
+            switch selectedScanMode {
+            case .pickupOnly:
+                if !result.pickupTicket.isEmpty {
+                    pickupTicket =
+                    result.pickupTicket
+                }
                 
-                status = "delivered"
+                if !result.pickupTons.isEmpty {
+                    pickupTons =
+                    result.pickupTons
+                }
+                
+                print("✅ Edit BRC ticket scanned")
+                
+            case .deliveryOnly:
+                if !result.deliveryTicket.isEmpty {
+                    deliveryTicket =
+                    result.deliveryTicket
+                }
+                
+                if !result.deliveryTons.isEmpty {
+                    deliveryTons =
+                    result.deliveryTons
+                }
+                
+                if !deliveryTicket.isEmpty &&
+                    (Double(deliveryTons) ?? 0) > 0 {
+                    
+                    status = "delivered"
+                }
+                
+                print(
+                    "✅ Edit HoneyGo ticket scanned"
+                )
+                
+            case .combined:
+                break
             }
             
-            print("✅ Edit load ticket scan complete")
-            print("Pickup:", result.pickupTicket)
-            print("Pickup tons:", result.pickupTons)
-            print("Delivery:", result.deliveryTicket)
-            print("Delivery tons:", result.deliveryTons)
+            print(result.rawText)
             
         } catch {
-            scanError = error.localizedDescription
+            scanError =
+            error.localizedDescription
+            
             showScanError = true
         }
     }
 }
-
+    
 //AdminAddLoadView
-
 struct AdminAddLoadView: View {
     
     let driverName: String
@@ -735,6 +842,13 @@ struct AdminAddLoadView: View {
     @State private var status = "pickedUp"
     @State private var isSaving = false
     
+    @State private var ticketImage: UIImage?
+    @State private var showTicketCamera = false
+    @State private var selectedScanMode: TicketScanMode = .pickupOnly
+    @State private var isScanningTicket = false
+    @State private var scanError = ""
+    @State private var showScanError = false
+    
     var body: some View {
         Form {
             Section(driverName) {
@@ -744,10 +858,44 @@ struct AdminAddLoadView: View {
                 if scannedLoad != nil {
                     Label(
                         "Values filled from ticket scan",
-                        systemImage: "doc.viewfinder.fill"
+                        systemImage:
+                            "doc.viewfinder.fill"
                     )
                     .font(.caption)
                     .foregroundStyle(.green)
+                }
+            }
+            
+            Section("Scan Ticket") {
+                Button {
+                    selectedScanMode = .pickupOnly
+                    showTicketCamera = true
+                } label: {
+                    Label(
+                        "Scan BRC Ticket",
+                        systemImage: "arrow.up.doc.fill"
+                    )
+                }
+                
+                Button {
+                    selectedScanMode = .deliveryOnly
+                    showTicketCamera = true
+                } label: {
+                    Label(
+                        "Scan HoneyGo Ticket",
+                        systemImage: "arrow.down.doc.fill"
+                    )
+                }
+            }
+            .disabled(isScanningTicket)
+            
+            if isScanningTicket {
+                Section {
+                    HStack {
+                        Spacer()
+                        ProgressView("Scanning ticket...")
+                        Spacer()
+                    }
                 }
             }
             
@@ -810,14 +958,19 @@ struct AdminAddLoadView: View {
                     } else {
                         Label(
                             "Save Load",
-                            systemImage: "checkmark.circle.fill"
+                            systemImage:
+                                "checkmark.circle.fill"
                         )
                     }
                     
                     Spacer()
                 }
             }
-            .disabled(!isValidLoad || isSaving)
+            .disabled(
+                !isValidLoad ||
+                isSaving ||
+                isScanningTicket
+            )
         }
         .navigationTitle(
             scannedLoad == nil
@@ -839,17 +992,25 @@ struct AdminAddLoadView: View {
                 return
             }
             
-            pickupTicket =
-            scannedLoad.pickupTicket
+            if !scannedLoad.pickupTicket.isEmpty {
+                pickupTicket =
+                scannedLoad.pickupTicket
+            }
             
-            pickupTons =
-            scannedLoad.pickupTons
+            if !scannedLoad.pickupTons.isEmpty {
+                pickupTons =
+                scannedLoad.pickupTons
+            }
             
-            deliveryTicket =
-            scannedLoad.deliveryTicket
+            if !scannedLoad.deliveryTicket.isEmpty {
+                deliveryTicket =
+                scannedLoad.deliveryTicket
+            }
             
-            deliveryTons =
-            scannedLoad.deliveryTons
+            if !scannedLoad.deliveryTons.isEmpty {
+                deliveryTons =
+                scannedLoad.deliveryTons
+            }
             
             if !deliveryTicket.isEmpty &&
                 (Double(deliveryTons) ?? 0) > 0 {
@@ -857,22 +1018,46 @@ struct AdminAddLoadView: View {
                 status = "delivered"
             }
         }
+        .sheet(isPresented: $showTicketCamera) {
+            CameraPicker(image: $ticketImage)
+        }
+        .onChange(of: ticketImage) { _, newImage in
+            guard let newImage else {
+                return
+            }
+            
+            Task {
+                await scanSingleTicket(newImage)
+            }
+        }
+        .alert(
+            "Ticket Scan Failed",
+            isPresented: $showScanError
+        ) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(scanError)
+        }
     }
     
     private var isValidLoad: Bool {
-
-        guard (Double(pickupTons) ?? 0) > 0 else {
+        guard
+            (Double(pickupTons) ?? 0) > 0
+        else {
             return false
         }
-
+        
         if status != "delivered" {
             return true
         }
-
-        return !deliveryTicket
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return
+        !deliveryTicket
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
             .isEmpty &&
-            (Double(deliveryTons) ?? 0) > 0
+        (Double(deliveryTons) ?? 0) > 0
     }
     
     private func addLoad() async {
@@ -922,7 +1107,79 @@ struct AdminAddLoadView: View {
             dismiss()
         }
     }
+    
+    @MainActor
+    private func scanSingleTicket(
+        _ image: UIImage
+    ) async {
+        guard !isScanningTicket else {
+            return
+        }
+        
+        isScanningTicket = true
+        
+        defer {
+            isScanningTicket = false
+            ticketImage = nil
+        }
+        
+        do {
+            let result =
+            try await ScaleTicketOCR.scan(
+                image: image,
+                mode: selectedScanMode
+            )
+            
+            switch selectedScanMode {
+            case .pickupOnly:
+                if !result.pickupTicket.isEmpty {
+                    pickupTicket =
+                    result.pickupTicket
+                }
+                
+                if !result.pickupTons.isEmpty {
+                    pickupTons =
+                    result.pickupTons
+                }
+                
+                print("✅ Admin BRC ticket scanned")
+                
+            case .deliveryOnly:
+                if !result.deliveryTicket.isEmpty {
+                    deliveryTicket =
+                    result.deliveryTicket
+                }
+                
+                if !result.deliveryTons.isEmpty {
+                    deliveryTons =
+                    result.deliveryTons
+                }
+                
+                if !deliveryTicket.isEmpty &&
+                    (Double(deliveryTons) ?? 0) > 0 {
+                    
+                    status = "delivered"
+                }
+                
+                print(
+                    "✅ Admin HoneyGo ticket scanned"
+                )
+                
+            case .combined:
+                break
+            }
+            
+            print(result.rawText)
+            
+        } catch {
+            scanError =
+            error.localizedDescription
+            
+            showScanError = true
+        }
+    }
 }
+
     
     
 

@@ -370,7 +370,8 @@ struct PickupDeliveryView: View {
         do {
             let result =
             try await ScaleTicketOCR.scan(
-                image: image
+                image: image,
+                mode: .deliveryOnly
             )
             
             if !result.deliveryTicket.isEmpty {
