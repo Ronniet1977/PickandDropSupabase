@@ -16,6 +16,8 @@ struct ChangePasswordView: View {
 
     @AppStorage("mustChangePassword")
     var mustChangePassword = true
+    @AppStorage("isLoggedIn")
+    var isLoggedIn = false
 
     @State private var newPassword = ""
     @State private var confirmPassword = ""
@@ -38,6 +40,14 @@ struct ChangePasswordView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 24) {
+                Button("Back to Login") {
+
+                    mustChangePassword = false
+                    isLoggedIn = false
+
+                    SupabaseAuthManager.shared.clearSession()
+                }
+                .foregroundStyle(.red)
 
                 Spacer()
 
@@ -111,25 +121,57 @@ struct ChangePasswordView: View {
         }
 
         guard newPassword.count >= 6 else {
-            errorText = "Password must be at least 6 characters"
+            errorText =
+                "Password must be at least 6 characters"
             return
         }
 
-        await DriverSupabaseManager.shared.updatePassword(
-            username: driver.username,
-            password: newPassword,
-            mustChangePassword: false
-        )
+        do {
 
-        await MainActor.run {
-            driver.password = newPassword
-            driver.mustChangePassword = false
+            // Change the REAL Supabase Auth password.
+            try await SupabaseAuthManager.shared
+                .updatePassword(
+                    newPassword: newPassword
+                )
 
-            try? context.save()
+            // The driver table only tracks whether
+            // a forced password change is still required.
+            let flagUpdated =
+                await DriverSupabaseManager.shared
+                    .completePasswordChange()
 
-            mustChangePassword = false
+            guard flagUpdated else {
+                throw SupabaseAuthError.server(
+                    "Password changed, but the driver profile could not be updated."
+                )
+            }
 
-            print("✅ Password changed")
+            await MainActor.run {
+
+                // Stop keeping real passwords locally.
+                driver.mustChangePassword = false
+
+                try? context.save()
+
+                mustChangePassword = false
+
+                newPassword = ""
+                confirmPassword = ""
+
+                print("✅ Secure Auth password changed")
+            }
+
+        } catch {
+
+            await MainActor.run {
+                errorText =
+                    error.localizedDescription
+            }
+
+            print(
+                "❌ Auth password change failed:",
+                error
+            )
         }
     }
 }

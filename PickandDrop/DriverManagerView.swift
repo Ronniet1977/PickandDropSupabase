@@ -26,6 +26,16 @@ struct DriverManagerView: View {
     @State private var companyCodeText = ""
     @State private var showJoinCode = false
     @State private var showCopied = false
+    
+    @State private var resetDriver: SupabaseDriver?
+    @State private var temporaryPassword = ""
+    @State private var showResetResult = false
+    @State private var resetMessage = ""
+    @State private var isResettingPassword = false
+    @State private var isCreatingDriver = false
+    
+    @State private var driverToDelete: SupabaseDriver?
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         
@@ -85,13 +95,34 @@ struct DriverManagerView: View {
                         }
                         .pickerStyle(.segmented)
                         
-                        Button("Create Account") {
-                            
-                            createDriver()
-                            
+                        Button {
+                            Task {
+                                await createDriver()
+                            }
+                        } label: {
+                            if isCreatingDriver {
+                                ProgressView()
+                            } else {
+                                Label(
+                                    "Create Account",
+                                    systemImage: "person.badge.plus"
+                                )
+                            }
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.green)
+                        .disabled(
+                            newName.trimmingCharacters(
+                                in: .whitespacesAndNewlines
+                            ).isEmpty ||
+                            newUsername.trimmingCharacters(
+                                in: .whitespacesAndNewlines
+                            ).isEmpty ||
+                            newTruck.trimmingCharacters(
+                                in: .whitespacesAndNewlines
+                            ).isEmpty ||
+                            isCreatingDriver
+                        )
                         
                     }
                     .padding()
@@ -135,15 +166,19 @@ struct DriverManagerView: View {
                                 HStack(spacing: 12) {
                                     Button {
                                         Task {
-                                            await DriverSupabaseManager.shared
-                                                .resetPassword(id: driver.id)
-
-                                            loadDrivers()
+                                            await resetDriverPassword(driver)
                                         }
                                     } label: {
-                                        Label("Reset", systemImage: "key.fill")
+                                        Label(
+                                            isResettingPassword &&
+                                            resetDriver?.id == driver.id
+                                            ? "Resetting..."
+                                            : "Reset",
+                                            systemImage: "key.fill"
+                                        )
                                     }
                                     .tint(.orange)
+                                    .disabled(isResettingPassword)
                                     
                                     Button {
 
@@ -171,14 +206,16 @@ struct DriverManagerView: View {
                                     .tint(.blue)
                                     
                                     Button(role: .destructive) {
-                                        Task {
-                                            await DriverSupabaseManager.shared
-                                                .deleteDriver(id: driver.id)
 
-                                            loadDrivers()
-                                        }
+                                        driverToDelete = driver
+                                        showDeleteConfirmation = true
+
                                     } label: {
-                                        Label("Delete", systemImage: "trash.fill")
+
+                                        Label(
+                                            "Delete",
+                                            systemImage: "trash.fill"
+                                        )
                                     }
                                     .disabled(driver.name == currentDriverName)
                                     .tint(.red)
@@ -252,6 +289,46 @@ struct DriverManagerView: View {
             loadDrivers()
         }
         .alert(
+            "Delete Driver?",
+            isPresented: $showDeleteConfirmation,
+            presenting: driverToDelete
+        ) { driver in
+
+            Button(
+                "Delete",
+                role: .destructive
+            ) {
+
+                Task {
+
+                    do {
+
+                        try await AdminDriverAuthManager.shared
+                            .deleteAccount(
+                                username: driver.username
+                            )
+
+                        loadDrivers()
+
+                    } catch {
+
+                        print(
+                            "❌ Secure driver delete failed:",
+                            error.localizedDescription
+                        )
+                    }
+                }
+            }
+
+            Button("Cancel", role: .cancel) {}
+
+        } message: { driver in
+
+            Text(
+                "Delete \(driver.name)? This will permanently remove their driver account and login."
+            )
+        }
+        .alert(
             "Company Join Code",
             isPresented: $showJoinCode
         ) {
@@ -266,6 +343,90 @@ struct DriverManagerView: View {
 
             Text(companyCodeText)
         }
+        .alert(
+            "Password Reset",
+            isPresented: $showResetResult
+        ) {
+            if !temporaryPassword.isEmpty {
+                Button("Copy Password") {
+                    UIPasteboard.general.string =
+                        temporaryPassword
+                }
+            }
+
+            Button("OK", role: .cancel) {
+                temporaryPassword = ""
+            }
+        } message: {
+            Text(resetMessage)
+        }
+    }
+    
+    @MainActor
+    private func resetDriverPassword(
+        _ driver: SupabaseDriver
+    ) async {
+
+        guard !isResettingPassword else {
+            return
+        }
+
+        resetDriver = driver
+        isResettingPassword = true
+
+        let newTemporaryPassword =
+            generateTemporaryPassword()
+
+        do {
+
+            try await AdminDriverAuthManager.shared
+                .resetPassword(
+                    username: driver.username,
+                    temporaryPassword:
+                        newTemporaryPassword
+                )
+
+            temporaryPassword =
+                newTemporaryPassword
+
+            resetMessage =
+                """
+                \(driver.name)'s password was reset.
+
+                Temporary Password:
+                \(newTemporaryPassword)
+
+                They will be required to change it after logging in.
+                """
+
+            showResetResult = true
+
+            loadDrivers()
+
+        } catch {
+
+            temporaryPassword = ""
+
+            resetMessage =
+                """
+                Password reset failed.
+
+                \(error.localizedDescription)
+                """
+
+            showResetResult = true
+        }
+
+        isResettingPassword = false
+        resetDriver = nil
+    }
+
+    private func generateTemporaryPassword() -> String {
+
+        let number =
+            Int.random(in: 1000...9999)
+
+        return "Temp-\(number)-X!"
     }
     
     func loadDrivers() {
@@ -287,51 +448,94 @@ struct DriverManagerView: View {
         print("Supabase version coming next")
     }
     
-    func createDriver() {
+    @MainActor
+    private func createDriver() async {
 
-        Task {
+        guard !isCreatingDriver else {
+            return
+        }
 
-            await DriverSupabaseManager.shared.addDriver(
-                name: newName,
-                username: newUsername.lowercased(),
-                password: "1234",
-                truckNumber: newTruck,
-                role: selectedRole
+        let cleanName =
+            newName.trimmingCharacters(
+                in: .whitespacesAndNewlines
             )
 
-            await MainActor.run {
+        let cleanUsername =
+            newUsername
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+                .lowercased()
 
-                newName = ""
-                newTruck = ""
-                newUsername = ""
-                selectedRole = "driver"
-            }
+        let cleanTruck =
+            newTruck.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+
+        guard
+            !cleanName.isEmpty,
+            !cleanUsername.isEmpty,
+            !cleanTruck.isEmpty
+        else {
+            return
         }
-    }
-    
-    func deleteDriver(_ driver: DriverProfile) {
 
-        context.delete(driver)
+        isCreatingDriver = true
+
+        let newTemporaryPassword =
+            generateTemporaryPassword()
 
         do {
 
-            try context.save()
-            
-            if drivers.contains(where: {
-                $0.name == currentDriverName &&
-                $0.role == "admin"
-            }) {
+            try await AdminDriverAuthManager.shared
+                .createAccount(
+                    name: cleanName,
+                    username: cleanUsername,
+                    truckNumber: cleanTruck,
+                    role: selectedRole,
+                    temporaryPassword:
+                        newTemporaryPassword
+                )
 
-                //DriverSyncManager.exportDrivers(
-                    //drivers: drivers
-                //)
-            }
+            temporaryPassword =
+                newTemporaryPassword
 
-            print("✅ Driver deleted")
+            resetMessage =
+                """
+                \(cleanName)'s account was created.
+
+                Username:
+                \(cleanUsername)
+
+                Temporary Password:
+                \(newTemporaryPassword)
+
+                They will be required to change it after logging in.
+                """
+
+            newName = ""
+            newTruck = ""
+            newUsername = ""
+            selectedRole = "driver"
+
+            showResetResult = true
+
+            loadDrivers()
 
         } catch {
 
-            print("❌ Failed deleting driver:", error)
+            temporaryPassword = ""
+
+            resetMessage =
+                """
+                Account creation failed.
+
+                \(error.localizedDescription)
+                """
+
+            showResetResult = true
         }
+
+        isCreatingDriver = false
     }
 }

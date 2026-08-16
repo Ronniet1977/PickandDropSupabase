@@ -30,8 +30,33 @@ final class SupabaseRESTManager {
         var request = URLRequest(url: url)
         request.httpMethod = method
 
-        request.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(SupabaseConfig.anonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue(
+            SupabaseConfig.anonKey,
+            forHTTPHeaderField: "apikey"
+        )
+
+        if let accessToken =
+            SupabaseAuthManager.shared.accessToken {
+
+            request.setValue(
+                "Bearer \(accessToken)",
+                forHTTPHeaderField: "Authorization"
+            )
+
+        } else {
+
+            request.setValue(
+                "Bearer \(SupabaseConfig.anonKey)",
+                forHTTPHeaderField: "Authorization"
+            )
+        }
+#if DEBUG
+if SupabaseAuthManager.shared.accessToken != nil {
+    print("🔐 REST request using authenticated user")
+} else {
+    print("⚠️ REST request using anon access")
+}
+#endif
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 

@@ -4,45 +4,25 @@ import SwiftData
 struct RootView: View {
 
     @Query var drivers: [DriverProfile]
-    @Query var companySettings: [CompanySettings]
-    
-    @State private var checkedCompany = false
-    @State private var hasCompanyInSupabase = false
+
+    @State private var checkedAuthSession = false
 
     @AppStorage("currentDriverName")
     var currentDriverName: String = ""
-    
+
     @AppStorage("mustChangePassword")
     var mustChangePassword = false
 
     @AppStorage("isLoggedIn")
     var isLoggedIn = false
-    
-    var settings: CompanySettings? {
-        companySettings.first
-    }
 
     var body: some View {
 
         Group {
 
-            if !checkedCompany {
+            if !checkedAuthSession {
 
                 ProgressView("Loading...")
-
-            } else if !hasCompanyInSupabase {
-
-                CompanySetupView {
-                    Task {
-                        let company =
-                            await CompanySupabaseManager.shared.fetchCompanySettings()
-
-                        await MainActor.run {
-                            hasCompanyInSupabase = company != nil
-                            checkedCompany = true
-                        }
-                    }
-                }
 
             } else if isLoggedIn,
                       let driver = drivers.first(where: {
@@ -51,18 +31,19 @@ struct RootView: View {
 
                 if mustChangePassword {
 
-                    ChangePasswordView(driver: driver)
+                    ChangePasswordView(
+                        driver: driver
+                    )
+
+                } else if driver.role == "admin" {
+
+                    AdminDashboardView()
 
                 } else {
 
-                    if driver.role == "admin" {
-
-                        AdminDashboardView()
-
-                    } else {
-
-                        DriverDashboardView(driver: driver)
-                    }
+                    DriverDashboardView(
+                        driver: driver
+                    )
                 }
 
             } else {
@@ -70,26 +51,38 @@ struct RootView: View {
                 LoginView()
             }
         }
-        .onAppear {
+        .task {
+            await startup()
+        }
+    }
 
-            Task {
+    @MainActor
+    private func startup() async {
 
-                let company =
-                    await CompanySupabaseManager.shared.fetchCompanySettings()
+        if isLoggedIn {
 
-                await MainActor.run {
+            let restored =
+                await SupabaseAuthManager.shared
+                    .restoreSession()
 
-                    hasCompanyInSupabase = company != nil
-                    checkedCompany = true
+            if restored {
 
-                    if company == nil {
+                print(
+                    "✅ Existing login session restored"
+                )
 
-                        currentDriverName = ""
-                        isLoggedIn = false
-                        mustChangePassword = false
-                    }
-                }
+            } else {
+
+                print(
+                    "⚠️ Saved app login had no valid Auth session"
+                )
+
+                currentDriverName = ""
+                isLoggedIn = false
+                mustChangePassword = false
             }
         }
+
+        checkedAuthSession = true
     }
 }

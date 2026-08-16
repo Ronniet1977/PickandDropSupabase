@@ -43,6 +43,9 @@
 		879FD9752FC1564D00DEAC87 /* DriverSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879FD9742FC155FE00DEAC87 /* DriverSessionManager.swift */; };
 		879FD98C2FC2592E00DEAC87 /* NotificationSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879FD98B2FC2592B00DEAC87 /* NotificationSyncManager.swift */; };
 		87A18E1D2FBE3CB0005CF62A /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 87A18E1C2FBE3CA5005CF62A /* .gitignore */; };
+		87FC05093031FE75001C2F7E /* SupabaseAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FC05083031FE6F001C2F7E /* SupabaseAuthManager.swift */; };
+		87FC050B303219F8001C2F7E /* AuthKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FC050A303219F4001C2F7E /* AuthKeychain.swift */; };
+		87FC050D30321E91001C2F7E /* AdminDriverAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FC050C30321E8D001C2F7E /* AdminDriverAuthManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -85,6 +88,9 @@
 		879FD98B2FC2592B00DEAC87 /* NotificationSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSyncManager.swift; sourceTree = "<group>"; };
 		87A18E1C2FBE3CA5005CF62A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		87DE09572FA52A09007E9268 /* PickandDropLLCSupabase.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PickandDropLLCSupabase.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		87FC05083031FE6F001C2F7E /* SupabaseAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseAuthManager.swift; sourceTree = "<group>"; };
+		87FC050A303219F4001C2F7E /* AuthKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthKeychain.swift; sourceTree = "<group>"; };
+		87FC050C30321E8D001C2F7E /* AdminDriverAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminDriverAuthManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -114,6 +120,9 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				87FC050C30321E8D001C2F7E /* AdminDriverAuthManager.swift */,
+				87FC050A303219F4001C2F7E /* AuthKeychain.swift */,
+				87FC05083031FE6F001C2F7E /* SupabaseAuthManager.swift */,
 				879F500A301EFCF7007C5D1C /* ScaleTicketOCR.swift */,
 				8787AB2E2FD526B100A8DC15 /* SupabaseStorageImage.swift */,
 				8787AB212FD4E8E900A8DC15 /* FuelReceiptManager.swift */,
@@ -252,7 +261,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				8789BB052FB06063004400C5 /* CompanySetupView.swift in Sources */,
+				87FC050D30321E91001C2F7E /* AdminDriverAuthManager.swift in Sources */,
 				8787AA9D2FD2075100A8DC15 /* SupabaseRESTManager.swift in Sources */,
+				87FC05093031FE75001C2F7E /* SupabaseAuthManager.swift in Sources */,
 				8751679E2FAD689800E8B528 /* AddFuelView.swift in Sources */,
 				8751679F2FAD689800E8B528 /* AddLoadView.swift in Sources */,
 				8760FA7A2FBD818500AADD94 /* DriverFilesView.swift in Sources */,
@@ -281,6 +292,7 @@
 				875167AD2FAD689800E8B528 /* ShareSheet.swift in Sources */,
 				875167AE2FAD689800E8B528 /* StartShiftView.swift in Sources */,
 				875167AF2FAD689800E8B528 /* StorageManager.swift in Sources */,
+				87FC050B303219F8001C2F7E /* AuthKeychain.swift in Sources */,
 				8787AB222FD4E8ED00A8DC15 /* FuelReceiptManager.swift in Sources */,
 				8787AA9B2FD2072200A8DC15 /* SupabaseConfig.swift in Sources */,
 				8789BB032FB04408004400C5 /* CompanySettings.swift in Sources */,

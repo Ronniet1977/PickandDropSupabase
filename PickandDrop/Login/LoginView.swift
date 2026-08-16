@@ -123,42 +123,100 @@ struct LoginView: View {
             JoinCompanyView()
         }
     }
+    
 
     func login() async {
 
-        let drivers =
-            await DriverSupabaseManager
-                .shared
-                .fetchDrivers()
+        let cleanUsername =
+            username
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+                .lowercased()
 
-        if let driver = drivers.first(where: {
+        let cleanPassword =
+            password.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
 
-            $0.username.lowercased() ==
-            username.lowercased()
+        guard !cleanUsername.isEmpty,
+              !cleanPassword.isEmpty
+        else {
+            await MainActor.run {
+                loginError =
+                    "Enter your username and password"
+            }
+            return
+        }
 
-            &&
+        let authEmail =
+            "\(cleanUsername)@pickanddrop.local"
 
-            ($0.password ?? "") == password
+        do {
 
-            &&
+            // 1. Authenticate password securely with Supabase Auth
+            _ = try await SupabaseAuthManager.shared.signIn(
+                email: authEmail,
+                password: cleanPassword
+            )
 
-            $0.is_active
+            // 2. Load the driver's Pick & Drop profile
+            guard let driver =
+                await DriverSupabaseManager.shared.fetchDriver(
+                    username: cleanUsername
+                )
+            else {
+                SupabaseAuthManager.shared.clearSession()
 
-        }) {
-            let existingDriver = try? context.fetch(
-                FetchDescriptor<DriverProfile>()
-            ).first {
-                $0.username.lowercased() == driver.username.lowercased()
+                await MainActor.run {
+                    loginError =
+                        "Driver profile not found"
+                }
+
+                return
             }
 
-            let localDriver = existingDriver ?? DriverProfile()
+            // 3. Block disabled accounts
+            guard driver.is_active else {
+                SupabaseAuthManager.shared.clearSession()
 
-            localDriver.name = driver.name
-            localDriver.username = driver.username
-            localDriver.password = driver.password ?? ""
-            localDriver.truckNumber = driver.truck_number
-            localDriver.role = driver.role
-            localDriver.isActive = driver.is_active
+                await MainActor.run {
+                    loginError =
+                        "This account is disabled"
+                }
+
+                return
+            }
+
+            // 4. Update/create local SwiftData profile
+            let existingDriver =
+                try? context.fetch(
+                    FetchDescriptor<DriverProfile>()
+                )
+                .first {
+                    $0.username.lowercased()
+                        == driver.username.lowercased()
+                }
+
+            let localDriver =
+                existingDriver ?? DriverProfile()
+
+            localDriver.name =
+                driver.name
+
+            localDriver.username =
+                driver.username
+
+            // Do NOT save the actual password locally anymore.
+            localDriver.truckNumber =
+                driver.truck_number
+
+            localDriver.role =
+                driver.role
+
+            localDriver.isActive =
+                driver.is_active
+
             localDriver.mustChangePassword =
                 driver.must_change_password ?? true
 
@@ -168,17 +226,39 @@ struct LoginView: View {
 
             try? context.save()
 
-            currentDriverName = driver.name
+            await MainActor.run {
 
-            mustChangePassword = driver.must_change_password ?? true
+                currentDriverName =
+                    driver.name
 
-            isLoggedIn = true
+                mustChangePassword =
+                    driver.must_change_password ?? true
 
-            print("✅ Login success")
+                loginError = ""
 
-        } else {
+                isLoggedIn = true
 
-            loginError = "Invalid username or password"
+                password = ""
+            }
+
+            print(
+                "✅ Secure Auth login:",
+                driver.username
+            )
+
+        } catch {
+
+            SupabaseAuthManager.shared.clearSession()
+
+            await MainActor.run {
+                loginError =
+                    "Invalid username or password"
+            }
+
+            print(
+                "❌ Secure Auth login failed:",
+                error.localizedDescription
+            )
         }
     }
 }

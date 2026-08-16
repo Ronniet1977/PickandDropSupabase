@@ -21,15 +21,15 @@ struct SupabaseDriver: Codable, Identifiable {
 
     let name: String
     let username: String
-    let password: String?
     let must_change_password: Bool?
     let truck_number: String
 
     let role: String
     let is_active: Bool
-    
+
     let duty_status: String?
-    
+
+    let auth_user_id: UUID?
 }
 
 struct SupabaseLoad: Codable, Identifiable {
@@ -89,12 +89,11 @@ class DriverProfile {
     var truckNumber: String = ""
 
     var username: String = ""
-    var password: String = ""
-    
+
     var role: String = "driver"
 
     var isActive: Bool = true
-    
+
     var mustChangePassword: Bool = true
 
     init() {}

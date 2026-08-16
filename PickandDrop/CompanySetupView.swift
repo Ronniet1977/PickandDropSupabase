@@ -277,9 +277,7 @@ struct CompanySetupView: View {
             adminUsername.trimmingCharacters(
                 in: .whitespacesAndNewlines
             )
-            
-            admin.password = adminPassword
-            
+
             admin.role = "admin"
             
             admin.mustChangePassword = false
@@ -311,9 +309,7 @@ struct CompanySetupView: View {
             starterDriver.username =
             starterDriverUsername
                 .lowercased()
-            
-            starterDriver.password = "1234"
-            
+                        
             starterDriver.role = "driver"
             
             starterDriver.mustChangePassword = true
@@ -335,7 +331,6 @@ struct CompanySetupView: View {
             await DriverSupabaseManager.shared.addDriver(
                 name: "Administrator",
                 username: adminUsername.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
-                password: adminPassword,
                 truckNumber: "ADMIN",
                 role: "admin"
             )
@@ -345,7 +340,6 @@ struct CompanySetupView: View {
                 await DriverSupabaseManager.shared.addDriver(
                     name: starterDriverName.trimmingCharacters(in: .whitespacesAndNewlines),
                     username: starterDriverUsername.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
-                    password: "1234",
                     truckNumber: starterDriverTruck.trimmingCharacters(in: .whitespacesAndNewlines),
                     role: "driver"
                 )

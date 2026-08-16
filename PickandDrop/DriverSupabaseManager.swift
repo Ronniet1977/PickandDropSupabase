@@ -40,7 +40,6 @@ final class DriverSupabaseManager {
     func addDriver(
         name: String,
         username: String,
-        password: String,
         truckNumber: String,
         role: String
     ) async {
@@ -51,12 +50,10 @@ final class DriverSupabaseManager {
             "truck_number": truckNumber,
             "role": role,
             "is_active": true,
-            "password": password,
             "must_change_password": true
         ]
 
         do {
-
             let data = try JSONSerialization.data(
                 withJSONObject: body
             )
@@ -67,11 +64,89 @@ final class DriverSupabaseManager {
                 body: data
             )
 
-            print("✅ Driver added")
+            print("✅ Driver profile added")
+
+        } catch {
+            print("❌ Failed adding driver profile:", error)
+        }
+    }
+    
+    func fetchDriver(
+        username: String
+    ) async -> SupabaseDriver? {
+
+        let cleanUsername =
+            username
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+                .lowercased()
+
+        do {
+            let data =
+                try await SupabaseRESTManager.shared.request(
+                    table: "pickdrop_drivers",
+                    query:
+                        "?select=*&username=eq.\(cleanUsername)&limit=1"
+                )
+
+            let drivers =
+                try JSONDecoder()
+                    .decode(
+                        [SupabaseDriver].self,
+                        from: data
+                    )
+
+            return drivers.first
+
+        } catch {
+            print(
+                "❌ Failed loading driver profile:",
+                error
+            )
+
+            return nil
+        }
+    }
+    
+    func completePasswordChange() async -> Bool {
+
+        do {
+
+            let body =
+                try JSONSerialization.data(
+                    withJSONObject: [:]
+                )
+
+            let data =
+                try await SupabaseRESTManager.shared.request(
+                    table: "rpc/complete_pickdrop_password_change",
+                    method: "POST",
+                    body: body
+                )
+
+            let updated =
+                try JSONDecoder().decode(
+                    Bool.self,
+                    from: data
+                )
+
+            if updated {
+                print("✅ must_change_password cleared")
+            } else {
+                print("❌ No driver matched current Auth user")
+            }
+
+            return updated
 
         } catch {
 
-            print("❌ Failed adding driver:", error)
+            print(
+                "❌ Failed completing password change:",
+                error
+            )
+
+            return false
         }
     }
     
@@ -99,58 +174,6 @@ final class DriverSupabaseManager {
 
         } catch {
             print("❌ Driver update failed:", error)
-        }
-    }
-    
-    func updatePassword(
-        username: String,
-        password: String,
-        mustChangePassword: Bool
-    ) async {
-
-        let body: [String: Any] = [
-            "password": password,
-            "must_change_password": mustChangePassword
-        ]
-
-        do {
-            let data = try JSONSerialization.data(
-                withJSONObject: body
-            )
-
-            _ = try await SupabaseRESTManager.shared.request(
-                table: "pickdrop_drivers?username=eq.\(username)",
-                method: "PATCH",
-                body: data
-            )
-
-            print("✅ Supabase password updated")
-
-        } catch {
-            print("❌ Supabase password update failed:", error)
-        }
-    }
-    
-    func resetPassword(id: UUID) async {
-
-        let body: [String: Any] = [
-            "password": "1234",
-            "must_change_password": true
-        ]
-
-        do {
-            let data = try JSONSerialization.data(withJSONObject: body)
-
-            _ = try await SupabaseRESTManager.shared.request(
-                table: "pickdrop_drivers?id=eq.\(id.uuidString)",
-                method: "PATCH",
-                body: data
-            )
-
-            print("✅ Password reset")
-
-        } catch {
-            print("❌ Password reset failed:", error)
         }
     }
     
@@ -182,23 +205,6 @@ final class DriverSupabaseManager {
         } catch {
 
             print("❌ Duty status failed:", error)
-        }
-    }
-    
-    func deleteDriver(
-        id: UUID
-    ) async {
-
-        do {
-            _ = try await SupabaseRESTManager.shared.request(
-                table: "pickdrop_drivers?id=eq.\(id.uuidString)",
-                method: "DELETE"
-            )
-
-            print("✅ Driver deleted")
-
-        } catch {
-            print("❌ Driver delete failed:", error)
         }
     }
 }

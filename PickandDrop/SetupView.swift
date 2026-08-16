@@ -118,9 +118,7 @@ struct SetupView: View {
                             driver.name = driverName
                             driver.truckNumber = truckNumber
                             
-                            driver.username = driverName.lowercased()
-                            driver.password = "1234"
-                            
+                            driver.username = driverName.lowercased()                            
                             driver.role = role
                             
                             driver.mustChangePassword = true
