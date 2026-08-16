@@ -27,10 +27,17 @@ struct ScannedLoadTicketData: Sendable {
     var rawText = ""
 }
 
+enum TicketScanMode {
+    case combined
+    case pickupOnly
+    case deliveryOnly
+}
+
 enum ScaleTicketOCR {
 
     static func scan(
-        image: UIImage
+        image: UIImage,
+        mode: TicketScanMode = .combined
     ) async throws -> ScannedLoadTicketData {
 
         guard let imageData = image.jpegData(
@@ -94,10 +101,145 @@ enum ScaleTicketOCR {
 
         }.value
 
-        return parse(text: recognizedText)
+        switch mode {
+            
+        case .combined:
+            return parse(text: recognizedText)
+            
+        case .pickupOnly:
+            return parsePickupOnly(
+                text: recognizedText
+            )
+            
+        case .deliveryOnly:
+            return parseDeliveryOnly(
+                text: recognizedText
+            )
+        }
     }
 
     // MARK: - Ticket parsing
+    
+    private static func parsePickupOnly(
+        text: String
+    ) -> ScannedLoadTicketData {
+        
+        var result = ScannedLoadTicketData()
+        result.rawText = text
+        
+        let upper = text
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: "\t", with: " ")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .uppercased()
+        
+        // BRC ticket numbers are seven digits
+        // and currently begin with 1.
+        result.pickupTicket =
+        firstMatch(
+            pattern: #"\b(1\d{6})\b"#,
+            in: upper
+        ) ?? ""
+        
+        // Most reliable method:
+        // net pounds ÷ 2,000.
+        if let netWeight = findNetWeight(in: upper) {
+            
+            result.pickupTons =
+            String(
+                format: "%.2f",
+                netWeight / 2000.0
+            )
+            
+        } else {
+            
+            result.pickupTons =
+            firstPositiveDecimal(
+                after: "QTY",
+                in: upper
+            )
+            ?? firstRepeatedDecimal(
+                in: upper
+            )
+            ?? ""
+        }
+        
+        result.truckNumber =
+        findTruckNumber(in: upper)
+        
+        return result
+    }
+    
+    private static func parseDeliveryOnly(
+        text: String
+    ) -> ScannedLoadTicketData {
+        
+        var result = ScannedLoadTicketData()
+        result.rawText = text
+        
+        let upper = text
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: "\t", with: " ")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .uppercased()
+        
+        // HoneyGo ticket numbers are six digits
+        // and currently begin with 4.
+        result.deliveryTicket =
+        firstMatch(
+            pattern: #"\b(4\d{5})\b"#,
+            in: upper
+        ) ?? ""
+        
+        // Again, net weight is the safest value.
+        if let netWeight = findNetWeight(in: upper) {
+            
+            result.deliveryTons =
+            String(
+                format: "%.2f",
+                netWeight / 2000.0
+            )
+            
+        } else {
+            
+            result.deliveryTons =
+            firstPositiveDecimal(
+                after: "NET TONS",
+                in: upper
+            )
+            ?? firstPositiveDecimal(
+                after: "TONS",
+                in: upper
+            )
+            ?? firstPositiveDecimal(
+                after: "QTY",
+                in: upper
+            )
+            ?? firstRepeatedDecimal(
+                in: upper
+            )
+            ?? ""
+        }
+        
+        result.truckNumber =
+        findTruckNumber(in: upper)
+        
+        return result
+    }
+    
+    private static func findTruckNumber(
+        in text: String
+    ) -> String {
+        
+        firstMatch(
+            pattern: #"\bPD\s*([0-9IYL]{1,4})\b"#,
+            in: text
+        )
+        .map {
+            "PD" + cleanOCRDigits($0)
+        }
+        ?? ""
+    }
 
     private static func parse(
         text: String
