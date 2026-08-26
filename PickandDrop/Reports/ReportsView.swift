@@ -125,6 +125,17 @@ struct ReportsView: View {
                                 color: .red
                             )
                         }
+                        
+                        NavigationLink {
+                            DailyTimeTicketView()
+                        } label: {
+                            reportCard(
+                                title: "Daily Time Ticket",
+                                subtitle: "Start, end, and total hours by day",
+                                icon: "clock.badge.checkmark.fill",
+                                color: .blue
+                            )
+                        }
 
                         NavigationLink {
                             DailyDriverSummaryView()
