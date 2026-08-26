@@ -199,6 +199,25 @@ struct StartShiftView: View {
         do {
             try context.save()
             print("✅ Shift started")
+            
+            let cloudShift =
+            await ShiftSupabaseManager.shared
+                .startShift(
+                    driverName: driver.name,
+                    username: driver.username,
+                    truckNumber: driver.truckNumber
+                )
+            
+            if let cloudShift {
+                print(
+                    "☁️ Cloud shift ID:",
+                    cloudShift.id
+                )
+            } else {
+                print(
+                    "⚠️ Local shift started, but cloud shift failed"
+                )
+            }
 
             print("🟢 Setting duty active for:", driver.username)
 

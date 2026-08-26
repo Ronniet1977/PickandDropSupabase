@@ -304,6 +304,15 @@ struct PickupDeliveryView: View {
                                 Text("Complete Delivery")
                                     .fontWeight(.bold)
                             }
+                            .disabled(
+                                deliveryTicket
+                                    .trimmingCharacters(
+                                        in: .whitespacesAndNewlines
+                                    )
+                                    .isEmpty ||
+                                (Double(deliveryTons) ?? 0) <= 0 ||
+                                isScanningTicket
+                            )
                             .font(.title3)
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -368,24 +377,54 @@ struct PickupDeliveryView: View {
         }
         
         do {
+            
             let result =
             try await ScaleTicketOCR.scan(
                 image: image,
                 mode: .deliveryOnly
             )
             
+            guard
+                !result.deliveryTicket.isEmpty ||
+                    !result.deliveryTons.isEmpty
+            else {
+                
+                scanError =
+                "The HoneyGo ticket was recognized, but the ticket number and tons could not be read. Try taking the picture again."
+                
+                showScanError = true
+                return
+            }
+            
             if !result.deliveryTicket.isEmpty {
-                deliveryTicket = result.deliveryTicket
+                deliveryTicket =
+                result.deliveryTicket
             }
             
             if !result.deliveryTons.isEmpty {
-                deliveryTons = result.deliveryTons
+                deliveryTons =
+                result.deliveryTons
             }
             
             print("✅ HoneyGo ticket scanned")
+            print(
+                "Ticket:",
+                result.deliveryTicket
+            )
+            print(
+                "Tons:",
+                result.deliveryTons
+            )
+            print(
+                "Truck:",
+                result.truckNumber
+            )
             
         } catch {
-            scanError = error.localizedDescription
+            
+            scanError =
+            error.localizedDescription
+            
             showScanError = true
         }
     }
@@ -416,29 +455,50 @@ struct PickupDeliveryView: View {
         notificationManager.sendNotification(note)
     }
     
-    func completeDelivery(_ load: SupabaseLoad) async {
-        guard let tonsValue = Double(deliveryTons) else { return }
-
-        await LoadSupabaseManager.shared.deliverLoad(
-            loadID: load.id,
-            deliveryTicketNumber: deliveryTicket,
-            deliveryTons: tonsValue
-        )
-
+    func completeDelivery(
+        _ load: SupabaseLoad
+    ) async {
+        
+        let cleanTicket =
+        deliveryTicket
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        guard
+            !cleanTicket.isEmpty,
+            let tonsValue =
+                Double(deliveryTons),
+            tonsValue > 0
+        else {
+            return
+        }
+        
+        await LoadSupabaseManager.shared
+            .deliverLoad(
+                loadID: load.id,
+                deliveryTicketNumber:
+                    cleanTicket,
+                deliveryTons:
+                    tonsValue
+            )
+        
         sendAdminNotification(
             type: "Delivered",
-            message: "\(driver.name) delivered \(settings?.dropoff_company_name ?? "Dropoff") ticket \(deliveryTicket) • \(tonsValue) tons",
-            ticket: deliveryTicket
+            message:
+                "\(driver.name) delivered \(settings?.dropoff_company_name ?? "Dropoff") ticket \(cleanTicket) • \(tonsValue) tons",
+            ticket: cleanTicket
         )
-
+        
         await MainActor.run {
             deliveryTicket = ""
             deliveryTons = ""
             selectedLoad = nil
         }
-
+        
         supabaseLoads =
-            await LoadSupabaseManager.shared.fetchLoads()
+        await LoadSupabaseManager.shared
+            .fetchLoads()
     }
     
     func statusText(_ status: String) -> String {

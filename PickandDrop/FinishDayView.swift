@@ -230,6 +230,23 @@ struct FinishDayView: View {
 
         do {
             try context.save()
+            
+            let cloudFinished =
+            await ShiftSupabaseManager.shared
+                .finishActiveShift(
+                    username: driver.username
+                )
+            
+            if cloudFinished {
+                
+                print("☁️ Cloud shift closed")
+                
+            } else {
+                
+                print(
+                    "⚠️ Local shift finished, but cloud shift failed"
+                )
+            }
 
             sendAdminNotification(
                 type: "Finished Day",

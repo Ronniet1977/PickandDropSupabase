@@ -272,26 +272,54 @@ struct AddLoadView: View {
         }
         
         do {
+            
             let result =
             try await ScaleTicketOCR.scan(
                 image: image,
                 mode: .pickupOnly
             )
             
+            guard
+                !result.pickupTicket.isEmpty ||
+                    !result.pickupTons.isEmpty
+            else {
+                
+                scanError =
+                "The BRC ticket was recognized, but the ticket number and tons could not be read. Try taking the picture again."
+                
+                showScanError = true
+                return
+            }
+            
             if !result.pickupTicket.isEmpty {
-                pickupTicket = result.pickupTicket
+                pickupTicket =
+                result.pickupTicket
             }
             
             if !result.pickupTons.isEmpty {
-                pickupTons = result.pickupTons
+                pickupTons =
+                result.pickupTons
             }
             
             print("✅ BRC ticket scanned")
-            print("Ticket:", result.pickupTicket)
-            print("Tons:", result.pickupTons)
+            print(
+                "Ticket:",
+                result.pickupTicket
+            )
+            print(
+                "Tons:",
+                result.pickupTons
+            )
+            print(
+                "Truck:",
+                result.truckNumber
+            )
             
         } catch {
-            scanError = error.localizedDescription
+            
+            scanError =
+            error.localizedDescription
+            
             showScanError = true
         }
     }

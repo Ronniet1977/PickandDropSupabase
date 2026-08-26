@@ -1,9 +1,6 @@
 import SwiftUI
 import UIKit
 
-import SwiftUI
-import UIKit
-
 struct DriverDetailView: View {
     
     let driver: DriverSummary
@@ -61,6 +58,7 @@ struct DriverDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    
                     Button {
                         scannedLoad = nil
                         showAddLoad = true
@@ -77,20 +75,12 @@ struct DriverDetailView: View {
                     } label: {
                         Label(
                             "Scan BRC Ticket",
-                            systemImage: "arrow.up.doc.fill"
+                            systemImage: "doc.viewfinder.fill"
                         )
                     }
                     
-                    Button {
-                        selectedScanMode = .deliveryOnly
-                        showScanCamera = true
-                    } label: {
-                        Label(
-                            "Scan HoneyGo Ticket",
-                            systemImage: "arrow.down.doc.fill"
-                        )
-                    }
                 } label: {
+                    
                     Label(
                         isScanning ? "Scanning..." : "Load",
                         systemImage: "shippingbox.fill"
@@ -224,11 +214,24 @@ struct DriverDetailView: View {
         }
         
         do {
+            
             let result =
             try await ScaleTicketOCR.scan(
                 image: image,
                 mode: selectedScanMode
             )
+            
+            guard
+                !result.pickupTicket.isEmpty ||
+                    !result.pickupTons.isEmpty
+            else {
+                
+                scanError =
+                "The BRC ticket was recognized, but the ticket number and tons could not be read. Try taking the picture again."
+                
+                showScanError = true
+                return
+            }
             
             scannedLoad = result
             showScanCamera = false
@@ -239,11 +242,14 @@ struct DriverDetailView: View {
             
             showAddLoad = true
             
-            print("✅ New admin ticket scan complete")
+            print("✅ New admin BRC ticket scan complete")
             print(result.rawText)
             
         } catch {
-            scanError = error.localizedDescription
+            
+            scanError =
+            error.localizedDescription
+            
             showScanError = true
         }
     }
@@ -1051,11 +1057,8 @@ struct AdminAddLoadView: View {
             return true
         }
         
-        return
-        !deliveryTicket
-            .trimmingCharacters(
-                in: .whitespacesAndNewlines
-            )
+        return !deliveryTicket
+            .trimmingCharacters(in: .whitespacesAndNewlines)
             .isEmpty &&
         (Double(deliveryTons) ?? 0) > 0
     }
