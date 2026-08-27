@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8743D9F5303FBECC008B5C84 /* ShiftSupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8743D9F4303FBECC008B5C84 /* ShiftSupabaseManager.swift */; };
+		8743D9F7303FBF7A008B5C84 /* DailyTimeTicketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8743D9F6303FBF7A008B5C84 /* DailyTimeTicketView.swift */; };
+		8743D9F9303FBFCC008B5C84 /* LegacyShiftMigrationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8743D9F8303FBFCC008B5C84 /* LegacyShiftMigrationManager.swift */; };
 		8749487B2FAEC7E2006E0BFB /* DriverManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8749487A2FAEC7DE006E0BFB /* DriverManagerView.swift */; };
 		8751679C2FAD689800E8B528 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 875167882FAD689800E8B528 /* Assets.xcassets */; };
 		8751679E2FAD689800E8B528 /* AddFuelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875167852FAD689800E8B528 /* AddFuelView.swift */; };
@@ -49,6 +52,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		8743D9F4303FBECC008B5C84 /* ShiftSupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftSupabaseManager.swift; sourceTree = "<group>"; };
+		8743D9F6303FBF7A008B5C84 /* DailyTimeTicketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTimeTicketView.swift; sourceTree = "<group>"; };
+		8743D9F8303FBFCC008B5C84 /* LegacyShiftMigrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyShiftMigrationManager.swift; sourceTree = "<group>"; };
 		8749487A2FAEC7DE006E0BFB /* DriverManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverManagerView.swift; sourceTree = "<group>"; };
 		875167852FAD689800E8B528 /* AddFuelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFuelView.swift; sourceTree = "<group>"; };
 		875167862FAD689800E8B528 /* AddLoadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddLoadView.swift; sourceTree = "<group>"; };
@@ -120,6 +126,9 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				8743D9F8303FBFCC008B5C84 /* LegacyShiftMigrationManager.swift */,
+				8743D9F6303FBF7A008B5C84 /* DailyTimeTicketView.swift */,
+				8743D9F4303FBECC008B5C84 /* ShiftSupabaseManager.swift */,
 				87FC050C30321E8D001C2F7E /* AdminDriverAuthManager.swift */,
 				87FC050A303219F4001C2F7E /* AuthKeychain.swift */,
 				87FC05083031FE6F001C2F7E /* SupabaseAuthManager.swift */,
@@ -288,9 +297,12 @@
 				875167AB2FAD689800E8B528 /* RootView.swift in Sources */,
 				875167AC2FAD689800E8B528 /* SetupView.swift in Sources */,
 				879F500B301EFCFC007C5D1C /* ScaleTicketOCR.swift in Sources */,
+				8743D9F9303FBFCC008B5C84 /* LegacyShiftMigrationManager.swift in Sources */,
 				8749487B2FAEC7E2006E0BFB /* DriverManagerView.swift in Sources */,
+				8743D9F5303FBECC008B5C84 /* ShiftSupabaseManager.swift in Sources */,
 				875167AD2FAD689800E8B528 /* ShareSheet.swift in Sources */,
 				875167AE2FAD689800E8B528 /* StartShiftView.swift in Sources */,
+				8743D9F7303FBF7A008B5C84 /* DailyTimeTicketView.swift in Sources */,
 				875167AF2FAD689800E8B528 /* StorageManager.swift in Sources */,
 				87FC050B303219F8001C2F7E /* AuthKeychain.swift in Sources */,
 				8787AB222FD4E8ED00A8DC15 /* FuelReceiptManager.swift in Sources */,
