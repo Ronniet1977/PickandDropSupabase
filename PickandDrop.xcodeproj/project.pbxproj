@@ -10,6 +10,7 @@
 		8743D9F5303FBECC008B5C84 /* ShiftSupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8743D9F4303FBECC008B5C84 /* ShiftSupabaseManager.swift */; };
 		8743D9F7303FBF7A008B5C84 /* DailyTimeTicketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8743D9F6303FBF7A008B5C84 /* DailyTimeTicketView.swift */; };
 		8743D9F9303FBFCC008B5C84 /* LegacyShiftMigrationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8743D9F8303FBFCC008B5C84 /* LegacyShiftMigrationManager.swift */; };
+		8743DA7330437C7A008B5C84 /* AppUpdateAdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8743DA7230437C7A008B5C84 /* AppUpdateAdminView.swift */; };
 		8749487B2FAEC7E2006E0BFB /* DriverManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8749487A2FAEC7DE006E0BFB /* DriverManagerView.swift */; };
 		8751679C2FAD689800E8B528 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 875167882FAD689800E8B528 /* Assets.xcassets */; };
 		8751679E2FAD689800E8B528 /* AddFuelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875167852FAD689800E8B528 /* AddFuelView.swift */; };
@@ -55,6 +56,7 @@
 		8743D9F4303FBECC008B5C84 /* ShiftSupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftSupabaseManager.swift; sourceTree = "<group>"; };
 		8743D9F6303FBF7A008B5C84 /* DailyTimeTicketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTimeTicketView.swift; sourceTree = "<group>"; };
 		8743D9F8303FBFCC008B5C84 /* LegacyShiftMigrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyShiftMigrationManager.swift; sourceTree = "<group>"; };
+		8743DA7230437C7A008B5C84 /* AppUpdateAdminView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppUpdateAdminView.swift; path = "/Users/ronaldthayerjr/Library/Mobile Documents/com~apple~CloudDocs/Apps To Send/PickandDropSupabase-main/PickandDrop/AppUpdateAdminView.swift"; sourceTree = "<absolute>"; };
 		8749487A2FAEC7DE006E0BFB /* DriverManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverManagerView.swift; sourceTree = "<group>"; };
 		875167852FAD689800E8B528 /* AddFuelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFuelView.swift; sourceTree = "<group>"; };
 		875167862FAD689800E8B528 /* AddLoadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddLoadView.swift; sourceTree = "<group>"; };
@@ -126,6 +128,7 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				8743DA7230437C7A008B5C84 /* AppUpdateAdminView.swift */,
 				8743D9F8303FBFCC008B5C84 /* LegacyShiftMigrationManager.swift */,
 				8743D9F6303FBF7A008B5C84 /* DailyTimeTicketView.swift */,
 				8743D9F4303FBECC008B5C84 /* ShiftSupabaseManager.swift */,
@@ -289,6 +292,7 @@
 				8787AB202FD4CD1000A8DC15 /* FuelReceiptStorageManager.swift in Sources */,
 				875167A72FAD689800E8B528 /* Models.swift in Sources */,
 				8760FA782FBD7E9800AADD94 /* HelpView.swift in Sources */,
+				8743DA7330437C7A008B5C84 /* AppUpdateAdminView.swift in Sources */,
 				875167A82FAD689800E8B528 /* MyApp.swift in Sources */,
 				875167A92FAD689800E8B528 /* PickupDeliveryView.swift in Sources */,
 				8760FA762FBD7A1600AADD94 /* CameraPicker.swift in Sources */,
