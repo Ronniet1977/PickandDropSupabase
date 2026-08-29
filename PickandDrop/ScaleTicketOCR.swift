@@ -1181,12 +1181,10 @@ enum OCRFailure:
         switch self {
             
         case .invalidImage:
-            return
-            "The ticket photo could not be read."
+            return "The ticket photo could not be read."
             
         case .noTextFound:
-            return
-            "No readable ticket text was found."
+            return "No readable ticket text was found."
         }
     }
 }

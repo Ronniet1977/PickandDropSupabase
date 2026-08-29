@@ -45,6 +45,92 @@ enum SupabaseAuthError: LocalizedError {
     }
 }
 
+enum AuthRestoreResult {
+    case restored
+    case noSession
+    case invalidSession
+    case temporaryFailure
+}
+
+final class AppUpdateManager {
+    
+    static let shared = AppUpdateManager()
+    
+    private init() {}
+    
+    func updateConfig(
+        forceUpdate: Bool,
+        minimumBuild: Int,
+        latestBuild: Int,
+        appStoreURL: String
+    ) async -> Bool {
+        
+        let body: [String: Any] = [
+            "force_update": forceUpdate,
+            "minimum_build": minimumBuild,
+            "latest_build": latestBuild,
+            "app_store_url": appStoreURL
+        ]
+        
+        do {
+            
+            let data =
+            try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
+            _ =
+            try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_app_config",
+                method: "PATCH",
+                query: "?id=eq.1",
+                body: data
+            )
+            
+            print("✅ App update config saved")
+            
+            return true
+            
+        } catch {
+            
+            print(
+                "❌ Failed saving app update config:",
+                error
+            )
+            
+            return false
+        }
+    }
+    
+    func fetchConfig() async -> SupabaseAppConfig? {
+        
+        do {
+            
+            let data =
+            try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_app_config",
+                query: "?select=*&id=eq.1&limit=1"
+            )
+            
+            return try JSONDecoder()
+                .decode(
+                    [SupabaseAppConfig].self,
+                    from: data
+                )
+                .first
+            
+        } catch {
+            
+            print(
+                "❌ Failed loading app update config:",
+                error
+            )
+            
+            return nil
+        }
+    }
+}
+
 final class SupabaseAuthManager {
 
     static let shared = SupabaseAuthManager()
@@ -54,6 +140,10 @@ final class SupabaseAuthManager {
     private(set) var accessToken: String?
     private(set) var refreshToken: String?
     private(set) var currentUserID: UUID?
+    
+    @MainActor
+    private var restoreTask:
+    Task<AuthRestoreResult, Never>?
 
     // MARK: - Sign In
 
@@ -291,130 +381,204 @@ final class SupabaseAuthManager {
     }
     
     // MARK: - Restore Session
-
-    func restoreSession() async -> Bool {
-
-        guard let storedRefreshToken =
-            AuthKeychain.loadRefreshToken()
-        else {
-            print("ℹ️ No saved Auth session")
-            return false
+    
+    @MainActor
+    func restoreSession() async -> AuthRestoreResult {
+        
+        // If a refresh is already running,
+        // everybody waits for that SAME refresh
+        // instead of using the refresh token twice.
+        if let existingTask = restoreTask {
+            
+            print(
+                "🔄 Auth restore already running — waiting for existing request"
+            )
+            
+            return await existingTask.value
         }
+        
+        let task =
+        Task<AuthRestoreResult, Never> {
+            
+            await self.performRestoreSession()
+        }
+        
+        restoreTask = task
+        
+        let result =
+        await task.value
+        
+        restoreTask = nil
+        
+        return result
+    }
 
+    private func performRestoreSession() async -> AuthRestoreResult {
+        
+        guard let storedRefreshToken =
+                AuthKeychain.loadRefreshToken()
+        else {
+            
+            print(
+                "ℹ️ No saved Auth session"
+            )
+            
+            return .noSession
+        }
+        
         guard let url = URL(
             string:
                 "\(SupabaseConfig.projectURL)/auth/v1/token?grant_type=refresh_token"
         ) else {
-            print("❌ Invalid refresh URL")
-            return false
+            
+            print(
+                "❌ Invalid refresh URL"
+            )
+            
+            return .temporaryFailure
         }
-
+        
         let body: [String: Any] = [
-            "refresh_token": storedRefreshToken
+            "refresh_token":
+                storedRefreshToken
         ]
-
+        
         do {
-
+            
             let data =
-                try JSONSerialization.data(
-                    withJSONObject: body
-                )
-
+            try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
             var request =
-                URLRequest(url: url)
-
+            URLRequest(url: url)
+            
             request.httpMethod = "POST"
-
+            
             request.setValue(
                 SupabaseConfig.anonKey,
                 forHTTPHeaderField: "apikey"
             )
-
+            
             request.setValue(
                 "application/json",
-                forHTTPHeaderField: "Content-Type"
+                forHTTPHeaderField:
+                    "Content-Type"
             )
-
+            
             request.setValue(
                 "application/json",
-                forHTTPHeaderField: "Accept"
+                forHTTPHeaderField:
+                    "Accept"
             )
-
+            
             request.httpBody = data
-
-            let (responseData, response) =
-                try await URLSession.shared.data(
-                    for: request
-                )
-
+            
+            let (
+                responseData,
+                response
+            ) =
+            try await URLSession.shared.data(
+                for: request
+            )
+            
             guard let http =
-                response as? HTTPURLResponse
+                    response as? HTTPURLResponse
             else {
-                throw SupabaseAuthError.invalidResponse
-            }
-
-            guard (200...299).contains(
-                http.statusCode
-            ) else {
-
-                let error =
-                    authError(
-                        from: responseData,
-                        fallback:
-                            "Unable to restore session."
-                    )
-
+                
                 print(
-                    "❌ Auth session restore failed:",
-                    error.localizedDescription
+                    "⚠️ Auth restore received invalid response"
                 )
-
-                AuthKeychain.deleteRefreshToken()
-
-                accessToken = nil
-                refreshToken = nil
-                currentUserID = nil
-
-                return false
+                
+                return .temporaryFailure
             }
-
-            let session =
+            
+            // MARK: Successful refresh
+            
+            if (200...299).contains(
+                http.statusCode
+            ) {
+                
+                let session =
                 try JSONDecoder().decode(
                     SupabaseAuthSession.self,
                     from: responseData
                 )
-
-            accessToken =
+                
+                accessToken =
                 session.access_token
-
-            refreshToken =
+                
+                refreshToken =
                 session.refresh_token
-
-            currentUserID =
+                
+                currentUserID =
                 session.user.id
-
-            // Refresh token rotation means
-            // we must save the NEW token.
-            AuthKeychain.saveRefreshToken(
-                session.refresh_token
+                
+                // Save rotated refresh token.
+                AuthKeychain.saveRefreshToken(
+                    session.refresh_token
+                )
+                
+                print(
+                    "✅ Supabase Auth session restored"
+                )
+                
+                print(
+                    "👤 Auth User ID:",
+                    session.user.id
+                )
+                
+                return .restored
+            }
+            
+            let error =
+            authError(
+                from: responseData,
+                fallback:
+                    "Unable to restore session."
             )
-
-            print("✅ Supabase Auth session restored")
+            
+            // MARK: Truly invalid session
+            
+            if http.statusCode == 400 ||
+                http.statusCode == 401 {
+                
+                print(
+                    "❌ Auth session is invalid:",
+                    error.localizedDescription
+                )
+                
+                accessToken = nil
+                refreshToken = nil
+                currentUserID = nil
+                
+                AuthKeychain.deleteRefreshToken()
+                
+                return .invalidSession
+            }
+            
+            // MARK: Server/rate-limit/etc.
+            // Do NOT destroy the saved session.
+            
             print(
-                "👤 Auth User ID:",
-                session.user.id
-            )
-
-            return true
-
-        } catch {
-
-            print(
-                "❌ Auth restore error:",
+                "⚠️ Temporary Auth restore failure:",
+                http.statusCode,
                 error.localizedDescription
             )
-
-            return false
+            
+            return .temporaryFailure
+            
+        } catch {
+            
+            // Network loss, timeout, DNS, etc.
+            // Do NOT delete Jesse's refresh token.
+            
+            print(
+                "⚠️ Temporary Auth restore error:",
+                error.localizedDescription
+            )
+            
+            return .temporaryFailure
         }
     }
 

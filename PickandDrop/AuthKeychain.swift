@@ -19,51 +19,85 @@ enum AuthKeychain {
     static func saveRefreshToken(
         _ token: String
     ) {
-
+        
         guard let data =
-            token.data(using: .utf8)
+                token.data(using: .utf8)
         else {
             return
         }
-
+        
         let query: [String: Any] = [
             kSecClass as String:
                 kSecClassGenericPassword,
-
+            
             kSecAttrService as String:
                 service,
-
+            
             kSecAttrAccount as String:
                 refreshTokenAccount
         ]
-
-        SecItemDelete(
-            query as CFDictionary
+        
+        let attributes: [String: Any] = [
+            kSecValueData as String:
+                data,
+            
+            kSecAttrAccessible as String:
+                kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+        
+        let updateStatus =
+        SecItemUpdate(
+            query as CFDictionary,
+            attributes as CFDictionary
         )
-
+        
+        if updateStatus == errSecSuccess {
+            
+            print(
+                "🔐 Auth refresh token updated"
+            )
+            
+            return
+        }
+        
+        if updateStatus != errSecItemNotFound {
+            
+            print(
+                "❌ Keychain update failed:",
+                updateStatus
+            )
+            
+            return
+        }
+        
         var newItem = query
-
+        
         newItem[
             kSecValueData as String
         ] = data
-
+        
         newItem[
             kSecAttrAccessible as String
         ] =
-            kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-
-        let status =
-            SecItemAdd(
-                newItem as CFDictionary,
-                nil
+        kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        
+        let addStatus =
+        SecItemAdd(
+            newItem as CFDictionary,
+            nil
+        )
+        
+        if addStatus == errSecSuccess {
+            
+            print(
+                "🔐 Auth refresh token saved"
             )
-
-        if status == errSecSuccess {
-            print("🔐 Auth refresh token saved")
+            
         } else {
+            
             print(
                 "❌ Keychain save failed:",
-                status
+                addStatus
             )
         }
     }

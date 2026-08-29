@@ -590,12 +590,21 @@ struct AdminDashboardView: View {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     
                     Button("Boss Report") {
-
                         bossReportText = makeBossDailyReport()
                         showBossReport = true
                     }
                     .foregroundStyle(.white)
-
+                    
+                    NavigationLink {
+                        AppUpdateAdminView()
+                    } label: {
+                        Image(
+                            systemName:
+                                "arrow.triangle.2.circlepath.circle.fill"
+                        )
+                    }
+                    .foregroundStyle(.white)
+                    
                     Button {
                         loadFromSupabase()
                         notificationManager.loadNotifications()
@@ -607,11 +616,14 @@ struct AdminDashboardView: View {
                         }
                     }
                     .disabled(isRefreshing)
-
+                    
                     Button(role: .destructive) {
                         logout()
                     } label: {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                        Image(
+                            systemName:
+                                "rectangle.portrait.and.arrow.right"
+                        )
                     }
                 }
             }

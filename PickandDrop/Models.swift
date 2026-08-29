@@ -15,6 +15,15 @@ struct SupabaseCompanySettings: Codable, Identifiable {
     let fuel_surcharge_per_ton: Double
 }
 
+struct SupabaseAppConfig: Codable {
+    let minimum_version: String
+    let latest_version: String
+    let minimum_build: Int
+    let latest_build: Int
+    let force_update: Bool
+    let app_store_url: String?
+}
+
 struct SupabaseDriver: Codable, Identifiable {
 
     let id: UUID

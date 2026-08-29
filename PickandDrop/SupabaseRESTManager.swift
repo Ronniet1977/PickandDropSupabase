@@ -8,74 +8,235 @@
 import Foundation
 
 final class SupabaseRESTManager {
-
+    
     static let shared = SupabaseRESTManager()
-
+    
     private init() {}
-
+    
     func request(
         table: String,
         method: String = "GET",
         query: String = "",
         body: Data? = nil
     ) async throws -> Data {
-
+        
+        try await performRequest(
+            table: table,
+            method: method,
+            query: query,
+            body: body,
+            canRetryAuth: true
+        )
+    }
+    
+    
+    // MARK: - Perform Request
+    
+    private func performRequest(
+        table: String,
+        method: String,
+        query: String,
+        body: Data?,
+        canRetryAuth: Bool
+    ) async throws -> Data {
+        
         let urlString =
-            "\(SupabaseConfig.projectURL)/rest/v1/\(table)\(query)"
-
-        guard let url = URL(string: urlString) else {
+        "\(SupabaseConfig.projectURL)/rest/v1/\(table)\(query)"
+        
+        guard let url =
+                URL(string: urlString)
+        else {
             throw URLError(.badURL)
         }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-
+        
+        let tokenAtRequestStart =
+        SupabaseAuthManager.shared
+            .accessToken
+        
+        let wasAuthenticated =
+        tokenAtRequestStart != nil
+        
+        var request =
+        URLRequest(url: url)
+        
+        request.httpMethod =
+        method
+        
         request.setValue(
             SupabaseConfig.anonKey,
-            forHTTPHeaderField: "apikey"
+            forHTTPHeaderField:
+                "apikey"
         )
-
+        
         if let accessToken =
-            SupabaseAuthManager.shared.accessToken {
-
+            tokenAtRequestStart {
+            
             request.setValue(
                 "Bearer \(accessToken)",
-                forHTTPHeaderField: "Authorization"
+                forHTTPHeaderField:
+                    "Authorization"
             )
-
+            
         } else {
-
+            
             request.setValue(
                 "Bearer \(SupabaseConfig.anonKey)",
-                forHTTPHeaderField: "Authorization"
+                forHTTPHeaderField:
+                    "Authorization"
             )
         }
+        
+        request.setValue(
+            "application/json",
+            forHTTPHeaderField:
+                "Content-Type"
+        )
+        
+        request.setValue(
+            "application/json",
+            forHTTPHeaderField:
+                "Accept"
+        )
+        
+        if method == "POST" ||
+            method == "PATCH" ||
+            method == "DELETE" {
+            
+            request.setValue(
+                "return=representation",
+                forHTTPHeaderField:
+                    "Prefer"
+            )
+        }
+        
+        request.httpBody =
+        body
+        
 #if DEBUG
-if SupabaseAuthManager.shared.accessToken != nil {
-    print("🔐 REST request using authenticated user")
-} else {
-    print("⚠️ REST request using anon access")
-}
+        
+        if wasAuthenticated {
+            
+            print(
+                "🔐 REST request using authenticated user"
+            )
+            
+        } else {
+            
+            print(
+                "⚠️ REST request using anon access"
+            )
+        }
+        
 #endif
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        if method == "POST" || method == "PATCH" || method == "DELETE" {
-            request.setValue("return=representation", forHTTPHeaderField: "Prefer")
+        
+        let (
+            data,
+            response
+        ) =
+        try await URLSession.shared.data(
+            for: request
+        )
+        
+        guard let http =
+                response as? HTTPURLResponse
+        else {
+            throw URLError(
+                .badServerResponse
+            )
         }
-
-        request.httpBody = body
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        if let http = response as? HTTPURLResponse,
-           !(200...299).contains(http.statusCode) {
-
-            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
-            print("❌ Supabase error:", http.statusCode, message)
-            throw URLError(.badServerResponse)
+        
+        
+        // MARK: - Access Token Expired
+        
+        if http.statusCode == 401,
+           wasAuthenticated,
+           canRetryAuth {
+            
+            print(
+                "🔄 REST access token rejected — refreshing session"
+            )
+            
+            let restoreResult =
+            await SupabaseAuthManager
+                .shared
+                .restoreSession()
+            
+            switch restoreResult {
+                
+            case .restored:
+                
+                print(
+                    "✅ Auth refreshed — retrying REST request"
+                )
+                
+                return try await performRequest(
+                    table: table,
+                    method: method,
+                    query: query,
+                    body: body,
+                    canRetryAuth: false
+                )
+                
+                
+            case .temporaryFailure:
+                
+                print(
+                    "⚠️ Auth refresh temporarily unavailable"
+                )
+                
+                throw URLError(
+                    .networkConnectionLost
+                )
+                
+                
+            case .noSession:
+                
+                print(
+                    "❌ No Auth session available for REST retry"
+                )
+                
+                throw SupabaseAuthError.server(
+                    "Your login session is unavailable."
+                )
+                
+                
+            case .invalidSession:
+                
+                print(
+                    "❌ Auth session expired and cannot be refreshed"
+                )
+                
+                throw SupabaseAuthError.server(
+                    "Your login session has expired."
+                )
+            }
         }
-
+        
+        
+        // MARK: - Other Errors
+        
+        guard (200...299).contains(
+            http.statusCode
+        ) else {
+            
+            let message =
+            String(
+                data: data,
+                encoding: .utf8
+            )
+            ?? "Unknown error"
+            
+            print(
+                "❌ Supabase error:",
+                http.statusCode,
+                message
+            )
+            
+            throw URLError(
+                .badServerResponse
+            )
+        }
+        
         return data
     }
 }
