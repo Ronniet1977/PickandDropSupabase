@@ -17,6 +17,9 @@ struct AddFuelView: View {
     @State private var showCamera = false
     @State private var receiptImage: UIImage?
     
+    @State private var drivers: [SupabaseDriver] = []
+    @State private var selectedTruckNumber = ""
+    
     var settings: CompanySettings? {
         companySettings.first
     }
@@ -98,6 +101,38 @@ struct AddFuelView: View {
                         VStack(spacing: 22) {
 
                             VStack(alignment: .leading, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 8) {
+
+                                    Text("Truck Number")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.white.opacity(0.7))
+
+                                    Picker(
+                                        "Truck Number",
+                                        selection: $selectedTruckNumber
+                                    ) {
+
+                                        Text("Select Truck")
+                                            .tag("")
+
+                                        ForEach(
+                                            truckNumbers,
+                                            id: \.self
+                                        ) { truck in
+
+                                            Text("Truck \(truck)")
+                                                .tag(truck)
+                                        }
+                                    }
+                                    .pickerStyle(.menu)
+                                    .tint(.white)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding()
+                                    .background(.white.opacity(0.08))
+                                    .clipShape(
+                                        RoundedRectangle(cornerRadius: 18)
+                                    )
+                                }
 
                                 Text("Fuel Amount")
                                     .font(.caption.bold())
@@ -189,6 +224,10 @@ struct AddFuelView: View {
                             .shadow(color: .orange.opacity(0.4), radius: 14)
                         }
                         .padding(.horizontal)
+                        .disabled(
+                            selectedTruckNumber.isEmpty ||
+                            (Double(fuelAmount) ?? 0) <= 0
+                        )
                     }
 
                     Spacer(minLength: 40)
@@ -198,6 +237,23 @@ struct AddFuelView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .onAppear {
+            Task {
+
+                let loadedDrivers =
+                    await DriverSupabaseManager.shared
+                        .fetchDrivers()
+
+                await MainActor.run {
+                    drivers = loadedDrivers
+
+                    if selectedTruckNumber.isEmpty {
+                        selectedTruckNumber =
+                            driver.truckNumber
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showCamera) {
 
             CameraPicker(
@@ -246,7 +302,7 @@ struct AddFuelView: View {
 
             await FuelSupabaseManager.shared.addFuel(
                 driverName: driver.name,
-                truckNumber: driver.truckNumber,
+                truckNumber: selectedTruckNumber,
                 amount: amountValue,
                 receiptPath: receiptPath
             )
@@ -259,7 +315,8 @@ struct AddFuelView: View {
         
         sendAdminNotification(
             type: "Fuel Added",
-            message: "\(driver.name) added fuel • $\(String(format: "%.2f", amount))"
+            message:
+                "\(driver.name) added fuel to Truck \(selectedTruckNumber) • $\(String(format: "%.2f", amount))"
         )
         //saveFuelReceipt()
 
@@ -272,6 +329,17 @@ struct AddFuelView: View {
         } catch {
             print("❌ Fuel save failed:", error)
         }
+    }
+    
+    private var truckNumbers: [String] {
+        Array(
+            Set(
+                drivers
+                    .filter { $0.is_active }
+                    .map { $0.truck_number }
+            )
+        )
+        .sorted()
     }
 }
 
