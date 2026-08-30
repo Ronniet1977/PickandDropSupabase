@@ -60,6 +60,8 @@ final class AppUpdateManager {
     
     func updateConfig(
         forceUpdate: Bool,
+        minimumVersion: String,
+        latestVersion: String,
         minimumBuild: Int,
         latestBuild: Int,
         appStoreURL: String
@@ -67,6 +69,8 @@ final class AppUpdateManager {
         
         let body: [String: Any] = [
             "force_update": forceUpdate,
+            "minimum_version": minimumVersion,
+            "latest_version": latestVersion,
             "minimum_build": minimumBuild,
             "latest_build": latestBuild,
             "app_store_url": appStoreURL

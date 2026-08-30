@@ -16,6 +16,9 @@ struct AppUpdateAdminView: View {
     @State private var errorText = ""
     @State private var showError = false
     
+    @State private var minimumVersion = ""
+    @State private var latestVersion = ""
+    
     var body: some View {
         
         Form {
@@ -25,6 +28,16 @@ struct AppUpdateAdminView: View {
                 Toggle(
                     "Force Update",
                     isOn: $forceUpdate
+                )
+                
+                TextField(
+                    "Minimum Version",
+                    text: $minimumVersion
+                )
+
+                TextField(
+                    "Latest Version",
+                    text: $latestVersion
                 )
                 
                 TextField(
@@ -163,6 +176,12 @@ struct AppUpdateAdminView: View {
         forceUpdate =
         config.force_update
         
+        minimumVersion =
+            config.minimum_version
+
+        latestVersion =
+            config.latest_version
+        
         minimumBuild =
         String(
             config.minimum_build
@@ -199,17 +218,15 @@ struct AppUpdateAdminView: View {
         isSaving = true
         
         let success =
-        await AppUpdateManager.shared
-            .updateConfig(
-                forceUpdate:
-                    forceUpdate,
-                minimumBuild:
-                    minBuild,
-                latestBuild:
-                    latest,
-                appStoreURL:
-                    updateURL
-            )
+            await AppUpdateManager.shared
+                .updateConfig(
+                    forceUpdate: forceUpdate,
+                    minimumVersion: minimumVersion,
+                    latestVersion: latestVersion,
+                    minimumBuild: minBuild,
+                    latestBuild: latest,
+                    appStoreURL: updateURL
+                )
         
         isSaving = false
         
