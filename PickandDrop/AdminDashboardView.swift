@@ -586,36 +586,57 @@ struct AdminDashboardView: View {
             }
             .navigationTitle("Admin")
             .toolbar {
-
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                
+                ToolbarItemGroup(
+                    placement: .topBarTrailing
+                ) {
                     
-                    Button("Boss Report") {
-                        bossReportText = makeBossDailyReport()
-                        showBossReport = true
-                    }
-                    .foregroundStyle(.white)
-                    
-                    NavigationLink {
-                        AppUpdateAdminView()
+                    Menu {
+                        
+                        Button {
+                            bossReportText =
+                            makeBossDailyReport()
+                            
+                            showBossReport = true
+                            
+                        } label: {
+                            Label(
+                                "Boss Report",
+                                systemImage:
+                                    "doc.text.fill"
+                            )
+                        }
+                        
+                        NavigationLink {
+                            AppUpdateAdminView()
+                        } label: {
+                            Label(
+                                "App Update Control",
+                                systemImage:
+                                    "arrow.triangle.2.circlepath.circle.fill"
+                            )
+                        }
+                        
+                        Button {
+                            loadFromSupabase()
+                            notificationManager
+                                .loadNotifications()
+                        } label: {
+                            Label(
+                                "Refresh",
+                                systemImage:
+                                    "arrow.clockwise"
+                            )
+                        }
+                        .disabled(isRefreshing)
+                        
                     } label: {
+                        
                         Image(
                             systemName:
-                                "arrow.triangle.2.circlepath.circle.fill"
+                                "ellipsis.circle.fill"
                         )
                     }
-                    .foregroundStyle(.white)
-                    
-                    Button {
-                        loadFromSupabase()
-                        notificationManager.loadNotifications()
-                    } label: {
-                        if isRefreshing {
-                            ProgressView()
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                    }
-                    .disabled(isRefreshing)
                     
                     Button(role: .destructive) {
                         logout()
@@ -625,6 +646,7 @@ struct AdminDashboardView: View {
                                 "rectangle.portrait.and.arrow.right"
                         )
                     }
+                    .tint(.red)
                 }
             }
             .fileImporter(
