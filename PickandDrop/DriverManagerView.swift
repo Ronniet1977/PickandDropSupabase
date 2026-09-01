@@ -36,6 +36,8 @@ struct DriverManagerView: View {
     
     @State private var driverToDelete: SupabaseDriver?
     @State private var showDeleteConfirmation = false
+    
+    @State private var driverToEdit: SupabaseDriver?
 
     var body: some View {
         
@@ -165,6 +167,16 @@ struct DriverManagerView: View {
                                 
                                 HStack(spacing: 12) {
                                     Button {
+                                        driverToEdit = driver
+                                    } label: {
+                                        Label(
+                                            "Edit",
+                                            systemImage: "pencil.circle.fill"
+                                        )
+                                    }
+                                    .tint(.purple)
+                                    
+                                    Button {
                                         Task {
                                             await resetDriverPassword(driver)
                                         }
@@ -283,6 +295,38 @@ struct DriverManagerView: View {
                     Image(systemName: "ellipsis.circle.fill")
                         .font(.title3)
                 }
+            }
+        }
+        .sheet(item: $driverToEdit) { driver in
+            NavigationStack {
+                EditDriverView(
+                    driver: driver,
+                    onSaved: { oldName, newName in
+                        
+                        if currentDriverName == oldName {
+                            
+                            currentDriverName = newName
+                            
+                            let localDrivers =
+                            try? context.fetch(
+                                FetchDescriptor<DriverProfile>()
+                            )
+                            
+                            if let localDriver =
+                                localDrivers?.first(where: {
+                                    $0.name == oldName
+                                }) {
+                                
+                                localDriver.name =
+                                newName
+                                
+                                try? context.save()
+                            }
+                        }
+                        
+                        loadDrivers()
+                    }
+                )
             }
         }
         .onAppear {
@@ -537,5 +581,170 @@ struct DriverManagerView: View {
         }
 
         isCreatingDriver = false
+    }
+}
+
+struct EditDriverView: View {
+    
+    let driver: SupabaseDriver
+    var onSaved: ((
+        String,
+        String
+    ) -> Void)? = nil
+    
+    @Environment(\.dismiss)
+    private var dismiss
+    
+    @State private var name = ""
+    @State private var truckNumber = ""
+    @State private var role = "driver"
+    @State private var isActive = true
+    
+    @State private var isSaving = false
+    @State private var errorMessage = ""
+    @State private var showError = false
+    
+    var body: some View {
+        
+        Form {
+            
+            Section("Driver") {
+                
+                TextField(
+                    "Driver Name",
+                    text: $name
+                )
+                
+                TextField(
+                    "Truck Number",
+                    text: $truckNumber
+                )
+                
+                Picker(
+                    "Role",
+                    selection: $role
+                ) {
+                    Text("Driver")
+                        .tag("driver")
+                    
+                    Text("Admin")
+                        .tag("admin")
+                }
+                .pickerStyle(.segmented)
+                
+                Toggle(
+                    "Active",
+                    isOn: $isActive
+                )
+            }
+            
+            Section {
+                
+                Button {
+                    Task {
+                        await save()
+                    }
+                } label: {
+                    
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Label(
+                            "Save Driver",
+                            systemImage:
+                                "checkmark.circle.fill"
+                        )
+                    }
+                }
+                .disabled(
+                    name
+                        .trimmingCharacters(
+                            in: .whitespacesAndNewlines
+                        )
+                        .isEmpty ||
+                    truckNumber
+                        .trimmingCharacters(
+                            in: .whitespacesAndNewlines
+                        )
+                        .isEmpty ||
+                    isSaving
+                )
+            }
+        }
+        .navigationTitle("Edit Driver")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(
+                placement: .cancellationAction
+            ) {
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
+        }
+        .onAppear {
+            name = driver.name
+            truckNumber = driver.truck_number
+            role = driver.role
+            isActive = driver.is_active
+        }
+        .alert(
+            "Unable to Save",
+            isPresented: $showError
+        ) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    @MainActor
+    private func save() async {
+        
+        let cleanName =
+        name.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        
+        let cleanTruck =
+        truckNumber.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        
+        guard
+            !cleanName.isEmpty,
+            !cleanTruck.isEmpty
+        else {
+            return
+        }
+        
+        isSaving = true
+        
+        let success =
+        await DriverSupabaseManager.shared
+            .updateDriverAndHistory(
+                id: driver.id,
+                oldName: driver.name,
+                newName: cleanName,
+                truckNumber: cleanTruck,
+                role: role,
+                isActive: isActive
+            )
+        
+        isSaving = false
+        
+        if success {
+            
+            onSaved?(
+                driver.name,
+                cleanName
+            )
+            
+            dismiss()
+        } else {
+            errorMessage =
+            "The driver could not be updated."
+            showError = true
+        }
     }
 }

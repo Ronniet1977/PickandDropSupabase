@@ -129,6 +129,17 @@ struct RootView: View {
     @MainActor
     private func checkForRequiredUpdate() async {
         
+#if DEBUG
+        
+        print("🛠 DEBUG build — update gate bypassed")
+        
+        updateRequired = false
+        updateURL = nil
+        
+        return
+        
+#else
+        
         guard let config =
                 await AppUpdateManager.shared
             .fetchConfig()
@@ -168,6 +179,8 @@ struct RootView: View {
             updateRequired = false
             updateURL = nil
         }
+        
+#endif
     }
     
     @MainActor

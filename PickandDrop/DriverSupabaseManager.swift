@@ -71,6 +71,93 @@ final class DriverSupabaseManager {
         }
     }
     
+    func updateDriverAndHistory(
+        id: UUID,
+        oldName: String,
+        newName: String,
+        truckNumber: String,
+        role: String,
+        isActive: Bool
+    ) async -> Bool {
+        
+        do {
+            
+            let driverBody: [String: Any] = [
+                "name": newName,
+                "truck_number": truckNumber,
+                "role": role,
+                "is_active": isActive
+            ]
+            
+            let driverData =
+            try JSONSerialization.data(
+                withJSONObject: driverBody
+            )
+            
+            _ =
+            try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_drivers",
+                method: "PATCH",
+                query: "?id=eq.\(id.uuidString)",
+                body: driverData
+            )
+            
+            if oldName != newName {
+                
+                let historyBody: [String: Any] = [
+                    "driver_name": newName
+                ]
+                
+                let historyData =
+                try JSONSerialization.data(
+                    withJSONObject: historyBody
+                )
+                
+                let tables = [
+                    "pickdrop_loads",
+                    "pickdrop_fuel",
+                    "pickdrop_shifts",
+                    "pickdrop_notifications"
+                ]
+                
+                for table in tables {
+                    
+                    _ =
+                    try await SupabaseRESTManager.shared.request(
+                        table: table,
+                        method: "PATCH",
+                        query:
+                            "?driver_name=eq.\(encoded(oldName))",
+                        body: historyData
+                    )
+                }
+            }
+            
+            print("✅ Driver and history updated")
+            
+            return true
+            
+        } catch {
+            
+            print(
+                "❌ Driver/history update failed:",
+                error
+            )
+            
+            return false
+        }
+    }
+    
+    private func encoded(
+        _ value: String
+    ) -> String {
+        
+        value.addingPercentEncoding(
+            withAllowedCharacters:
+                    .urlQueryAllowed
+        ) ?? value
+    }
+    
     func fetchDriver(
         username: String
     ) async -> SupabaseDriver? {
