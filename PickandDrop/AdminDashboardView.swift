@@ -333,10 +333,17 @@ struct AdminDashboardView: View {
         supabaseTonsDifference
     }
     
+    var currentAdminDriver: DriverProfile? {
+        drivers.first {
+            $0.name == currentDriverName &&
+            $0.role == "admin"
+        }
+    }
+    
     var body: some View {
-
+        
         TabView {
-
+            
             dashboardTab
                 .tabItem {
                     Label(
@@ -344,11 +351,24 @@ struct AdminDashboardView: View {
                         systemImage: "chart.bar.fill"
                     )
                 }
-
+            
+            if let adminDriver = currentAdminDriver {
+                
+                DriverDashboardView(
+                    driver: adminDriver
+                )
+                .tabItem {
+                    Label(
+                        "Driver",
+                        systemImage: "steeringwheel"
+                    )
+                }
+            }
+            
             NavigationStack {
-
+                
                 DriverManagerView()
-
+                
             }
             .tabItem {
                 Label(
@@ -356,11 +376,11 @@ struct AdminDashboardView: View {
                     systemImage: "person.3.fill"
                 )
             }
-
+            
             NavigationStack {
-
+                
                 ReportsView()
-
+                
             }
             .tabItem {
                 Label(
@@ -368,17 +388,25 @@ struct AdminDashboardView: View {
                     systemImage: "doc.text.fill"
                 )
             }
+            
             NavigationStack {
                 DriverFilesView()
             }
             .tabItem {
-                Label("Files", systemImage: "folder.fill")
+                Label(
+                    "Files",
+                    systemImage: "folder.fill"
+                )
             }
+            
             NavigationStack {
                 HelpView()
             }
             .tabItem {
-                Label("Help", systemImage: "questionmark.circle.fill")
+                Label(
+                    "Help",
+                    systemImage: "questionmark.circle.fill"
+                )
             }
         }
     }
