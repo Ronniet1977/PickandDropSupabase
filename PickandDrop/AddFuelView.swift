@@ -74,30 +74,7 @@ struct AddFuelView: View {
                         Text("Truck \(driver.truckNumber)")
                             .foregroundStyle(.white.opacity(0.5))
                     }
-
-                    if activeShift == nil {
-
-                        VStack(spacing: 14) {
-
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.largeTitle)
-                                .foregroundStyle(.red)
-
-                            Text("No Active Shift")
-                                .font(.title2.bold())
-                                .foregroundStyle(.white)
-
-                            Text("Start your day before adding fuel.")
-                                .foregroundStyle(.white.opacity(0.7))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(28)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 30))
-                        .padding(.horizontal)
-
-                    } else {
-
+                    
                         VStack(spacing: 22) {
 
                             VStack(alignment: .leading, spacing: 8) {
@@ -228,7 +205,6 @@ struct AddFuelView: View {
                             selectedTruckNumber.isEmpty ||
                             (Double(fuelAmount) ?? 0) <= 0
                         )
-                    }
 
                     Spacer(minLength: 40)
                 }
@@ -270,7 +246,7 @@ struct AddFuelView: View {
         let note = AppNotification(
             type: type,
             driverName: driver.name,
-            truckNumber: driver.truckNumber,
+            truckNumber: selectedTruckNumber,
             message: message,
             loadTicket: ticket
         )
@@ -279,55 +255,61 @@ struct AddFuelView: View {
     }
     
     func saveFuel() {
-        guard let shift = activeShift else { return }
-
-        let amount = Double(fuelAmount) ?? 0
-        shift.fuelTotal += amount
         
-        guard let amountValue = Double(fuelAmount) else { return }
-
-        Task {
-
-            var receiptPath: String?
-
-            if let receiptImage {
-
-                receiptPath =
-                    await FuelReceiptStorageManager.shared
-                        .uploadReceipt(
-                            image: receiptImage,
-                            driverName: driver.name
-                        )
+        guard let amountValue = Double(fuelAmount),
+              amountValue > 0
+        else {
+            return
+        }
+        
+        let amount = amountValue
+        
+        // If there is an active shift,
+        // also count it toward the local shift fuel total.
+        if let shift = activeShift {
+            
+            shift.fuelTotal += amount
+            
+            do {
+                try context.save()
+                print("✅ Shift fuel total updated")
+            } catch {
+                print("❌ Shift fuel total save failed:", error)
             }
-
+        }
+        
+        Task {
+            
+            var receiptPath: String?
+            
+            if let receiptImage {
+                
+                receiptPath =
+                await FuelReceiptStorageManager.shared
+                    .uploadReceipt(
+                        image: receiptImage,
+                        driverName: driver.name
+                    )
+            }
+            
             await FuelSupabaseManager.shared.addFuel(
                 driverName: driver.name,
                 truckNumber: selectedTruckNumber,
                 amount: amountValue,
                 receiptPath: receiptPath
             )
-
+            
+            sendAdminNotification(
+                type: "Fuel Added",
+                message:
+                    "\(driver.name) added fuel to Truck \(selectedTruckNumber) • $\(String(format: "%.2f", amountValue))"
+            )
+            
             await MainActor.run {
                 fuelAmount = ""
+                receiptImage = nil
                 dismiss()
             }
-        }
-        
-        sendAdminNotification(
-            type: "Fuel Added",
-            message:
-                "\(driver.name) added fuel to Truck \(selectedTruckNumber) • $\(String(format: "%.2f", amount))"
-        )
-        //saveFuelReceipt()
-
-        do {
-            try context.save()
-            print("✅ Fuel saved")
-
-            dismiss()
-
-        } catch {
-            print("❌ Fuel save failed:", error)
         }
     }
     
