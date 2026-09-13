@@ -25,6 +25,16 @@ struct PickupDeliveryView: View {
     @State private var scanError = ""
     @State private var showScanError = false
     
+    @State private var locations: [SupabaseLocation] = []
+    @State private var selectedDeliveryLocation = ""
+    
+    var dropoffLocations: [SupabaseLocation] {
+        locations.filter {
+            $0.location_type == "dropoff" ||
+            $0.location_type == "both"
+        }
+    }
+    
     var driverLoads: [SupabaseLoad] {
         supabaseLoads
             .filter {
@@ -125,9 +135,13 @@ struct PickupDeliveryView: View {
                         ?? "Pickup"
                         
                         let dropoffName =
-                        load.dropoff_location
-                        ?? settings?.dropoff_company_name
-                        ?? "Dropoff"
+                        selectedDeliveryLocation.isEmpty
+                        ? (
+                            load.dropoff_location
+                            ?? settings?.dropoff_company_name
+                            ?? "Dropoff"
+                        )
+                        : selectedDeliveryLocation
 
                         VStack(alignment: .leading, spacing: 14) {
 
@@ -180,10 +194,14 @@ struct PickupDeliveryView: View {
                                 Button(
                                     "Deliver (\(dropoffName))"
                                 ) {
-
+                                    
                                     deliveryTicket = ""
                                     deliveryTons = ""
-
+                                    
+                                    selectedDeliveryLocation =
+                                    load.dropoff_location
+                                    ?? currentDropoffName
+                                    
                                     selectedLoad = load
                                 }
                                 .buttonStyle(.borderedProminent)
@@ -221,10 +239,15 @@ struct PickupDeliveryView: View {
 
                 let loadedLoads =
                     await LoadSupabaseManager.shared.fetchLoads()
+                
+                let loadedLocations =
+                await LocationSupabaseManager.shared
+                    .fetchLocations()
 
                 await MainActor.run {
                     settings = loadedSettings
                     supabaseLoads = loadedLoads
+                    locations = loadedLocations
                 }
             }
         }
@@ -273,6 +296,29 @@ struct PickupDeliveryView: View {
                         }
 
                         VStack(spacing: 18) {
+                            HStack {
+                                
+                                Text("Deliver To")
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(.white)
+                                
+                                Spacer()
+                                
+                                Picker(
+                                    "",
+                                    selection: $selectedDeliveryLocation
+                                ) {
+                                    ForEach(dropoffLocations) { location in
+                                        Text(location.name)
+                                            .tag(location.name)
+                                    }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                            }
+                            .padding()
+                            .background(.white.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
 
                             VStack(alignment: .leading, spacing: 8) {
                                 if (load.dropoff_location
@@ -318,7 +364,7 @@ struct PickupDeliveryView: View {
                                 }
                                 
                                 Text(
-                                    "\(load.dropoff_location ?? settings?.dropoff_company_name ?? "Dropoff") Ticket"
+                                    "\(selectedDeliveryLocation.isEmpty ? (load.dropoff_location ?? settings?.dropoff_company_name ?? "Dropoff") : selectedDeliveryLocation) Ticket"
                                 )
                                 .font(.caption.bold())
                                 .foregroundStyle(.white.opacity(0.7))
@@ -337,7 +383,7 @@ struct PickupDeliveryView: View {
                             VStack(alignment: .leading, spacing: 8) {
 
                                 Text(
-                                    "\(load.dropoff_location ?? settings?.dropoff_company_name ?? "Dropoff") Tons"
+                                    "\(selectedDeliveryLocation.isEmpty ? (load.dropoff_location ?? settings?.dropoff_company_name ?? "Dropoff") : selectedDeliveryLocation) Tons"
                                 )
                                 .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
@@ -543,13 +589,19 @@ struct PickupDeliveryView: View {
         }
         
         let dropoffName =
-        load.dropoff_location
-        ?? settings?.dropoff_company_name
-        ?? "Dropoff"
+        selectedDeliveryLocation.isEmpty
+        ? (
+            load.dropoff_location
+            ?? settings?.dropoff_company_name
+            ?? "Dropoff"
+        )
+        : selectedDeliveryLocation
         
         await LoadSupabaseManager.shared
             .deliverLoad(
                 loadID: load.id,
+                dropoffLocation:
+                    selectedDeliveryLocation,
                 deliveryTicketNumber:
                     cleanTicket,
                 deliveryTons:

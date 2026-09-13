@@ -20,7 +20,24 @@ struct AddLoadView: View {
     @State private var isScanningTicket = false
     @State private var scanError = ""
     @State private var showScanError = false
+    @State private var locations: [SupabaseLocation] = []
     
+    @State private var selectedPickupLocation = ""
+    @State private var selectedDropoffLocation = ""
+    
+    var pickupLocations: [SupabaseLocation] {
+        locations.filter {
+            $0.location_type == "pickup" ||
+            $0.location_type == "both"
+        }
+    }
+    
+    var dropoffLocations: [SupabaseLocation] {
+        locations.filter {
+            $0.location_type == "dropoff" ||
+            $0.location_type == "both"
+        }
+    }
     
     var activeShift: Shift? {
         shifts.first(where: {
@@ -72,7 +89,7 @@ struct AddLoadView: View {
                             .foregroundStyle(.white)
                         
                         Text(
-                            "\(activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") → \(activeShift?.dropoffLocation ?? settings?.dropoff_company_name ?? "Dropoff")"
+                            "\(selectedPickupLocation.isEmpty ? (activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") : selectedPickupLocation) → \(selectedDropoffLocation.isEmpty ? (activeShift?.dropoffLocation ?? settings?.dropoff_company_name ?? "Dropoff") : selectedDropoffLocation)"
                         )
                         .font(.caption.bold())
                         .padding(.horizontal, 10)
@@ -114,6 +131,61 @@ struct AddLoadView: View {
                         VStack(spacing: 22) {
 
                             VStack(alignment: .leading, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    
+                                    Text("Route")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.white.opacity(0.7))
+                                    
+                                    HStack {
+                                        
+                                        Text("Pickup")
+                                            .font(.subheadline.bold())
+                                            .foregroundStyle(.white)
+                                        
+                                        Spacer()
+                                        
+                                        Picker(
+                                            "",
+                                            selection: $selectedPickupLocation
+                                        ) {
+                                            ForEach(pickupLocations) { location in
+                                                Text(location.name)
+                                                    .tag(location.name)
+                                            }
+                                        }
+                                        .labelsHidden()
+                                        .pickerStyle(.menu)
+                                    }
+                                    
+                                    Divider()
+                                        .overlay(.white.opacity(0.15))
+                                    
+                                    HStack {
+                                        
+                                        Text("Dropoff")
+                                            .font(.subheadline.bold())
+                                            .foregroundStyle(.white)
+                                        
+                                        Spacer()
+                                        
+                                        Picker(
+                                            "",
+                                            selection: $selectedDropoffLocation
+                                        ) {
+                                            ForEach(dropoffLocations) { location in
+                                                Text(location.name)
+                                                    .tag(location.name)
+                                            }
+                                        }
+                                        .labelsHidden()
+                                        .pickerStyle(.menu)
+                                    }
+                                }
+                                .padding()
+                                .background(.white.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                
                                 Button {
                                     showTicketCamera = true
                                 } label: {
@@ -136,7 +208,7 @@ struct AddLoadView: View {
                                 .disabled(isScanningTicket)
 
                                 Text(
-                                    "\(activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") Ticket Number (Optional)"
+                                    "\(selectedPickupLocation.isEmpty ? (activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") : selectedPickupLocation) Ticket Number (Optional)"
                                 )
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
@@ -155,7 +227,7 @@ struct AddLoadView: View {
                             VStack(alignment: .leading, spacing: 8) {
 
                                 Text(
-                                    "\(activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") Tons"
+                                    "\(selectedPickupLocation.isEmpty ? (activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") : selectedPickupLocation) Tons"
                                 )
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
@@ -225,13 +297,51 @@ struct AddLoadView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {
             Task {
-                let loadedSettings =
-                    await CompanySupabaseManager
-                        .shared
-                        .fetchCompanySettings()
-
+                
+                async let loadedSettings =
+                CompanySupabaseManager.shared
+                    .fetchCompanySettings()
+                
+                async let loadedLocations =
+                LocationSupabaseManager.shared
+                    .fetchLocations()
+                
+                let newSettings = await loadedSettings
+                let newLocations = await loadedLocations
+                
                 await MainActor.run {
-                    settings = loadedSettings
+                    
+                    settings = newSettings
+                    locations = newLocations
+                    
+                    if let shift = activeShift {
+                        
+                        selectedPickupLocation =
+                        shift.pickupLocation
+                        
+                        selectedDropoffLocation =
+                        shift.dropoffLocation
+                    }
+                    
+                    if selectedPickupLocation.isEmpty {
+                        selectedPickupLocation =
+                        newLocations.first {
+                            $0.location_type == "pickup" ||
+                            $0.location_type == "both"
+                        }?.name
+                        ?? newSettings?.pickup_company_name
+                        ?? ""
+                    }
+                    
+                    if selectedDropoffLocation.isEmpty {
+                        selectedDropoffLocation =
+                        newLocations.first {
+                            $0.location_type == "dropoff" ||
+                            $0.location_type == "both"
+                        }?.name
+                        ?? newSettings?.dropoff_company_name
+                        ?? ""
+                    }
                 }
             }
         }
@@ -357,16 +467,11 @@ struct AddLoadView: View {
             return
         }
         
-        guard let shift = activeShift else {
-            print("❌ No active shift")
-            return
-        }
-        
         guard
-            !shift.pickupLocation.isEmpty,
-            !shift.dropoffLocation.isEmpty
+            !selectedPickupLocation.isEmpty,
+            !selectedDropoffLocation.isEmpty
         else {
-            print("❌ Active shift has no route")
+            print("❌ Load route missing")
             return
         }
         
@@ -375,10 +480,10 @@ struct AddLoadView: View {
             truckNumber: driver.truckNumber,
             
             pickupLocation:
-                shift.pickupLocation,
+                selectedPickupLocation,
             
             dropoffLocation:
-                shift.dropoffLocation,
+                selectedDropoffLocation,
             
             pickupTicketNumber: cleanTicket,
             pickupTons: tonsValue,
@@ -393,7 +498,8 @@ struct AddLoadView: View {
         // ✅ Send admin notification to Supabase
         sendAdminNotification(
             type: "Load Added",
-            message: "\(driver.name) picked up \(displayTicket) • \(tonsValue) tons",
+            message:
+                "\(driver.name) picked up \(selectedPickupLocation) → \(selectedDropoffLocation) • \(displayTicket) • \(tonsValue) tons",
             ticket: cleanTicket
         )
         

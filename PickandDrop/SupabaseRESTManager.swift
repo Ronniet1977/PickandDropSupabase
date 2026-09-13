@@ -512,11 +512,13 @@ final class LoadSupabaseManager {
     
     func deliverLoad(
         loadID: UUID,
+        dropoffLocation: String,
         deliveryTicketNumber: String,
         deliveryTons: Double
     ) async {
 
         let body: [String: Any] = [
+            "dropoff_location": dropoffLocation,
             "delivery_ticket_number": deliveryTicketNumber,
             "delivery_tons": deliveryTons,
             "status": "delivered",
@@ -546,6 +548,8 @@ final class LoadSupabaseManager {
     
     func updateLoad(
         id: UUID,
+        pickupLocation: String,
+        dropoffLocation: String,
         pickupTicketNumber: String,
         pickupTons: Double,
         deliveryTicketNumber: String,
@@ -559,7 +563,9 @@ final class LoadSupabaseManager {
             "pickup_tons": pickupTons,
             "delivery_ticket_number": deliveryTicketNumber,
             "delivery_tons": deliveryTons,
-            "status": status
+            "status": status,
+            "pickup_location": pickupLocation,
+            "dropoff_location": dropoffLocation
         ]
         
         if status == "delivered" {

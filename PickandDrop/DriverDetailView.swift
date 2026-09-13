@@ -165,10 +165,10 @@ struct DriverDetailView: View {
                 ForEach(loads) { load in
                     DriverLoadRow(
                         load: load,
-                        pickupCompany:
+                        fallbackPickupCompany:
                             settings?.pickup_company_name
                         ?? "Pickup",
-                        dropoffCompany:
+                        fallbackDropoffCompany:
                             settings?.dropoff_company_name
                         ?? "Dropoff"
                     )
@@ -180,9 +180,7 @@ struct DriverDetailView: View {
             }
         } header: {
             VStack(alignment: .leading, spacing: 3) {
-                Text(
-                    "\(settings?.pickup_company_name ?? "Pickup") Loads"
-                )
+                Text("Loads")
                 .font(.headline)
                 
                 Text(
@@ -311,11 +309,59 @@ private struct DriverDetailHeader: View {
 private struct DriverLoadRow: View {
     
     let load: SupabaseLoad
-    let pickupCompany: String
-    let dropoffCompany: String
+    let fallbackPickupCompany: String
+    let fallbackDropoffCompany: String
+    
+    private var pickupCompany: String {
+        let value =
+        load.pickup_location?
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        if let value,
+           !value.isEmpty {
+            return value
+        }
+        
+        return fallbackPickupCompany
+    }
+    
+    private var dropoffCompany: String {
+        let value =
+        load.dropoff_location?
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        if let value,
+           !value.isEmpty {
+            return value
+        }
+        
+        return fallbackDropoffCompany
+    }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(
+            alignment: .leading,
+            spacing: 8
+        ) {
+            
+            HStack(spacing: 6) {
+                
+                Image(
+                    systemName:
+                        "arrow.right.circle.fill"
+                )
+                .foregroundStyle(.blue)
+                
+                Text(
+                    "\(pickupCompany) → \(dropoffCompany)"
+                )
+                .font(.subheadline.bold())
+            }
+            
             HStack {
                 Text(pickupDescription)
                 
@@ -329,6 +375,7 @@ private struct DriverLoadRow: View {
             }
             
             if load.status == "delivered" {
+                
                 HStack {
                     Text(deliveryDescription)
                     
@@ -340,7 +387,9 @@ private struct DriverLoadRow: View {
                     .foregroundStyle(.green)
                     .fontWeight(.semibold)
                 }
+                
             } else {
+                
                 Label(
                     "Awaiting delivery",
                     systemImage: "clock.fill"
@@ -353,7 +402,9 @@ private struct DriverLoadRow: View {
     }
     
     private var pickupDescription: String {
-        let ticket = load.pickup_ticket_number?
+        
+        let ticket =
+        load.pickup_ticket_number?
             .trimmingCharacters(
                 in: .whitespacesAndNewlines
             ) ?? ""
@@ -364,7 +415,9 @@ private struct DriverLoadRow: View {
     }
     
     private var deliveryDescription: String {
-        let ticket = load.delivery_ticket_number?
+        
+        let ticket =
+        load.delivery_ticket_number?
             .trimmingCharacters(
                 in: .whitespacesAndNewlines
             ) ?? ""
@@ -420,8 +473,50 @@ struct EditSupabaseLoadView: View {
     @State private var scanError = ""
     @State private var showScanError = false
     
+    @State private var locations: [SupabaseLocation] = []
+    
+    @State private var selectedPickupLocation = ""
+    @State private var selectedDropoffLocation = ""
+    
+    private var pickupLocations: [SupabaseLocation] {
+        locations.filter {
+            $0.location_type == "pickup" ||
+            $0.location_type == "both"
+        }
+    }
+    
+    private var dropoffLocations: [SupabaseLocation] {
+        locations.filter {
+            $0.location_type == "dropoff" ||
+            $0.location_type == "both"
+        }
+    }
+    
     var body: some View {
         Form {
+            Section("Route") {
+                
+                Picker(
+                    "Pickup",
+                    selection: $selectedPickupLocation
+                ) {
+                    ForEach(pickupLocations) { location in
+                        Text(location.name)
+                            .tag(location.name)
+                    }
+                }
+                
+                Picker(
+                    "Dropoff",
+                    selection: $selectedDropoffLocation
+                ) {
+                    ForEach(dropoffLocations) { location in
+                        Text(location.name)
+                            .tag(location.name)
+                    }
+                }
+            }
+            
             Section("Scan Ticket") {
                 Button {
                     selectedScanMode = .pickupOnly
@@ -456,8 +551,9 @@ struct EditSupabaseLoadView: View {
             }
             
             Section(
-                settings?.pickup_company_name
-                ?? "Pickup"
+                selectedPickupLocation.isEmpty
+                ? pickupCompany
+                : selectedPickupLocation
             ) {
                 TextField(
                     "Ticket Number",
@@ -472,8 +568,9 @@ struct EditSupabaseLoadView: View {
             }
             
             Section(
-                settings?.dropoff_company_name
-                ?? "Dropoff"
+                selectedDropoffLocation.isEmpty
+                ? dropoffCompany
+                : selectedDropoffLocation
             ) {
                 TextField(
                     "Ticket Number",
@@ -556,14 +653,44 @@ struct EditSupabaseLoadView: View {
             status =
             load.status ?? "pickedUp"
             
+            selectedPickupLocation =
+            load.pickup_location?
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+            ?? ""
+            
+            selectedDropoffLocation =
+            load.dropoff_location?
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+            ?? ""
+            
             Task {
+                let loadedLocations =
+                await LocationSupabaseManager.shared
+                    .fetchLocations()
+                
                 let loadedDrivers =
-                await DriverSupabaseManager
-                    .shared
+                await DriverSupabaseManager.shared
                     .fetchDrivers()
                 
                 await MainActor.run {
+                    locations = loadedLocations
                     drivers = loadedDrivers
+                    
+                    if selectedPickupLocation.isEmpty {
+                        selectedPickupLocation =
+                        settings?.pickup_company_name
+                        ?? ""
+                    }
+                    
+                    if selectedDropoffLocation.isEmpty {
+                        selectedDropoffLocation =
+                        settings?.dropoff_company_name
+                        ?? ""
+                    }
                 }
             }
         }
@@ -689,19 +816,31 @@ struct EditSupabaseLoadView: View {
     func save() async {
         await LoadSupabaseManager.shared.updateLoad(
             id: load.id,
+            
+            pickupLocation:
+                selectedPickupLocation,
+            
+            dropoffLocation:
+                selectedDropoffLocation,
+            
             pickupTicketNumber:
                 pickupTicket.trimmingCharacters(
                     in: .whitespacesAndNewlines
                 ),
+            
             pickupTons:
                 Double(pickupTons) ?? 0,
+            
             deliveryTicketNumber:
                 deliveryTicket.trimmingCharacters(
                     in: .whitespacesAndNewlines
                 ),
+            
             deliveryTons:
                 Double(deliveryTons) ?? 0,
+            
             status: status,
+            
             existingDeliveredAt:
                 load.delivered_at
         )
@@ -753,6 +892,40 @@ struct EditSupabaseLoadView: View {
             onSaved?()
             dismiss()
         }
+    }
+    
+    private var pickupCompany: String {
+        
+        let value =
+        load.pickup_location?
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        if let value,
+           !value.isEmpty {
+            return value
+        }
+        
+        return settings?.pickup_company_name
+        ?? "Pickup"
+    }
+    
+    private var dropoffCompany: String {
+        
+        let value =
+        load.dropoff_location?
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        if let value,
+           !value.isEmpty {
+            return value
+        }
+        
+        return settings?.dropoff_company_name
+        ?? "Dropoff"
     }
     
     @MainActor
