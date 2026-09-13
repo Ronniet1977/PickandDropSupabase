@@ -374,6 +374,8 @@ final class LoadSupabaseManager {
     func addAdminLoad(
         driverName: String,
         truckNumber: String,
+        pickupLocation: String,
+        dropoffLocation: String,
         pickupTicketNumber: String,
         pickupTons: Double,
         deliveryTicketNumber: String,
@@ -390,15 +392,20 @@ final class LoadSupabaseManager {
         var body: [String: Any] = [
             "driver_name": driverName,
             "truck_number": truckNumber,
-            "pickup_ticket_number":
-                pickupTicketNumber,
+            
+            "pickup_location": pickupLocation,
+            "dropoff_location": dropoffLocation,
+            
+            "pickup_ticket_number": pickupTicketNumber,
             "pickup_tons": pickupTons,
+            
             "status": status,
             "picked_up_at": now,
+            
             "is_archived": false,
+            
             "rate_per_ton": ratePerTon,
-            "fuel_surcharge_per_ton":
-                fuelSurchargePerTon
+            "fuel_surcharge_per_ton": fuelSurchargePerTon
         ]
 
         if status == "delivered" {
@@ -428,6 +435,12 @@ final class LoadSupabaseManager {
 
             print("✅ Admin load added")
             print("📷 Scanned load:", status)
+            print(
+                "📍 Admin route:",
+                pickupLocation,
+                "→",
+                dropoffLocation
+            )
 
         } catch {
             print(
@@ -440,6 +453,8 @@ final class LoadSupabaseManager {
     func addLoad(
         driverName: String,
         truckNumber: String,
+        pickupLocation: String,
+        dropoffLocation: String,
         pickupTicketNumber: String,
         pickupTons: Double,
         ratePerTon: Double,
@@ -449,17 +464,25 @@ final class LoadSupabaseManager {
         let body: [String: Any] = [
             "driver_name": driverName,
             "truck_number": truckNumber,
+            
+            "pickup_location": pickupLocation,
+            "dropoff_location": dropoffLocation,
+            
             "pickup_ticket_number": pickupTicketNumber,
             "pickup_tons": pickupTons,
+            
             "status": "pickedUp",
             "picked_up_at": ISO8601DateFormatter().string(from: Date()),
+            
             "is_archived": false,
+            
             "rate_per_ton": ratePerTon,
             "fuel_surcharge_per_ton": fuelSurchargePerTon
         ]
         
         do {
-            let data = try JSONSerialization.data(
+            let data =
+            try JSONSerialization.data(
                 withJSONObject: body
             )
             
@@ -470,11 +493,20 @@ final class LoadSupabaseManager {
             )
             
             print("✅ Supabase load added")
+            print(
+                "📍 Route:",
+                pickupLocation,
+                "→",
+                dropoffLocation
+            )
             print("💵 Rate stored:", ratePerTon)
             print("⛽ Surcharge stored:", fuelSurchargePerTon)
             
         } catch {
-            print("❌ Failed adding Supabase load:", error)
+            print(
+                "❌ Failed adding Supabase load:",
+                error
+            )
         }
     }
     

@@ -72,7 +72,7 @@ struct AddLoadView: View {
                             .foregroundStyle(.white)
                         
                         Text(
-                            "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.trucking_company_name ?? "Dropoff")"
+                            "\(activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") → \(activeShift?.dropoffLocation ?? settings?.dropoff_company_name ?? "Dropoff")"
                         )
                         .font(.caption.bold())
                         .padding(.horizontal, 10)
@@ -135,7 +135,9 @@ struct AddLoadView: View {
                                 .buttonStyle(.borderedProminent)
                                 .disabled(isScanningTicket)
 
-                                Text("\(settings?.pickup_company_name ?? "Pickup") Ticket Number (Optional)")
+                                Text(
+                                    "\(activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") Ticket Number (Optional)"
+                                )
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
 
@@ -153,7 +155,7 @@ struct AddLoadView: View {
                             VStack(alignment: .leading, spacing: 8) {
 
                                 Text(
-                                    "\(settings?.pickup_company_name ?? "Pickup") Tons"
+                                    "\(activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") Tons"
                                 )
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
@@ -355,13 +357,37 @@ struct AddLoadView: View {
             return
         }
         
+        guard let shift = activeShift else {
+            print("❌ No active shift")
+            return
+        }
+        
+        guard
+            !shift.pickupLocation.isEmpty,
+            !shift.dropoffLocation.isEmpty
+        else {
+            print("❌ Active shift has no route")
+            return
+        }
+        
         await LoadSupabaseManager.shared.addLoad(
             driverName: driver.name,
             truckNumber: driver.truckNumber,
+            
+            pickupLocation:
+                shift.pickupLocation,
+            
+            dropoffLocation:
+                shift.dropoffLocation,
+            
             pickupTicketNumber: cleanTicket,
             pickupTons: tonsValue,
-            ratePerTon: settings.rate_per_ton,
-            fuelSurchargePerTon: settings.fuel_surcharge_per_ton
+            
+            ratePerTon:
+                settings.rate_per_ton,
+            
+            fuelSurchargePerTon:
+                settings.fuel_surcharge_per_ton
         )
         
         // ✅ Send admin notification to Supabase

@@ -10,11 +10,28 @@ struct StartShiftView: View {
     @Query var shifts: [Shift]
     
     @State private var settings: SupabaseCompanySettings?
+    @State private var locations: [SupabaseLocation] = []
+    @State private var selectedPickupLocation = ""
+    @State private var selectedDropoffLocation = ""
     
     var activeShift: Shift? {
         shifts.first(where: {
             $0.driverName == driver.name && $0.status == "active"
         })
+    }
+    
+    var pickupLocations: [SupabaseLocation] {
+        locations.filter {
+            $0.location_type == "pickup" ||
+            $0.location_type == "both"
+        }
+    }
+    
+    var dropoffLocations: [SupabaseLocation] {
+        locations.filter {
+            $0.location_type == "dropoff" ||
+            $0.location_type == "both"
+        }
     }
     
     var body: some View {
@@ -142,17 +159,69 @@ struct StartShiftView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 30))
 
                     } else {
+                        VStack(spacing: 16) {
+                            
+                            VStack(alignment: .leading, spacing: 6) {
+                                
+                                Text("Pickup")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.white.opacity(0.7))
+                                
+                                Picker(
+                                    "Pickup",
+                                    selection: $selectedPickupLocation
+                                ) {
+                                    ForEach(pickupLocations) { location in
+                                        Text(location.name)
+                                            .tag(location.name)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .tint(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .background(.white.opacity(0.08))
+                                .clipShape(
+                                    RoundedRectangle(cornerRadius: 18)
+                                )
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 6) {
+                                
+                                Text("Dropoff")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.white.opacity(0.7))
+                                
+                                Picker(
+                                    "Dropoff",
+                                    selection: $selectedDropoffLocation
+                                ) {
+                                    ForEach(dropoffLocations) { location in
+                                        Text(location.name)
+                                            .tag(location.name)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .tint(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .background(.white.opacity(0.08))
+                                .clipShape(
+                                    RoundedRectangle(cornerRadius: 18)
+                                )
+                            }
+                        }
 
                         Button {
                             Task {
                                 await startShift()
                             }
                         } label: {
-
+                            
                             HStack(spacing: 14) {
-
+                                
                                 Image(systemName: "play.fill")
-
+                                
                                 Text("Start Day")
                                     .fontWeight(.bold)
                             }
@@ -161,9 +230,18 @@ struct StartShiftView: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(.green.gradient)
-                            .clipShape(RoundedRectangle(cornerRadius: 24))
-                            .shadow(color: .green.opacity(0.4), radius: 14)
+                            .clipShape(
+                                RoundedRectangle(cornerRadius: 24)
+                            )
+                            .shadow(
+                                color: .green.opacity(0.4),
+                                radius: 14
+                            )
                         }
+                        .disabled(
+                            selectedPickupLocation.isEmpty ||
+                            selectedDropoffLocation.isEmpty
+                        )
                     }
                 }
                 .padding(.horizontal)
@@ -176,13 +254,32 @@ struct StartShiftView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             Task {
+                
                 let loadedSettings =
-                    await CompanySupabaseManager
-                        .shared
-                        .fetchCompanySettings()
-
+                await CompanySupabaseManager.shared
+                    .fetchCompanySettings()
+                
+                let loadedLocations =
+                await LocationSupabaseManager.shared
+                    .fetchLocations()
+                
                 await MainActor.run {
                     settings = loadedSettings
+                    locations = loadedLocations
+                    
+                    if selectedPickupLocation.isEmpty {
+                        selectedPickupLocation =
+                        pickupLocations.first?.name
+                        ?? loadedSettings?.pickup_company_name
+                        ?? ""
+                    }
+                    
+                    if selectedDropoffLocation.isEmpty {
+                        selectedDropoffLocation =
+                        dropoffLocations.first?.name
+                        ?? loadedSettings?.dropoff_company_name
+                        ?? ""
+                    }
                 }
             }
         }
@@ -190,9 +287,18 @@ struct StartShiftView: View {
     
     func startShift() async {
         let newShift = Shift()
-        newShift.driverName = driver.name
+        
+        newShift.driverName =
+        driver.name
+        
         newShift.companyName =
-            settings?.trucking_company_name ?? ""
+        settings?.trucking_company_name ?? ""
+        
+        newShift.pickupLocation =
+        selectedPickupLocation
+        
+        newShift.dropoffLocation =
+        selectedDropoffLocation
 
         context.insert(newShift)
 
@@ -205,7 +311,9 @@ struct StartShiftView: View {
                 .startShift(
                     driverName: driver.name,
                     username: driver.username,
-                    truckNumber: driver.truckNumber
+                    truckNumber: driver.truckNumber,
+                    pickupLocation: selectedPickupLocation,
+                    dropoffLocation: selectedDropoffLocation
                 )
             
             if let cloudShift {

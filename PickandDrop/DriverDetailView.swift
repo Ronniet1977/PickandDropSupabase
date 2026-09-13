@@ -854,6 +854,24 @@ struct AdminAddLoadView: View {
     @State private var isScanningTicket = false
     @State private var scanError = ""
     @State private var showScanError = false
+    @State private var locations: [SupabaseLocation] = []
+    
+    @State private var selectedPickupLocation = ""
+    @State private var selectedDropoffLocation = ""
+    
+    var pickupLocations: [SupabaseLocation] {
+        locations.filter {
+            $0.location_type == "pickup" ||
+            $0.location_type == "both"
+        }
+    }
+    
+    var dropoffLocations: [SupabaseLocation] {
+        locations.filter {
+            $0.location_type == "dropoff" ||
+            $0.location_type == "both"
+        }
+    }
     
     var body: some View {
         Form {
@@ -869,6 +887,29 @@ struct AdminAddLoadView: View {
                     )
                     .font(.caption)
                     .foregroundStyle(.green)
+                }
+            }
+            
+            Section("Route") {
+                
+                Picker(
+                    "Pickup",
+                    selection: $selectedPickupLocation
+                ) {
+                    ForEach(pickupLocations) { location in
+                        Text(location.name)
+                            .tag(location.name)
+                    }
+                }
+                
+                Picker(
+                    "Dropoff",
+                    selection: $selectedDropoffLocation
+                ) {
+                    ForEach(dropoffLocations) { location in
+                        Text(location.name)
+                            .tag(location.name)
+                    }
                 }
             }
             
@@ -995,33 +1036,36 @@ struct AdminAddLoadView: View {
         }
         .onAppear {
             guard let scannedLoad else {
+                Task {
+                    await loadAdminLocations()
+                }
                 return
             }
             
             if !scannedLoad.pickupTicket.isEmpty {
-                pickupTicket =
-                scannedLoad.pickupTicket
+                pickupTicket = scannedLoad.pickupTicket
             }
             
             if !scannedLoad.pickupTons.isEmpty {
-                pickupTons =
-                scannedLoad.pickupTons
+                pickupTons = scannedLoad.pickupTons
             }
             
             if !scannedLoad.deliveryTicket.isEmpty {
-                deliveryTicket =
-                scannedLoad.deliveryTicket
+                deliveryTicket = scannedLoad.deliveryTicket
             }
             
             if !scannedLoad.deliveryTons.isEmpty {
-                deliveryTons =
-                scannedLoad.deliveryTons
+                deliveryTons = scannedLoad.deliveryTons
             }
             
             if !deliveryTicket.isEmpty &&
                 (Double(deliveryTons) ?? 0) > 0 {
                 
                 status = "delivered"
+            }
+            
+            Task {
+                await loadAdminLocations()
             }
         }
         .sheet(isPresented: $showTicketCamera) {
@@ -1063,6 +1107,45 @@ struct AdminAddLoadView: View {
         (Double(deliveryTons) ?? 0) > 0
     }
     
+    @MainActor
+    private func loadAdminLocations() async {
+        
+        let loadedLocations =
+        await LocationSupabaseManager.shared
+            .fetchLocations()
+        
+        locations = loadedLocations
+        
+        if selectedPickupLocation.isEmpty {
+            
+            selectedPickupLocation =
+            loadedLocations.first {
+                $0.location_type == "pickup" ||
+                $0.location_type == "both"
+            }?.name
+            ?? settings?.pickup_company_name
+            ?? ""
+        }
+        
+        if selectedDropoffLocation.isEmpty {
+            
+            selectedDropoffLocation =
+            loadedLocations.first {
+                $0.location_type == "dropoff" ||
+                $0.location_type == "both"
+            }?.name
+            ?? settings?.dropoff_company_name
+            ?? ""
+        }
+        
+        print(
+            "📍 Admin route:",
+            selectedPickupLocation,
+            "→",
+            selectedDropoffLocation
+        )
+    }
+    
     private func addLoad() async {
         guard !isSaving else {
             return
@@ -1088,19 +1171,35 @@ struct AdminAddLoadView: View {
             .addAdminLoad(
                 driverName: driverName,
                 truckNumber: truckNumber,
+                
+                pickupLocation:
+                    selectedPickupLocation,
+                
+                dropoffLocation:
+                    selectedDropoffLocation,
+                
                 pickupTicketNumber:
                     pickupTicket.trimmingCharacters(
                         in: .whitespacesAndNewlines
                     ),
-                pickupTons: pickupTonsValue,
+                
+                pickupTons:
+                    pickupTonsValue,
+                
                 deliveryTicketNumber:
                     deliveryTicket.trimmingCharacters(
                         in: .whitespacesAndNewlines
                     ),
-                deliveryTons: deliveryTonsValue,
-                status: status,
+                
+                deliveryTons:
+                    deliveryTonsValue,
+                
+                status:
+                    status,
+                
                 ratePerTon:
                     settings.rate_per_ton,
+                
                 fuelSurchargePerTon:
                     settings.fuel_surcharge_per_ton
             )

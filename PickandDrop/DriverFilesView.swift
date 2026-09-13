@@ -977,16 +977,15 @@ struct EditCompanyInfoView: View {
                 )
             }
             
-            Section("Route") {
-                TextField(
-                    "Pickup Company",
-                    text: $pickupCompanyName
-                )
-                
-                TextField(
-                    "Dropoff Company",
-                    text: $dropoffCompanyName
-                )
+            Section("Routes") {
+                NavigationLink {
+                    AdminLocationsView()
+                } label: {
+                    Label(
+                        "Manage Locations",
+                        systemImage: "mappin.and.ellipse"
+                    )
+                }
             }
             
             Section("Company Access") {

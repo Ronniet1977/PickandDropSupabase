@@ -48,6 +48,9 @@ struct SupabaseLoad: Codable, Identifiable {
     let driver_name: String?
 
     let truck_number: String?
+    
+    let pickup_location: String?
+    let dropoff_location: String?
 
     let pickup_ticket_number: String?
     let delivery_ticket_number: String?
@@ -117,6 +120,9 @@ class Shift {
     var startedAt: Date = Date()
     var endedAt: Date? = nil
     
+    var pickupLocation: String = ""
+    var dropoffLocation: String = ""
+    
     var fuelTotal: Double = 0
     var status: String = "active"
     
@@ -134,6 +140,8 @@ class LoadItem {
     var driverName: String = ""
     var pickupTicketNumber: String = ""
     var deliveryTicketNumber: String = ""
+    var pickupLocation: String = ""
+    var dropoffLocation: String = ""
     var pickupTons: Double = 0
     var deliveryTons: Double = 0
 

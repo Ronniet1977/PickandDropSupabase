@@ -37,6 +37,45 @@ struct PickupDeliveryView: View {
             }
     }
     
+    var activeShift: Shift? {
+        shifts.first {
+            $0.driverName == driver.name &&
+            $0.status.lowercased() == "active"
+        }
+    }
+    
+    var currentPickupName: String {
+        let name =
+        activeShift?.pickupLocation
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        if let name,
+           !name.isEmpty {
+            return name
+        }
+        
+        return settings?.pickup_company_name
+        ?? "Pickup"
+    }
+    
+    var currentDropoffName: String {
+        let name =
+        activeShift?.dropoffLocation
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        if let name,
+           !name.isEmpty {
+            return name
+        }
+        
+        return settings?.dropoff_company_name
+        ?? "Dropoff"
+    }
+    
     var body: some View {
 
         ZStack {
@@ -65,7 +104,7 @@ struct PickupDeliveryView: View {
                         .foregroundStyle(.blue)
 
                         Text(
-                            "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
+                            "\(currentPickupName) → \(currentDropoffName)"
                         )
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -80,6 +119,15 @@ struct PickupDeliveryView: View {
                     }
 
                     ForEach(driverLoads) { load in
+                        let pickupName =
+                        load.pickup_location
+                        ?? settings?.pickup_company_name
+                        ?? "Pickup"
+                        
+                        let dropoffName =
+                        load.dropoff_location
+                        ?? settings?.dropoff_company_name
+                        ?? "Dropoff"
 
                         VStack(alignment: .leading, spacing: 14) {
 
@@ -89,7 +137,7 @@ struct PickupDeliveryView: View {
 
                                     let ticket = load.pickup_ticket_number ?? ""
 
-                                    Text("Ticket: \(ticket)")
+                                    Text("\(pickupName) Ticket: \(ticket)")
                                         .font(.title3.bold())
                                         .foregroundStyle(.white)
 
@@ -130,7 +178,7 @@ struct PickupDeliveryView: View {
                             HStack(spacing: 14) {
 
                                 Button(
-                                    "Deliver (\(settings?.dropoff_company_name ?? "Dropoff"))"
+                                    "Deliver (\(dropoffName))"
                                 ) {
 
                                     deliveryTicket = ""
@@ -159,7 +207,7 @@ struct PickupDeliveryView: View {
             }
         }
         .navigationTitle(
-            "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
+            "\(currentPickupName) → \(currentDropoffName)"
         )
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -219,7 +267,7 @@ struct PickupDeliveryView: View {
                                 .foregroundStyle(.white)
 
                             Text(
-                                "\(settings?.pickup_company_name ?? "Pickup") Ticket \(load.pickup_ticket_number ?? "")"
+                                "\(load.pickup_location ?? settings?.pickup_company_name ?? "Pickup") Ticket \(load.pickup_ticket_number ?? "")"
                             )
                             .foregroundStyle(.white.opacity(0.7))
                         }
@@ -227,30 +275,50 @@ struct PickupDeliveryView: View {
                         VStack(spacing: 18) {
 
                             VStack(alignment: .leading, spacing: 8) {
-                                Button {
-                                    showTicketCamera = true
-                                } label: {
-                                    HStack {
-                                        Spacer()
+                                if (load.dropoff_location
+                                    ?? settings?.dropoff_company_name
+                                    ?? "")
+                                    .localizedCaseInsensitiveCompare("HoneyGo") == .orderedSame {
+                                    
+                                    Button {
+                                        showTicketCamera = true
+                                    } label: {
                                         
-                                        if isScanningTicket {
-                                            ProgressView()
-                                        } else {
-                                            Label(
-                                                "Scan HoneyGo Ticket",
-                                                systemImage: "doc.viewfinder.fill"
-                                            )
+                                        HStack {
+                                            
+                                            Spacer()
+                                            
+                                            if isScanningTicket {
+                                                
+                                                ProgressView()
+                                                
+                                            } else {
+                                                
+                                                Label(
+                                                    "Scan HoneyGo Ticket",
+                                                    systemImage:
+                                                        "doc.viewfinder.fill"
+                                                )
+                                            }
+                                            
+                                            Spacer()
                                         }
-                                        
-                                        Spacer()
                                     }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.green)
+                                    .disabled(isScanningTicket)
+                                    
+                                } else {
+                                    
+                                    Text(
+                                        "Enter the \(load.dropoff_location ?? "delivery") ticket manually."
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .tint(.green)
-                                .disabled(isScanningTicket)
-
+                                
                                 Text(
-                                    "\(settings?.dropoff_company_name ?? "Dropoff") Ticket"
+                                    "\(load.dropoff_location ?? settings?.dropoff_company_name ?? "Dropoff") Ticket"
                                 )
                                 .font(.caption.bold())
                                 .foregroundStyle(.white.opacity(0.7))
@@ -269,7 +337,7 @@ struct PickupDeliveryView: View {
                             VStack(alignment: .leading, spacing: 8) {
 
                                 Text(
-                                    "\(settings?.dropoff_company_name ?? "Dropoff") Tons"
+                                    "\(load.dropoff_location ?? settings?.dropoff_company_name ?? "Dropoff") Tons"
                                 )
                                 .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
@@ -474,6 +542,11 @@ struct PickupDeliveryView: View {
             return
         }
         
+        let dropoffName =
+        load.dropoff_location
+        ?? settings?.dropoff_company_name
+        ?? "Dropoff"
+        
         await LoadSupabaseManager.shared
             .deliverLoad(
                 loadID: load.id,
@@ -486,7 +559,7 @@ struct PickupDeliveryView: View {
         sendAdminNotification(
             type: "Delivered",
             message:
-                "\(driver.name) delivered \(settings?.dropoff_company_name ?? "Dropoff") ticket \(cleanTicket) • \(tonsValue) tons",
+                "\(driver.name) delivered \(dropoffName) ticket \(cleanTicket) • \(tonsValue) tons",
             ticket: cleanTicket
         )
         

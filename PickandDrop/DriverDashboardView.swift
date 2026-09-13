@@ -33,6 +33,42 @@ struct DriverDashboardView: View {
         supabaseSettings
     }
     
+    var currentPickupName: String {
+        
+        let shiftLocation =
+        activeShift?.pickupLocation
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        if let shiftLocation,
+           !shiftLocation.isEmpty {
+            
+            return shiftLocation
+        }
+        
+        return settings?.pickup_company_name
+        ?? "Pickup"
+    }
+    
+    var currentDropoffName: String {
+        
+        let shiftLocation =
+        activeShift?.dropoffLocation
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        if let shiftLocation,
+           !shiftLocation.isEmpty {
+            
+            return shiftLocation
+        }
+        
+        return settings?.dropoff_company_name
+        ?? "Dropoff"
+    }
+    
     var pendingDeliveries: [SupabaseLoad] {
         supabaseLoads.filter { load in
 
@@ -155,7 +191,7 @@ struct DriverDashboardView: View {
                                         .foregroundStyle(.white.opacity(0.7))
                                     
                                     Text(
-                                        "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
+                                        "\(currentPickupName) → \(currentDropoffName)"
                                     )
                                     .font(.caption.bold())
                                     .padding(.horizontal, 10)
@@ -228,7 +264,7 @@ struct DriverDashboardView: View {
                                 }
 
                                 dashboardStat(
-                                    title: "\(settings?.pickup_company_name ?? "Pickup") Tons",
+                                    title: "\(currentPickupName) Tons",
                                     value: String(
                                         format: "%.0f",
                                         totalTons
@@ -242,7 +278,7 @@ struct DriverDashboardView: View {
                                 }.count
 
                                 dashboardStat(
-                                    title: "\(settings?.dropoff_company_name ?? "Dropoff")",
+                                    title: currentDropoffName,
                                     value: "\(deliveredCount)"
                                 )
                             }

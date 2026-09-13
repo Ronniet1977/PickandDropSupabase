@@ -8,6 +8,9 @@ struct SupabaseShift: Codable, Identifiable {
     let username: String
     let truck_number: String
     
+    let pickup_location: String?
+    let dropoff_location: String?
+    
     let started_at: String
     let ended_at: String?
     
@@ -127,7 +130,9 @@ final class ShiftSupabaseManager {
     func startShift(
         driverName: String,
         username: String,
-        truckNumber: String
+        truckNumber: String,
+        pickupLocation: String,
+        dropoffLocation: String
     ) async -> SupabaseShift? {
         
         let now =
@@ -136,9 +141,10 @@ final class ShiftSupabaseManager {
         
         let body: [String: Any] = [
             "driver_name": driverName,
-            "username":
-                username.lowercased(),
+            "username": username.lowercased(),
             "truck_number": truckNumber,
+            "pickup_location": pickupLocation,
+            "dropoff_location": dropoffLocation,
             "started_at": now,
             "status": "active"
         ]
@@ -182,6 +188,43 @@ final class ShiftSupabaseManager {
             
             print(
                 "❌ Failed starting Supabase shift:",
+                error
+            )
+            
+            return nil
+        }
+    }
+    
+    func fetchActiveShift(
+        driverName: String
+    ) async -> SupabaseShift? {
+        
+        do {
+            
+            let encodedName =
+            driverName.addingPercentEncoding(
+                withAllowedCharacters: .urlQueryAllowed
+            ) ?? driverName
+            
+            let data =
+            try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_shifts",
+                query:
+                    "?select=*&driver_name=eq.\(encodedName)&status=eq.active&order=started_at.desc&limit=1"
+            )
+            
+            let shifts =
+            try JSONDecoder().decode(
+                [SupabaseShift].self,
+                from: data
+            )
+            
+            return shifts.first
+            
+        } catch {
+            
+            print(
+                "❌ Failed loading active shift:",
                 error
             )
             
@@ -233,3 +276,147 @@ final class ShiftSupabaseManager {
     }
 }
 
+struct SupabaseLocation: Codable, Identifiable {
+    
+    let id: UUID
+    let name: String
+    let location_type: String
+    let is_active: Bool
+    let created_at: String?
+}
+
+final class LocationSupabaseManager {
+    
+    static let shared = LocationSupabaseManager()
+    
+    private init() {}
+    
+    func addLocation(
+        name: String,
+        locationType: String
+    ) async -> Bool {
+        
+        let cleanName =
+        name.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        
+        guard !cleanName.isEmpty else {
+            return false
+        }
+        
+        let body: [String: Any] = [
+            "name": cleanName,
+            "location_type": locationType,
+            "is_active": true
+        ]
+        
+        do {
+            
+            let data =
+            try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
+            _ = try await SupabaseRESTManager.shared
+                .request(
+                    table: "pickdrop_locations",
+                    method: "POST",
+                    body: data
+                )
+            
+            print(
+                "✅ Location added:",
+                cleanName,
+                locationType
+            )
+            
+            return true
+            
+        } catch {
+            
+            print(
+                "❌ Failed adding location:",
+                error
+            )
+            
+            return false
+        }
+    }
+    
+    func deactivateLocation(
+        id: UUID
+    ) async -> Bool {
+        
+        let body: [String: Any] = [
+            "is_active": false
+        ]
+        
+        do {
+            
+            let data =
+            try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
+            _ = try await
+            SupabaseRESTManager.shared
+                .request(
+                    table: "pickdrop_locations",
+                    method: "PATCH",
+                    query:
+                        "?id=eq.\(id.uuidString)",
+                    body: data
+                )
+            
+            print("✅ Location deactivated")
+            
+            return true
+            
+        } catch {
+            
+            print(
+                "❌ Failed deactivating location:",
+                error
+            )
+            
+            return false
+        }
+    }
+    
+    func fetchLocations() async -> [SupabaseLocation] {
+        
+        do {
+            
+            let data =
+            try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_locations",
+                query: "?select=*&order=name"
+            )
+            
+            let locations =
+            try JSONDecoder().decode(
+                [SupabaseLocation].self,
+                from: data
+            )
+            
+            print(
+                "📍 LOCATIONS:",
+                locations.map {
+                    "\($0.name) - \($0.location_type) - \($0.is_active)"
+                }
+            )
+            
+            return locations
+            
+        } catch {
+            
+            print(
+                "❌ Failed loading locations:",
+                error
+            )
+            
+            return []
+        }
+    }
+}
