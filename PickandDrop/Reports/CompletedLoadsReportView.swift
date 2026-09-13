@@ -104,13 +104,40 @@ struct CompletedLoadsReportView: View {
     
     var loadRevenue: Double {
         
-        totalTons * (settings?.rate_per_ton ?? 0)
+        completedLoads.reduce(0.0) { total, load in
+            
+            let tons =
+            load.pickup_tons ?? 0
+            
+            let storedRate =
+            load.rate_per_ton ?? 0
+            
+            let rate =
+            storedRate > 0
+            ? storedRate
+            : settings?.rate_per_ton ?? 0
+            
+            return total + (tons * rate)
+        }
     }
     
     var fuelSurcharge: Double {
         
-        totalTons *
-        (settings?.fuel_surcharge_per_ton ?? 0)
+        completedLoads.reduce(0.0) { total, load in
+            
+            let tons =
+            load.pickup_tons ?? 0
+            
+            let storedFuel =
+            load.fuel_surcharge_per_ton ?? 0
+            
+            let fuelRate =
+            storedFuel > 0
+            ? storedFuel
+            : settings?.fuel_surcharge_per_ton ?? 0
+            
+            return total + (tons * fuelRate)
+        }
     }
     
     var grandTotal: Double {
@@ -238,7 +265,7 @@ struct CompletedLoadsReportView: View {
             Section("Revenue") {
                 
                 reportMoneyRow(
-                    title: "Rate Per Ton",
+                    title: "Current Rate Per Ton",
                     amount: settings?.rate_per_ton ?? 0
                 )
                 
@@ -410,12 +437,23 @@ struct CompletedLoadsReportView: View {
                 .bold()
             }
             
+            HStack(spacing: 6) {
+                
+                Image(systemName: "arrow.right.circle.fill")
+                    .foregroundStyle(.blue)
+                
+                Text(
+                    "\(pickupName(for: load)) → \(dropoffName(for: load))"
+                )
+                .font(.subheadline.bold())
+            }
+            
             if let pickupTicket =
                 load.pickup_ticket_number,
                !pickupTicket.isEmpty {
                 
                 Text(
-                    "Pickup Ticket #\(pickupTicket)"
+                    "\(pickupName(for: load)) Ticket #\(pickupTicket)"
                 )
                 .font(.subheadline)
             }
@@ -425,7 +463,7 @@ struct CompletedLoadsReportView: View {
                !deliveryTicket.isEmpty {
                 
                 Text(
-                    "Delivery Ticket #\(deliveryTicket)"
+                    "\(dropoffName(for: load)) Ticket #\(deliveryTicket)"
                 )
                 .font(.subheadline)
             }
@@ -610,6 +648,44 @@ struct CompletedLoadsReportView: View {
         
         return ISO8601DateFormatter()
             .date(from: text)
+    }
+    
+    func pickupName(
+        for load: SupabaseLoad
+    ) -> String {
+        
+        let name =
+        load.pickup_location?
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        if let name,
+           !name.isEmpty {
+            return name
+        }
+        
+        return settings?.pickup_company_name
+        ?? "Pickup"
+    }
+    
+    func dropoffName(
+        for load: SupabaseLoad
+    ) -> String {
+        
+        let name =
+        load.dropoff_location?
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        if let name,
+           !name.isEmpty {
+            return name
+        }
+        
+        return settings?.dropoff_company_name
+        ?? "Dropoff"
     }
     
     func monthName(

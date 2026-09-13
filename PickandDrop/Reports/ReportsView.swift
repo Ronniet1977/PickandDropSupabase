@@ -229,9 +229,7 @@ struct ReportsView: View {
                 .font(.headline)
                 .foregroundStyle(.blue)
 
-            Text(
-                "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
-            )
+            Text("All Routes")
             .font(.caption)
             .foregroundStyle(.white.opacity(0.7))
 

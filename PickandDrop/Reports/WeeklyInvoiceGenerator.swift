@@ -12,9 +12,11 @@ struct WeeklyInvoiceRow {
     
     let date: Date
     
+    let pickupLocation: String
     let pickupTicket: String
     let pickupTons: Double
     
+    let dropoffLocation: String
     let deliveryTicket: String
     
     let driver: String
@@ -130,12 +132,23 @@ enum WeeklyInvoiceGenerator {
             rows.append(
                 WeeklyInvoiceRow(
                     date: deliveredDate,
+                    
+                    pickupLocation:
+                        load.pickup_location
+                    ?? settings.pickup_company_name,
+                    
                     pickupTicket: pickupTicket,
                     pickupTons: pickupTons,
+                    
+                    dropoffLocation:
+                        load.dropoff_location
+                    ?? settings.dropoff_company_name,
+                    
                     deliveryTicket: deliveryTicket,
                     driver: driver,
                     rate: rate,
-                    fuelSurchargePerTon: fuelSurchargePerTon
+                    fuelSurchargePerTon:
+                        fuelSurchargePerTon
                 )
             )
         }
@@ -163,7 +176,7 @@ enum WeeklyInvoiceGenerator {
         let endDate =
             calendar.date(
                 byAdding: .day,
-                value: 5,
+                value: 6,
                 to: weekInterval.start
             ) ?? weekInterval.end
 
@@ -250,21 +263,13 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        "Route: \(settings.pickup_company_name) → \(settings.dropoff_company_name)",
-                        x: leftX,
-                        y: 49,
-                        font: .systemFont(ofSize: 9.5),
-                        width: leftWidth
-                    )
-                    
-                    drawText(
                         String(
                             format: "Rate: $%.2f/ton  •  Fuel Surcharge: $%.2f/ton",
                             settings.rate_per_ton,
                             settings.fuel_surcharge_per_ton
                         ),
                         x: leftX,
-                        y: 61,
+                        y: 49,
                         font: .systemFont(ofSize: 8.5),
                         width: leftWidth
                     )
@@ -350,90 +355,86 @@ enum WeeklyInvoiceGenerator {
                         )
                     ).fill()
                     
-                    let font = UIFont.boldSystemFont(ofSize: 7.25)
+                    let font = UIFont.boldSystemFont(ofSize: 6.9)
                     let textY = y + 4
                     
-                    drawText(
-                        "#",
-                        x: 34,
-                        y: textY,
-                        font: font,
-                        width: 22,
-                        alignment: .center,
-                        color: .white
-                    )
+                    drawText("#",
+                             x: 32,
+                             y: textY,
+                             font: font,
+                             width: 20,
+                             alignment: .center,
+                             color: .white)
                     
-                    drawText(
-                        "Date",
-                        x: 58,
-                        y: textY,
-                        font: font,
-                        width: 48,
-                        color: .white
-                    )
+                    drawText("Date",
+                             x: 54,
+                             y: textY,
+                             font: font,
+                             width: 44,
+                             color: .white)
                     
-                    drawText(
-                        "\(settings.pickup_company_name) Ticket",
-                        x: 108,
-                        y: textY,
-                        font: font,
-                        width: 82,
-                        color: .white
-                    )
+                    drawText("Pickup",
+                             x: 100,
+                             y: textY,
+                             font: font,
+                             width: 54,
+                             color: .white)
                     
-                    drawText(
-                        "Tons",
-                        x: 192,
-                        y: textY,
-                        font: font,
-                        width: 42,
-                        color: .white
-                    )
+                    drawText("Ticket",
+                             x: 156,
+                             y: textY,
+                             font: font,
+                             width: 68,
+                             color: .white)
                     
-                    drawText(
-                        "\(settings.dropoff_company_name) Ticket",
-                        x: 236,
-                        y: textY,
-                        font: font,
-                        width: 92,
-                        color: .white
-                    )
+                    drawText("Tons",
+                             x: 226,
+                             y: textY,
+                             font: font,
+                             width: 40,
+                             color: .white)
                     
-                    drawText(
-                        "Rate/Ton",
-                        x: 330,
-                        y: textY,
-                        font: font,
-                        width: 50,
-                        color: .white
-                    )
+                    drawText("Dropoff",
+                             x: 268,
+                             y: textY,
+                             font: font,
+                             width: 58,
+                             color: .white)
                     
-                    drawText(
-                        "Fuel/Ton",
-                        x: 382,
-                        y: textY,
-                        font: font,
-                        width: 52,
-                        color: .white
-                    )
+                    drawText("Ticket",
+                             x: 328,
+                             y: textY,
+                             font: font,
+                             width: 68,
+                             color: .white)
                     
-                    drawText(
-                        "Total",
-                        x: 436,
-                        y: textY,
-                        font: font,
-                        width: 62,
-                        color: .white
-                    )
+                    drawText("Rate/Ton",
+                             x: 398,
+                             y: textY,
+                             font: font,
+                             width: 50,
+                             color: .white)
                     
-                    drawText(
-                        "Driver",
-                        x: 500,
-                        y: textY,
-                        font: font,
-                        width: 254,
-                        color: .white
-                    )
+                    drawText("Fuel/Ton",
+                             x: 450,
+                             y: textY,
+                             font: font,
+                             width: 50,
+                             color: .white)
+                    
+                    drawText("Total",
+                             x: 502,
+                             y: textY,
+                             font: font,
+                             width: 58,
+                             color: .white)
+                    
+                    drawText("Driver",
+                             x: 562,
+                             y: textY,
+                             font: font,
+                             width: 192,
+                             color: .white)
                 }
                 
                 func drawRow(
@@ -459,53 +460,69 @@ enum WeeklyInvoiceGenerator {
                         )
                     ).fill()
                     
-                    let font = UIFont.systemFont(ofSize: 7.1)
+                    let font = UIFont.systemFont(ofSize: 6.8)
                     let textY = y + 2.5
                     
                     drawText(
                         "\(number)",
-                        x: 34,
+                        x: 32,
                         y: textY,
                         font: font,
-                        width: 22,
+                        width: 20,
                         alignment: .center
                     )
                     
                     drawText(
                         formatter.string(from: row.date),
-                        x: 58,
+                        x: 54,
                         y: textY,
                         font: font,
-                        width: 48
+                        width: 44
+                    )
+                    
+                    drawText(
+                        row.pickupLocation,
+                        x: 100,
+                        y: textY,
+                        font: font,
+                        width: 54
                     )
                     
                     drawText(
                         row.pickupTicket,
-                        x: 108,
+                        x: 156,
                         y: textY,
                         font: font,
-                        width: 82
+                        width: 68
                     )
                     
                     drawText(
                         String(format: "%.2f", row.pickupTons),
-                        x: 192,
+                        x: 226,
                         y: textY,
                         font: font,
-                        width: 42
+                        width: 40
+                    )
+                    
+                    drawText(
+                        row.dropoffLocation,
+                        x: 268,
+                        y: textY,
+                        font: font,
+                        width: 58
                     )
                     
                     drawText(
                         row.deliveryTicket,
-                        x: 236,
+                        x: 328,
                         y: textY,
                         font: font,
-                        width: 92
+                        width: 68
                     )
                     
                     drawText(
                         String(format: "$%.2f", row.rate),
-                        x: 330,
+                        x: 398,
                         y: textY,
                         font: font,
                         width: 50
@@ -516,26 +533,26 @@ enum WeeklyInvoiceGenerator {
                             format: "$%.2f",
                             row.fuelSurchargePerTon
                         ),
-                        x: 382,
+                        x: 450,
                         y: textY,
                         font: font,
-                        width: 52
+                        width: 50
                     )
                     
                     drawText(
                         String(format: "$%.2f", row.total),
-                        x: 436,
+                        x: 502,
                         y: textY,
                         font: font,
-                        width: 62
+                        width: 58
                     )
                     
                     drawText(
                         row.driver,
-                        x: 500,
+                        x: 562,
                         y: textY,
                         font: font,
-                        width: 254
+                        width: 192
                     )
                 }
                 
