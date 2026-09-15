@@ -381,14 +381,17 @@ final class LoadSupabaseManager {
         deliveryTicketNumber: String,
         deliveryTons: Double,
         status: String,
+        billingType: String,
         ratePerTon: Double,
-        fuelSurchargePerTon: Double
+        fuelSurchargePerTon: Double,
+        ratePerLoad: Double,
+        ratePerHour: Double
     ) async {
-
+        
         let now =
-            ISO8601DateFormatter()
-                .string(from: Date())
-
+        ISO8601DateFormatter()
+            .string(from: Date())
+        
         var body: [String: Any] = [
             "driver_name": driverName,
             "truck_number": truckNumber,
@@ -404,27 +407,30 @@ final class LoadSupabaseManager {
             
             "is_archived": false,
             
+            "billing_type": billingType,
             "rate_per_ton": ratePerTon,
-            "fuel_surcharge_per_ton": fuelSurchargePerTon
+            "fuel_surcharge_per_ton": fuelSurchargePerTon,
+            "rate_per_load": ratePerLoad,
+            "rate_per_hour": ratePerHour
         ]
-
+        
         if status == "delivered" {
             body["delivery_ticket_number"] =
-                deliveryTicketNumber
-
+            deliveryTicketNumber
+            
             body["delivery_tons"] =
-                deliveryTons
-
+            deliveryTons
+            
             body["delivered_at"] =
-                now
+            now
         }
-
+        
         do {
             let data =
-                try JSONSerialization.data(
-                    withJSONObject: body
-                )
-
+            try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
             _ = try await SupabaseRESTManager
                 .shared
                 .request(
@@ -432,16 +438,26 @@ final class LoadSupabaseManager {
                     method: "POST",
                     body: data
                 )
-
+            
             print("✅ Admin load added")
             print("📷 Scanned load:", status)
+            
             print(
                 "📍 Admin route:",
                 pickupLocation,
                 "→",
                 dropoffLocation
             )
-
+            
+            print(
+                "💰 Admin billing:",
+                billingType,
+                "ton:", ratePerTon,
+                "fuel:", fuelSurchargePerTon,
+                "load:", ratePerLoad,
+                "hour:", ratePerHour
+            )
+            
         } catch {
             print(
                 "❌ Failed adding admin load:",
