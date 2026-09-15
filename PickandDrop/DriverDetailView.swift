@@ -1087,24 +1087,29 @@ struct AdminAddLoadView: View {
             }
             
             Section("Scan Ticket") {
-                Button {
-                    selectedScanMode = .pickupOnly
-                    showTicketCamera = true
-                } label: {
-                    Label(
-                        "Scan BRC Ticket",
-                        systemImage: "arrow.up.doc.fill"
-                    )
+                
+                if selectedPickupLocation == "BRC" {
+                    Button {
+                        selectedScanMode = .pickupOnly
+                        showTicketCamera = true
+                    } label: {
+                        Label(
+                            "Scan BRC Ticket",
+                            systemImage: "arrow.up.doc.fill"
+                        )
+                    }
                 }
                 
-                Button {
-                    selectedScanMode = .deliveryOnly
-                    showTicketCamera = true
-                } label: {
-                    Label(
-                        "Scan HoneyGo Ticket",
-                        systemImage: "arrow.down.doc.fill"
-                    )
+                if selectedDropoffLocation == "HoneyGo" {
+                    Button {
+                        selectedScanMode = .deliveryOnly
+                        showTicketCamera = true
+                    } label: {
+                        Label(
+                            "Scan HoneyGo Ticket",
+                            systemImage: "arrow.down.doc.fill"
+                        )
+                    }
                 }
             }
             .disabled(isScanningTicket)
@@ -1120,8 +1125,9 @@ struct AdminAddLoadView: View {
             }
             
             Section(
-                settings?.pickup_company_name
-                ?? "Pickup"
+                selectedPickupLocation.isEmpty
+                ? "Pickup"
+                : selectedPickupLocation
             ) {
                 TextField(
                     "Ticket Number",
@@ -1136,8 +1142,9 @@ struct AdminAddLoadView: View {
             }
             
             Section(
-                settings?.dropoff_company_name
-                ?? "Dropoff"
+                selectedDropoffLocation.isEmpty
+                ? "Dropoff"
+                : selectedDropoffLocation
             ) {
                 TextField(
                     "Ticket Number",
