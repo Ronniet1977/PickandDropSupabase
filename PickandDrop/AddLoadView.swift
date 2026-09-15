@@ -475,6 +475,49 @@ struct AddLoadView: View {
             return
         }
         
+        let selectedDropoff =
+        locations.first {
+            $0.name == selectedDropoffLocation
+        }
+        
+        let billingType =
+        selectedDropoff?.billing_type
+        ?? "per_ton"
+        
+        let ratePerTon: Double
+        let fuelSurchargePerTon: Double
+        let ratePerLoad: Double
+        let ratePerHour: Double
+        
+        switch billingType {
+            
+        case "per_load":
+            ratePerTon = 0
+            fuelSurchargePerTon = 0
+            ratePerLoad =
+            selectedDropoff?.rate_per_load ?? 0
+            ratePerHour = 0
+            
+        case "per_hour":
+            ratePerTon = 0
+            fuelSurchargePerTon = 0
+            ratePerLoad = 0
+            ratePerHour =
+            selectedDropoff?.rate_per_hour ?? 0
+            
+        default:
+            ratePerTon =
+            selectedDropoff?.rate_per_ton
+            ?? settings.rate_per_ton
+            
+            fuelSurchargePerTon =
+            selectedDropoff?.fuel_surcharge_per_ton
+            ?? settings.fuel_surcharge_per_ton
+            
+            ratePerLoad = 0
+            ratePerHour = 0
+        }
+        
         await LoadSupabaseManager.shared.addLoad(
             driverName: driver.name,
             truckNumber: driver.truckNumber,
@@ -485,14 +528,26 @@ struct AddLoadView: View {
             dropoffLocation:
                 selectedDropoffLocation,
             
-            pickupTicketNumber: cleanTicket,
-            pickupTons: tonsValue,
+            pickupTicketNumber:
+                cleanTicket,
+            
+            pickupTons:
+                tonsValue,
+            
+            billingType:
+                billingType,
             
             ratePerTon:
-                settings.rate_per_ton,
+                ratePerTon,
             
             fuelSurchargePerTon:
-                settings.fuel_surcharge_per_ton
+                fuelSurchargePerTon,
+            
+            ratePerLoad:
+                ratePerLoad,
+            
+            ratePerHour:
+                ratePerHour
         )
         
         // ✅ Send admin notification to Supabase

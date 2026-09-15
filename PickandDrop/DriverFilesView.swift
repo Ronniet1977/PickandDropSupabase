@@ -997,31 +997,6 @@ struct EditCompanyInfoView: View {
                 .autocorrectionDisabled()
             }
             
-            Section("Invoice Rates") {
-                
-                HStack {
-                    Text("Rate Per Ton")
-                    
-                    Spacer()
-                    
-                    TextField("0.00", text: $ratePerTon)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 120)
-                }
-                
-                HStack {
-                    Text("Fuel Surcharge / Ton")
-                    
-                    Spacer()
-                    
-                    TextField("0.00", text: $fuelSurchargePerTon)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 120)
-                }
-            }
-            
             Button {
                 Task {
                     await saveSettings()
@@ -1145,10 +1120,19 @@ struct AdminLocationsView: View {
     
     @State private var locations: [SupabaseLocation] = []
     
+    @State private var selectedLocation:
+    SupabaseLocation?
     @State private var locationName = ""
     @State private var locationType = "dropoff"
+    @State private var billingType = "per_ton"
+    
+    @State private var ratePerTon = ""
+    @State private var fuelSurchargePerTon = ""
+    @State private var ratePerLoad = ""
+    @State private var ratePerHour = ""
     
     @State private var isSaving = false
+    
     
     var body: some View {
         
@@ -1174,6 +1158,81 @@ struct AdminLocationsView: View {
                     
                     Text("Both")
                         .tag("both")
+                }
+                
+                Picker(
+                    "Billing",
+                    selection: $billingType
+                ) {
+                    Text("Per Ton")
+                        .tag("per_ton")
+                    
+                    Text("Per Load")
+                        .tag("per_load")
+                    
+                    Text("Per Hour")
+                        .tag("per_hour")
+                }
+                
+                switch billingType {
+                    
+                case "per_load":
+                    
+                    HStack {
+                        Text("Rate Per Load")
+                        
+                        Spacer()
+                        
+                        TextField(
+                            "0.00",
+                            text: $ratePerLoad
+                        )
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                    }
+                    
+                case "per_hour":
+                    
+                    HStack {
+                        Text("Rate Per Hour")
+                        
+                        Spacer()
+                        
+                        TextField(
+                            "0.00",
+                            text: $ratePerHour
+                        )
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                    }
+                    
+                default:
+                    
+                    HStack {
+                        Text("Rate Per Ton")
+                        
+                        Spacer()
+                        
+                        TextField(
+                            "0.00",
+                            text: $ratePerTon
+                        )
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                    }
+                    
+                    HStack {
+                        Text("Fuel Surcharge / Ton")
+                        
+                        Spacer()
+                        
+                        TextField(
+                            "0.00",
+                            text: $fuelSurchargePerTon
+                        )
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                    }
                 }
                 
                 Button {
@@ -1227,35 +1286,55 @@ struct AdminLocationsView: View {
                         
                         HStack {
                             
-                            VStack(alignment: .leading) {
+                            Button {
+                                selectedLocation = location
+                            } label: {
                                 
-                                Text(location.name)
+                                VStack(
+                                    alignment: .leading,
+                                    spacing: 4
+                                ) {
+                                    
+                                    Text(location.name)
+                                        .foregroundStyle(.primary)
+                                    
+                                    Text(
+                                        location.location_type
+                                            .capitalized
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    
+                                    if location.location_type != "pickup" {
+                                        
+                                        locationRateText(location)
+                                            .font(.caption)
+                                            .foregroundStyle(.blue)
+                                    }
+                                }
                                 
-                                Text(
-                                    location.location_type
-                                        .capitalized
+                                Spacer()
+                                
+                                Image(
+                                    systemName: "chevron.right"
                                 )
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             }
-                            
-                            Spacer()
+                            .buttonStyle(.plain)
                             
                             Button(
                                 role: .destructive
                             ) {
                                 
                                 Task {
-                                    await deactivate(
-                                        location
-                                    )
+                                    await deactivate(location)
                                 }
                                 
                             } label: {
                                 
                                 Image(
-                                    systemName:
-                                        "trash"
+                                    systemName: "trash"
                                 )
                             }
                         }
@@ -1270,6 +1349,16 @@ struct AdminLocationsView: View {
         .refreshable {
             await loadLocations()
         }
+        .sheet(item: $selectedLocation) { location in
+            
+            EditLocationRatesView(
+                location: location
+            ) {
+                Task {
+                    await loadLocations()
+                }
+            }
+        }
     }
     
     @MainActor
@@ -1278,6 +1367,33 @@ struct AdminLocationsView: View {
         locations =
         await LocationSupabaseManager.shared
             .fetchLocations()
+    }
+    
+    @ViewBuilder
+    private func locationRateText(
+        _ location: SupabaseLocation
+    ) -> some View {
+        
+        switch location.billing_type ?? "per_ton" {
+            
+        case "per_load":
+            
+            Text(
+                "Per Load • $\(location.rate_per_load ?? 0, specifier: "%.2f")"
+            )
+            
+        case "per_hour":
+            
+            Text(
+                "Per Hour • $\(location.rate_per_hour ?? 0, specifier: "%.2f")"
+            )
+            
+        default:
+            
+            Text(
+                "Per Ton • $\(location.rate_per_ton ?? 0, specifier: "%.2f") + $\(location.fuel_surcharge_per_ton ?? 0, specifier: "%.2f") fuel"
+            )
+        }
     }
     
     @MainActor
@@ -1293,7 +1409,15 @@ struct AdminLocationsView: View {
         await LocationSupabaseManager.shared
             .addLocation(
                 name: locationName,
-                locationType: locationType
+                locationType: locationType,
+                billingType: billingType,
+                ratePerTon: Double(ratePerTon),
+                fuelSurchargePerTon:
+                    Double(fuelSurchargePerTon),
+                ratePerLoad:
+                    Double(ratePerLoad),
+                ratePerHour:
+                    Double(ratePerHour)
             )
         
         if success {
@@ -1328,3 +1452,239 @@ struct AdminLocationsView: View {
     }
 }
 
+struct EditLocationRatesView: View {
+    
+    let location: SupabaseLocation
+    
+    var onSaved: (() -> Void)? = nil
+    
+    @Environment(\.dismiss)
+    private var dismiss
+    
+    @State private var billingType = "per_ton"
+    
+    @State private var ratePerTon = ""
+    @State private var fuelSurchargePerTon = ""
+    @State private var ratePerLoad = ""
+    @State private var ratePerHour = ""
+    
+    @State private var isSaving = false
+    
+    var body: some View {
+        
+        NavigationStack {
+            
+            Form {
+                
+                Section("Location") {
+                    
+                    LabeledContent(
+                        "Name",
+                        value: location.name
+                    )
+                    
+                    LabeledContent(
+                        "Type",
+                        value:
+                            location.location_type
+                            .capitalized
+                    )
+                }
+                
+                Section("Billing") {
+                    
+                    Picker(
+                        "Billing Type",
+                        selection: $billingType
+                    ) {
+                        
+                        Text("Per Ton")
+                            .tag("per_ton")
+                        
+                        Text("Per Load")
+                            .tag("per_load")
+                        
+                        Text("Per Hour")
+                            .tag("per_hour")
+                    }
+                }
+                
+                Section("Rates") {
+                    
+                    HStack {
+                        
+                        Text("Rate Per Ton")
+                        
+                        Spacer()
+                        
+                        TextField(
+                            "0.00",
+                            text: $ratePerTon
+                        )
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
+                    }
+                    
+                    HStack {
+                        
+                        Text("Fuel Surcharge / Ton")
+                        
+                        Spacer()
+                        
+                        TextField(
+                            "0.00",
+                            text: $fuelSurchargePerTon
+                        )
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
+                    }
+                    
+                    HStack {
+                        
+                        Text("Rate Per Load")
+                        
+                        Spacer()
+                        
+                        TextField(
+                            "0.00",
+                            text: $ratePerLoad
+                        )
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
+                    }
+                    
+                    HStack {
+                        
+                        Text("Rate Per Hour")
+                        
+                        Spacer()
+                        
+                        TextField(
+                            "0.00",
+                            text: $ratePerHour
+                        )
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
+                    }
+                }
+                
+                Button {
+                    
+                    Task {
+                        await save()
+                    }
+                    
+                } label: {
+                    
+                    HStack {
+                        
+                        Spacer()
+                        
+                        if isSaving {
+                            
+                            ProgressView()
+                            
+                        } else {
+                            
+                            Label(
+                                "Save Rates",
+                                systemImage:
+                                    "checkmark.circle.fill"
+                            )
+                        }
+                        
+                        Spacer()
+                    }
+                }
+                .disabled(isSaving)
+            }
+            .navigationTitle("Edit Rates")
+            .navigationBarTitleDisplayMode(.inline)
+            
+            .toolbar {
+                
+                ToolbarItem(
+                    placement: .cancellationAction
+                ) {
+                    
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+            
+            .onAppear {
+                loadExistingRates()
+            }
+        }
+    }
+    
+    private func loadExistingRates() {
+        
+        billingType =
+        location.billing_type
+        ?? "per_ton"
+        
+        ratePerTon =
+        String(
+            format: "%.2f",
+            location.rate_per_ton ?? 0
+        )
+        
+        fuelSurchargePerTon =
+        String(
+            format: "%.2f",
+            location.fuel_surcharge_per_ton ?? 0
+        )
+        
+        ratePerLoad =
+        String(
+            format: "%.2f",
+            location.rate_per_load ?? 0
+        )
+        
+        ratePerHour =
+        String(
+            format: "%.2f",
+            location.rate_per_hour ?? 0
+        )
+    }
+    
+    @MainActor
+    private func save() async {
+        
+        guard !isSaving else {
+            return
+        }
+        
+        isSaving = true
+        
+        let success =
+        await LocationSupabaseManager.shared
+            .updateLocationRates(
+                id: location.id,
+                billingType: billingType,
+                ratePerTon:
+                    Double(ratePerTon) ?? 0,
+                fuelSurchargePerTon:
+                    Double(
+                        fuelSurchargePerTon
+                    ) ?? 0,
+                ratePerLoad:
+                    Double(ratePerLoad) ?? 0,
+                ratePerHour:
+                    Double(ratePerHour) ?? 0
+            )
+        
+        if success {
+            onSaved?()
+            dismiss()
+        }
+        
+        isSaving = false
+    }
+}

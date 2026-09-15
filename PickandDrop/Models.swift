@@ -42,32 +42,39 @@ struct SupabaseDriver: Codable, Identifiable {
 }
 
 struct SupabaseLoad: Codable, Identifiable {
-
+    
     let id: UUID
-
+    
     let driver_name: String?
-
     let truck_number: String?
     
     let pickup_location: String?
     let dropoff_location: String?
-
+    
     let pickup_ticket_number: String?
     let delivery_ticket_number: String?
-
+    
     let pickup_tons: Double?
     let delivery_tons: Double?
-
+    
     let status: String?
-
+    
     let picked_up_at: String?
     let delivered_at: String?
-
+    
     let created_at: String?
-
+    
     let is_archived: Bool?
+    
+    let billing_type: String?
+    
     let rate_per_ton: Double?
     let fuel_surcharge_per_ton: Double?
+    
+    let rate_per_load: Double?
+    let rate_per_hour: Double?
+    
+    let billable_hours: Double?
 }
 
 struct SupabaseFuel: Codable, Identifiable {
@@ -81,7 +88,7 @@ struct SupabaseFuel: Codable, Identifiable {
 }
 
 struct DriverSummary: Identifiable {
-    var id: String { name }   // stable ID
+    var id: String { name }
     
     var name: String
     var truck: String
@@ -92,6 +99,7 @@ struct DriverSummary: Identifiable {
     var status: String
     
     var isFinished: Bool
+    var revenue: Double = 0
 }
 
 @Model

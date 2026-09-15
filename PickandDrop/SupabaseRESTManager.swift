@@ -457,8 +457,11 @@ final class LoadSupabaseManager {
         dropoffLocation: String,
         pickupTicketNumber: String,
         pickupTons: Double,
+        billingType: String,
         ratePerTon: Double,
-        fuelSurchargePerTon: Double
+        fuelSurchargePerTon: Double,
+        ratePerLoad: Double,
+        ratePerHour: Double
     ) async {
         
         let body: [String: Any] = [
@@ -472,12 +475,20 @@ final class LoadSupabaseManager {
             "pickup_tons": pickupTons,
             
             "status": "pickedUp",
-            "picked_up_at": ISO8601DateFormatter().string(from: Date()),
+            "picked_up_at":
+                ISO8601DateFormatter()
+                .string(from: Date()),
             
             "is_archived": false,
             
+            "billing_type": billingType,
+            
             "rate_per_ton": ratePerTon,
-            "fuel_surcharge_per_ton": fuelSurchargePerTon
+            "fuel_surcharge_per_ton":
+                fuelSurchargePerTon,
+            
+            "rate_per_load": ratePerLoad,
+            "rate_per_hour": ratePerHour
         ]
         
         do {
@@ -486,21 +497,52 @@ final class LoadSupabaseManager {
                 withJSONObject: body
             )
             
-            _ = try await SupabaseRESTManager.shared.request(
+            _ = try await
+            SupabaseRESTManager.shared.request(
                 table: "pickdrop_loads",
                 method: "POST",
                 body: data
             )
             
             print("✅ Supabase load added")
+            
             print(
                 "📍 Route:",
                 pickupLocation,
                 "→",
                 dropoffLocation
             )
-            print("💵 Rate stored:", ratePerTon)
-            print("⛽ Surcharge stored:", fuelSurchargePerTon)
+            
+            print(
+                "💵 Billing:",
+                billingType
+            )
+            
+            switch billingType {
+                
+            case "per_load":
+                print(
+                    "💵 Per load:",
+                    ratePerLoad
+                )
+                
+            case "per_hour":
+                print(
+                    "💵 Per hour:",
+                    ratePerHour
+                )
+                
+            default:
+                print(
+                    "💵 Rate per ton:",
+                    ratePerTon
+                )
+                
+                print(
+                    "⛽ Surcharge:",
+                    fuelSurchargePerTon
+                )
+            }
             
         } catch {
             print(

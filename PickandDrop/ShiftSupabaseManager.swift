@@ -282,6 +282,14 @@ struct SupabaseLocation: Codable, Identifiable {
     let name: String
     let location_type: String
     let is_active: Bool
+    
+    let billing_type: String?
+    
+    let rate_per_ton: Double?
+    let fuel_surcharge_per_ton: Double?
+    let rate_per_load: Double?
+    let rate_per_hour: Double?
+    
     let created_at: String?
 }
 
@@ -293,7 +301,12 @@ final class LocationSupabaseManager {
     
     func addLocation(
         name: String,
-        locationType: String
+        locationType: String,
+        billingType: String,
+        ratePerTon: Double?,
+        fuelSurchargePerTon: Double?,
+        ratePerLoad: Double?,
+        ratePerHour: Double?
     ) async -> Bool {
         
         let cleanName =
@@ -305,11 +318,28 @@ final class LocationSupabaseManager {
             return false
         }
         
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "name": cleanName,
             "location_type": locationType,
+            "billing_type": billingType,
             "is_active": true
         ]
+        
+        if let ratePerTon {
+            body["rate_per_ton"] = ratePerTon
+        }
+        
+        if let fuelSurchargePerTon {
+            body["fuel_surcharge_per_ton"] = fuelSurchargePerTon
+        }
+        
+        if let ratePerLoad {
+            body["rate_per_load"] = ratePerLoad
+        }
+        
+        if let ratePerHour {
+            body["rate_per_hour"] = ratePerHour
+        }
         
         do {
             
@@ -337,6 +367,56 @@ final class LocationSupabaseManager {
             
             print(
                 "❌ Failed adding location:",
+                error
+            )
+            
+            return false
+        }
+    }
+    
+    func updateLocationRates(
+        id: UUID,
+        billingType: String,
+        ratePerTon: Double,
+        fuelSurchargePerTon: Double,
+        ratePerLoad: Double,
+        ratePerHour: Double
+    ) async -> Bool {
+        
+        let body: [String: Any] = [
+            "billing_type": billingType,
+            "rate_per_ton": ratePerTon,
+            "fuel_surcharge_per_ton": fuelSurchargePerTon,
+            "rate_per_load": ratePerLoad,
+            "rate_per_hour": ratePerHour
+        ]
+        
+        do {
+            
+            let data =
+            try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
+            _ = try await
+            SupabaseRESTManager.shared.request(
+                table: "pickdrop_locations",
+                method: "PATCH",
+                query: "?id=eq.\(id.uuidString)",
+                body: data
+            )
+            
+            print(
+                "✅ Location rates updated:",
+                billingType
+            )
+            
+            return true
+            
+        } catch {
+            
+            print(
+                "❌ Failed updating location rates:",
                 error
             )
             
