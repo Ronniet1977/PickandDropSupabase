@@ -310,6 +310,8 @@ struct FilePreviewView: View {
 struct WeeklyFuelCardsView: View {
 
     @State private var fuelEntries: [SupabaseFuel] = []
+    @State private var fuelToDelete: SupabaseFuel?
+    @State private var showingDeleteConfirmation = false
 
     var totalFuel: Double {
         fuelEntries.reduce(0.0) {
@@ -339,19 +341,25 @@ struct WeeklyFuelCardsView: View {
                 
                 Button {
                     Task {
+                        
                         await FuelReceiptManager.shared
                             .saveAllReceiptsToPhotos(
                                 fuelEntries: fuelEntries
                             )
-
-                        await FuelSupabaseManager.shared.deleteAllFuel()
+                        
+                        let refreshedFuel =
+                        await FuelSupabaseManager.shared
+                            .fetchFuel()
                         
                         await MainActor.run {
-                            fuelEntries = []
+                            fuelEntries = refreshedFuel
                         }
                     }
                 } label: {
-                    Label("Save All Receipts to Photos", systemImage: "square.and.arrow.down.fill")
+                    Label(
+                        "Save All Receipts to Photos",
+                        systemImage: "square.and.arrow.down.fill"
+                    )
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.green)
@@ -390,10 +398,22 @@ struct WeeklyFuelCardsView: View {
                             }
 
                             Spacer()
-
-                            Text("$\(entry.amount ?? 0, specifier: "%.2f")")
-                                .font(.title3.bold())
-                                .foregroundStyle(AppTheme.success)
+                            
+                            VStack(alignment: .trailing, spacing: 12) {
+                                
+                                Text("$\(entry.amount ?? 0, specifier: "%.2f")")
+                                    .font(.title3.bold())
+                                    .foregroundStyle(AppTheme.success)
+                                
+                                Button(role: .destructive) {
+                                    fuelToDelete = entry
+                                    showingDeleteConfirmation = true
+                                } label: {
+                                    Image(systemName: "trash.fill")
+                                        .font(.title3)
+                                }
+                                .buttonStyle(.borderless)
+                            }
                         }
 
                         Text(entry.created_at ?? "")
@@ -409,6 +429,50 @@ struct WeeklyFuelCardsView: View {
             .padding()
         }
         .navigationTitle("Weekly Fuel")
+        .confirmationDialog(
+            "Delete Fuel Entry?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            
+            Button("Delete Fuel Entry", role: .destructive) {
+                
+                guard let entry = fuelToDelete else {
+                    return
+                }
+                
+                Task {
+                    
+                    let deleted =
+                    await FuelSupabaseManager.shared
+                        .deleteFuel(id: entry.id)
+                    
+                    if deleted {
+                        
+                        await MainActor.run {
+                            fuelEntries.removeAll {
+                                $0.id == entry.id
+                            }
+                            
+                            fuelToDelete = nil
+                        }
+                    }
+                }
+            }
+            
+            Button("Cancel", role: .cancel) {
+                fuelToDelete = nil
+            }
+            
+        } message: {
+            
+            if let entry = fuelToDelete {
+                
+                Text(
+                    "\(entry.driver_name ?? "Unknown") • $\(entry.amount ?? 0, specifier: "%.2f")"
+                )
+            }
+        }
         .onAppear {
             Task {
                 let loaded =

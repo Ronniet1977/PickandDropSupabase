@@ -46,19 +46,23 @@ final class FuelSupabaseManager {
         }
     }
     
-    func deleteAllFuel() async {
-
+    func deleteFuel(
+        id: UUID
+    ) async -> Bool {
+        
         do {
             _ = try await SupabaseRESTManager.shared.request(
                 table: "pickdrop_fuel",
                 method: "DELETE",
-                query: "?id=not.is.null"
+                query: "?id=eq.\(id.uuidString)"
             )
-
-            print("🧹 Supabase fuel cleared")
-
+            
+            print("🗑️ Fuel entry deleted:", id)
+            return true
+            
         } catch {
-            print("❌ Failed clearing fuel:", error)
+            print("❌ Failed deleting fuel entry:", error)
+            return false
         }
     }
     
