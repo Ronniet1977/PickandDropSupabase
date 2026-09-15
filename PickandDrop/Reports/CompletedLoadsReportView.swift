@@ -104,39 +104,15 @@ struct CompletedLoadsReportView: View {
     
     var loadRevenue: Double {
         
-        completedLoads.reduce(0.0) { total, load in
-            
-            let tons =
-            load.pickup_tons ?? 0
-            
-            let storedRate =
-            load.rate_per_ton ?? 0
-            
-            let rate =
-            storedRate > 0
-            ? storedRate
-            : settings?.rate_per_ton ?? 0
-            
-            return total + (tons * rate)
+        completedLoads.reduce(0.0) {
+            $0 + revenue(for: $1)
         }
     }
     
     var fuelSurcharge: Double {
         
-        completedLoads.reduce(0.0) { total, load in
-            
-            let tons =
-            load.pickup_tons ?? 0
-            
-            let storedFuel =
-            load.fuel_surcharge_per_ton ?? 0
-            
-            let fuelRate =
-            storedFuel > 0
-            ? storedFuel
-            : settings?.fuel_surcharge_per_ton ?? 0
-            
-            return total + (tons * fuelRate)
+        completedLoads.reduce(0.0) {
+            $0 + fuelAmount(for: $1)
         }
     }
     
@@ -163,7 +139,14 @@ struct CompletedLoadsReportView: View {
     
     // MARK: - Driver totals
     
-    var driverTotals: [(name: String, loads: Int, tons: Double)] {
+    var driverTotals: [
+        (
+            name: String,
+            loads: Int,
+            tons: Double,
+            revenue: Double
+        )
+    ] {
         
         let grouped = Dictionary(
             grouping: completedLoads
@@ -177,15 +160,21 @@ struct CompletedLoadsReportView: View {
                 $0 + ($1.pickup_tons ?? 0)
             }
             
+            let revenue = loads.reduce(0.0) {
+                $0 + totalAmount(for: $1)
+            }
+            
             return (
                 name: name,
                 loads: loads.count,
-                tons: tons
+                tons: tons,
+                revenue: revenue
             )
         }
         .sorted {
-            $0.name.localizedCaseInsensitiveCompare($1.name)
-            == .orderedAscending
+            $0.name.localizedCaseInsensitiveCompare(
+                $1.name
+            ) == .orderedAscending
         }
     }
     
@@ -265,11 +254,6 @@ struct CompletedLoadsReportView: View {
             Section("Revenue") {
                 
                 reportMoneyRow(
-                    title: "Current Rate Per Ton",
-                    amount: settings?.rate_per_ton ?? 0
-                )
-                
-                reportMoneyRow(
                     title: "Load Revenue",
                     amount: loadRevenue
                 )
@@ -319,15 +303,21 @@ struct CompletedLoadsReportView: View {
                                     "\(item.loads) Load\(item.loads == 1 ? "" : "s")"
                                 )
                                 
-                                Spacer()
+                                Text("•")
                                 
                                 Text(
                                     "\(item.tons, specifier: "%.1f") Tons"
                                 )
+                                
+                                Spacer()
+                                
+                                Text(
+                                    "$\(item.revenue, specifier: "%.2f")"
+                                )
                                 .bold()
+                                .foregroundStyle(.green)
                             }
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 3)
                     }
@@ -446,6 +436,23 @@ struct CompletedLoadsReportView: View {
                     "\(pickupName(for: load)) → \(dropoffName(for: load))"
                 )
                 .font(.subheadline.bold())
+            }
+            
+            HStack {
+                
+                Text(
+                    billingDescription(for: load)
+                )
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
+                
+                Spacer()
+                
+                Text(
+                    "$\(totalAmount(for: load), specifier: "%.2f")"
+                )
+                .font(.headline)
+                .foregroundStyle(.green)
             }
             
             if let pickupTicket =
@@ -697,5 +704,129 @@ struct CompletedLoadsReportView: View {
         return formatter.monthSymbols[
             month - 1
         ]
+    }
+    
+    func billingType(
+        for load: SupabaseLoad
+    ) -> String {
+        
+        load.billing_type ?? "per_ton"
+    }
+    
+    func revenue(
+        for load: SupabaseLoad
+    ) -> Double {
+        
+        switch billingType(for: load) {
+            
+        case "per_load":
+            
+            return load.rate_per_load ?? 0
+            
+        case "per_hour":
+            
+            let hours =
+            load.billable_hours ?? 0
+            
+            let rate =
+            load.rate_per_hour ?? 0
+            
+            return hours * rate
+            
+        default:
+            
+            let tons =
+            load.pickup_tons ?? 0
+            
+            let storedRate =
+            load.rate_per_ton ?? 0
+            
+            let rate =
+            storedRate > 0
+            ? storedRate
+            : settings?.rate_per_ton ?? 0
+            
+            return tons * rate
+        }
+    }
+    
+    func fuelAmount(
+        for load: SupabaseLoad
+    ) -> Double {
+        
+        guard billingType(for: load) == "per_ton"
+        else {
+            return 0
+        }
+        
+        let tons =
+        load.pickup_tons ?? 0
+        
+        let storedFuel =
+        load.fuel_surcharge_per_ton ?? 0
+        
+        let fuelRate =
+        storedFuel > 0
+        ? storedFuel
+        : settings?.fuel_surcharge_per_ton ?? 0
+        
+        return tons * fuelRate
+    }
+    
+    func totalAmount(
+        for load: SupabaseLoad
+    ) -> Double {
+        
+        revenue(for: load)
+        +
+        fuelAmount(for: load)
+    }
+    
+    func billingDescription(
+        for load: SupabaseLoad
+    ) -> String {
+        
+        switch billingType(for: load) {
+            
+        case "per_load":
+            
+            return String(
+                format: "$%.2f per load",
+                load.rate_per_load ?? 0
+            )
+            
+        case "per_hour":
+            
+            return String(
+                format: "%.2f hrs × $%.2f/hr",
+                load.billable_hours ?? 0,
+                load.rate_per_hour ?? 0
+            )
+            
+        default:
+            
+            let storedRate =
+            load.rate_per_ton ?? 0
+            
+            let rate =
+            storedRate > 0
+            ? storedRate
+            : settings?.rate_per_ton ?? 0
+            
+            let storedFuel =
+            load.fuel_surcharge_per_ton ?? 0
+            
+            let fuel =
+            storedFuel > 0
+            ? storedFuel
+            : settings?.fuel_surcharge_per_ton ?? 0
+            
+            return String(
+                format:
+                    "$%.2f/ton + $%.2f fuel",
+                rate,
+                fuel
+            )
+        }
     }
 }

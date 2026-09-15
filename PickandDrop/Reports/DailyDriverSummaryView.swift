@@ -45,6 +45,10 @@ struct DailyDriverSummaryView: View {
             let deliveryTons = driverLoads.reduce(0.0) {
                 $0 + ($1.delivery_tons ?? 0)
             }
+            
+            let revenue = driverLoads.reduce(0.0) {
+                $0 + self.revenue(for: $1)
+            }
 
             let summary = DriverSummary(
                 name: driverName,
@@ -54,7 +58,8 @@ struct DailyDriverSummaryView: View {
                 deliveryTons: deliveryTons,
                 fuel: 0,
                 status: "",
-                isFinished: false
+                isFinished: false,
+                revenue: revenue
             )
 
             summaries.append(summary)
@@ -114,18 +119,26 @@ struct DailyDriverSummaryView: View {
                         Divider()
 
                         HStack {
-
+                            
                             Label(
                                 "\(driver.loads)",
                                 systemImage: "shippingbox.fill"
                             )
-
+                            
                             Spacer()
-
+                            
                             Label(
                                 "\(driver.deliveryTons, specifier: "%.1f") Tons",
                                 systemImage: "scalemass.fill"
                             )
+                            
+                            Spacer()
+                            
+                            Text(
+                                "$\(driver.revenue, specifier: "%.2f")"
+                            )
+                            .font(.headline)
+                            .foregroundStyle(.green)
                         }
                     }
                     .padding(.vertical, 4)
@@ -185,5 +198,52 @@ struct DailyDriverSummaryView: View {
         }
 
         return fallback
+    }
+    
+    func billingType(
+        for load: SupabaseLoad
+    ) -> String {
+        load.billing_type ?? "per_ton"
+    }
+    
+    func revenue(
+        for load: SupabaseLoad
+    ) -> Double {
+        
+        switch billingType(for: load) {
+            
+        case "per_load":
+            return load.rate_per_load ?? 0
+            
+        case "per_hour":
+            return
+            (load.billable_hours ?? 0) *
+            (load.rate_per_hour ?? 0)
+            
+        default:
+            
+            let tons =
+            load.pickup_tons ?? 0
+            
+            let storedRate =
+            load.rate_per_ton ?? 0
+            
+            let rate =
+            storedRate > 0
+            ? storedRate
+            : settings?.rate_per_ton ?? 0
+            
+            let storedFuel =
+            load.fuel_surcharge_per_ton ?? 0
+            
+            let fuelRate =
+            storedFuel > 0
+            ? storedFuel
+            : settings?.fuel_surcharge_per_ton ?? 0
+            
+            return
+            (tons * rate) +
+            (tons * fuelRate)
+        }
     }
 }

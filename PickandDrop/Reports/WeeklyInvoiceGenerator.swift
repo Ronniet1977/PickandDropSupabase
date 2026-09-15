@@ -21,19 +21,76 @@ struct WeeklyInvoiceRow {
     
     let driver: String
     
-    let rate: Double
+    let billingType: String
+    
+    let ratePerTon: Double
     let fuelSurchargePerTon: Double
+    let ratePerLoad: Double
+    let ratePerHour: Double
+    let billableHours: Double
     
     var loadRevenue: Double {
-        pickupTons * rate
+        
+        switch billingType {
+            
+        case "per_load":
+            return ratePerLoad
+            
+        case "per_hour":
+            return ratePerHour * billableHours
+            
+        default:
+            return pickupTons * ratePerTon
+        }
     }
     
     var fuelSurcharge: Double {
-        pickupTons * fuelSurchargePerTon
+        
+        guard billingType == "per_ton" else {
+            return 0
+        }
+        
+        return pickupTons * fuelSurchargePerTon
     }
     
     var total: Double {
         loadRevenue + fuelSurcharge
+    }
+    
+    var rateDescription: String {
+        
+        switch billingType {
+            
+        case "per_load":
+            return String(
+                format: "$%.2f/load",
+                ratePerLoad
+            )
+            
+        case "per_hour":
+            return String(
+                format: "$%.2f/hr",
+                ratePerHour
+            )
+            
+        default:
+            return String(
+                format: "$%.2f/ton",
+                ratePerTon
+            )
+        }
+    }
+    
+    var fuelDescription: String {
+        
+        guard billingType == "per_ton" else {
+            return "—"
+        }
+        
+        return String(
+            format: "$%.2f",
+            fuelSurchargePerTon
+        )
     }
 }
 
@@ -114,21 +171,52 @@ enum WeeklyInvoiceGenerator {
                 continue
             }
 
-            let storedRate = load.rate_per_ton ?? 0
-            let storedFuelSurcharge = load.fuel_surcharge_per_ton ?? 0
+            let billingType =
+            load.billing_type
+            ?? "per_ton"
             
-            let rate =
-            storedRate > 0
-            ? storedRate
-            : settings.rate_per_ton
+            let storedRatePerTon =
+            load.rate_per_ton ?? 0
             
-            let fuelSurchargePerTon =
-            storedFuelSurcharge > 0
-            ? storedFuelSurcharge
-            : settings.fuel_surcharge_per_ton
+            let storedFuelSurcharge =
+            load.fuel_surcharge_per_ton ?? 0
             
-            print("Stored Rate:", load.rate_per_ton as Any)
-            print("Stored Fuel:", load.fuel_surcharge_per_ton as Any)
+            let ratePerTon: Double
+            let fuelSurchargePerTon: Double
+            
+            if billingType == "per_ton" {
+                
+                ratePerTon =
+                storedRatePerTon > 0
+                ? storedRatePerTon
+                : settings.rate_per_ton
+                
+                fuelSurchargePerTon =
+                storedFuelSurcharge > 0
+                ? storedFuelSurcharge
+                : settings.fuel_surcharge_per_ton
+                
+            } else {
+                
+                ratePerTon = 0
+                fuelSurchargePerTon = 0
+            }
+            
+            let ratePerLoad =
+            load.rate_per_load ?? 0
+            
+            let ratePerHour =
+            load.rate_per_hour ?? 0
+            
+            let billableHours =
+            load.billable_hours ?? 0
+            
+            print(
+                "💵 Invoice:",
+                load.dropoff_location ?? "Unknown",
+                billingType
+            )
+            
             rows.append(
                 WeeklyInvoiceRow(
                     date: deliveredDate,
@@ -146,9 +234,23 @@ enum WeeklyInvoiceGenerator {
                     
                     deliveryTicket: deliveryTicket,
                     driver: driver,
-                    rate: rate,
+                    billingType:
+                        billingType,
+                    
+                    ratePerTon:
+                        ratePerTon,
+                    
                     fuelSurchargePerTon:
-                        fuelSurchargePerTon
+                        fuelSurchargePerTon,
+                    
+                    ratePerLoad:
+                        ratePerLoad,
+                    
+                    ratePerHour:
+                        ratePerHour,
+                    
+                    billableHours:
+                        billableHours
                 )
             )
         }
@@ -263,11 +365,7 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        String(
-                            format: "Rate: $%.2f/ton  •  Fuel Surcharge: $%.2f/ton",
-                            settings.rate_per_ton,
-                            settings.fuel_surcharge_per_ton
-                        ),
+                        "Billing rates shown per load below",
                         x: leftX,
                         y: 49,
                         font: .systemFont(ofSize: 8.5),
@@ -408,14 +506,14 @@ enum WeeklyInvoiceGenerator {
                              width: 68,
                              color: .white)
                     
-                    drawText("Rate/Ton",
+                    drawText("Rate",
                              x: 398,
                              y: textY,
                              font: font,
                              width: 50,
                              color: .white)
                     
-                    drawText("Fuel/Ton",
+                    drawText("Fuel",
                              x: 450,
                              y: textY,
                              font: font,
@@ -521,7 +619,7 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        String(format: "$%.2f", row.rate),
+                        row.rateDescription,
                         x: 398,
                         y: textY,
                         font: font,
@@ -529,10 +627,7 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        String(
-                            format: "$%.2f",
-                            row.fuelSurchargePerTon
-                        ),
+                        row.fuelDescription,
                         x: 450,
                         y: textY,
                         font: font,
