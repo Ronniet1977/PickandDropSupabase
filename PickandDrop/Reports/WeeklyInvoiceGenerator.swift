@@ -100,6 +100,7 @@ enum WeeklyInvoiceGenerator {
         settings: SupabaseCompanySettings,
         weekDate: Date,
         loads: [SupabaseLoad],
+        dropoffLocation: String,
         archived: Bool = false
     ) -> URL? {
 
@@ -118,10 +119,14 @@ enum WeeklyInvoiceGenerator {
         let fileFormatter = DateFormatter()
         fileFormatter.dateFormat = "yyyy-MM-dd"
 
+        let safeDropoff =
+            dropoffLocation
+                .replacingOccurrences(of: " ", with: "-")
+
         let fileName =
-        archived
-        ? "Archived-Weekly-Invoice-\(fileFormatter.string(from: Date())).pdf"
-        : "Weekly-Invoice-\(fileFormatter.string(from: Date())).pdf"
+            archived
+            ? "Archived-Weekly-Invoice-\(safeDropoff)-\(fileFormatter.string(from: weekDate)).pdf"
+            : "Weekly-Invoice-\(safeDropoff)-\(fileFormatter.string(from: weekDate)).pdf"
 
         let url = FileManager.default
             .temporaryDirectory
@@ -145,6 +150,14 @@ enum WeeklyInvoiceGenerator {
 
         for load in loads {
             guard load.is_archived == archived else {
+                continue
+            }
+            
+            guard
+                (load.dropoff_location ?? "")
+                    .caseInsensitiveCompare(dropoffLocation)
+                    == .orderedSame
+            else {
                 continue
             }
 
@@ -345,17 +358,19 @@ enum WeeklyInvoiceGenerator {
                 }
                 
                 func drawInvoiceHeader() {
-                    
+
                     let pageMargin: CGFloat = 30
-                    
+
                     let leftWidth: CGFloat = 260
                     let centerWidth: CGFloat = 210
                     let rightWidth: CGFloat = 220
-                    
+
                     let leftX = pageMargin
                     let centerX = (pageWidth - centerWidth) / 2
                     let rightX = pageWidth - pageMargin - rightWidth
-                    
+
+                    // MARK: Company
+
                     drawText(
                         settings.trucking_company_name,
                         x: leftX,
@@ -363,15 +378,17 @@ enum WeeklyInvoiceGenerator {
                         font: .boldSystemFont(ofSize: 20),
                         width: leftWidth
                     )
-                    
+
                     drawText(
-                        "Billing rates shown per load below",
+                        "Route: \(settings.pickup_company_name) → \(dropoffLocation)",
                         x: leftX,
                         y: 49,
-                        font: .systemFont(ofSize: 8.5),
+                        font: .systemFont(ofSize: 10),
                         width: leftWidth
                     )
-                    
+
+                    // MARK: Invoice title
+
                     drawText(
                         archived
                         ? "Archived Weekly Invoice"
@@ -382,7 +399,7 @@ enum WeeklyInvoiceGenerator {
                         width: centerWidth,
                         alignment: .center
                     )
-                    
+
                     drawText(
                         "Week: \(weekRange)",
                         x: centerX,
@@ -391,7 +408,50 @@ enum WeeklyInvoiceGenerator {
                         width: centerWidth,
                         alignment: .center
                     )
-                    
+
+                    // MARK: Billing rate
+
+                    let billingText: String
+
+                    if let firstRow = rows.first {
+
+                        switch firstRow.billingType {
+
+                        case "per_load":
+                            billingText = String(
+                                format: "Rate: $%.2f/load",
+                                firstRow.ratePerLoad
+                            )
+
+                        case "per_hour":
+                            billingText = String(
+                                format: "Rate: $%.2f/hour",
+                                firstRow.ratePerHour
+                            )
+
+                        default:
+                            billingText = String(
+                                format:
+                                    "Rate: $%.2f/ton • Fuel Surcharge: $%.2f/ton",
+                                firstRow.ratePerTon,
+                                firstRow.fuelSurchargePerTon
+                            )
+                        }
+
+                    } else {
+                        billingText = ""
+                    }
+
+                    drawText(
+                        billingText,
+                        x: leftX,
+                        y: 63,
+                        font: .systemFont(ofSize: 8.5),
+                        width: 340
+                    )
+
+                    // MARK: Invoice info
+
                     drawText(
                         "Invoice #: \(invoiceNumber)",
                         x: rightX,
@@ -400,7 +460,7 @@ enum WeeklyInvoiceGenerator {
                         width: rightWidth,
                         alignment: .right
                     )
-                    
+
                     drawText(
                         "Generated: \(generatedDate)",
                         x: rightX,

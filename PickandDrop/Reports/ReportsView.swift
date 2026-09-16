@@ -16,6 +16,9 @@ struct ReportsView: View {
     @State private var selectedInvoiceWeek = Date()
     @State private var showCloseWeekAlert = false
     @State private var showInvoiceRates = false
+    @State private var showInvoiceDropoffPicker = false
+    @State private var invoiceIsArchived = false
+    @State private var invoiceDropoffs: [String] = []
     
     var body: some View {
         NavigationStack {
@@ -47,26 +50,23 @@ struct ReportsView: View {
                         .foregroundStyle(.white)
                         
                         Button {
-                            
                             Task {
-                                
-                                if let settings {
-                                    
-                                    let loads =
+                                let loads =
                                     await LoadSupabaseManager.shared.fetchLoads()
-                                    
-                                    weeklyInvoiceURL =
-                                    WeeklyInvoiceGenerator.createWeeklyInvoicePDF(
-                                        settings: settings,
-                                        weekDate: selectedInvoiceWeek,
-                                        loads: loads
-                                        // archived defaults to false
+
+                                let dropoffs =
+                                    availableInvoiceDropoffs(
+                                        from: loads,
+                                        archived: false
                                     )
+
+                                await MainActor.run {
+                                    invoiceDropoffs = dropoffs
+                                    invoiceIsArchived = false
+                                    showInvoiceDropoffPicker = true
                                 }
                             }
-                            
                         } label: {
-                            
                             reportCard(
                                 title: "Weekly Invoice",
                                 subtitle: "Generate weekly invoice PDF",
@@ -76,26 +76,23 @@ struct ReportsView: View {
                         }
                         
                         Button {
-                            
                             Task {
-                                
-                                if let settings {
-                                    
-                                    let loads =
+                                let loads =
                                     await LoadSupabaseManager.shared.fetchLoads()
-                                    
-                                    weeklyInvoiceURL =
-                                    WeeklyInvoiceGenerator.createWeeklyInvoicePDF(
-                                        settings: settings,
-                                        weekDate: selectedInvoiceWeek,
-                                        loads: loads,
+
+                                let dropoffs =
+                                    availableInvoiceDropoffs(
+                                        from: loads,
                                         archived: true
                                     )
+
+                                await MainActor.run {
+                                    invoiceDropoffs = dropoffs
+                                    invoiceIsArchived = true
+                                    showInvoiceDropoffPicker = true
                                 }
                             }
-                            
                         } label: {
-                            
                             reportCard(
                                 title: "Archived Weekly Invoice",
                                 subtitle: "Generate invoice from archived loads",
@@ -185,6 +182,35 @@ struct ReportsView: View {
                 }
             } message: {
                 Text("This will archive completed loads and fuel to local CSV files, save receipts to Photos, clear weekly fuel, and reset the dashboard.")
+            }
+            .alert(
+                invoiceIsArchived
+                    ? "Archived Invoice"
+                    : "Weekly Invoice",
+                isPresented: $showInvoiceDropoffPicker
+            ) {
+
+                ForEach(invoiceDropoffs, id: \.self) { dropoff in
+
+                    Button(dropoff) {
+                        Task {
+                            await generateInvoice(
+                                dropoff: dropoff,
+                                archived: invoiceIsArchived
+                            )
+                        }
+                    }
+                }
+
+                Button("Cancel", role: .cancel) { }
+
+            } message: {
+
+                if invoiceDropoffs.isEmpty {
+                    Text("No dropoffs found for this week.")
+                } else {
+                    Text("Choose a dropoff.")
+                }
             }
             .onAppear {
                 Task {
@@ -297,42 +323,154 @@ struct ReportsView: View {
         }
     }
     
-    func closeWeek() async {
-        
-        guard let settings else { return }
-        
-        let loads = await LoadSupabaseManager.shared.fetchLoads()
-        let fuel = await FuelSupabaseManager.shared.fetchFuel()
-        
-        let completedLoads = loads.filter {
-            $0.status == "delivered" &&
-            $0.is_archived != true
+    func availableInvoiceDropoffs(
+        from loads: [SupabaseLoad],
+        archived: Bool
+    ) -> [String] {
+
+        var calendar = Calendar.current
+        calendar.firstWeekday = 2   // Monday
+
+        guard let weekInterval =
+            calendar.dateInterval(
+                of: .weekOfYear,
+                for: selectedInvoiceWeek
+            )
+        else {
+            return []
         }
-        
-        print("📦 New loads archived:", completedLoads.count)
-        
-        CloseWeekArchiveExporter.appendLoads(
-            loads: completedLoads,
-            settings: settings
+
+        let names =
+            loads.compactMap { load -> String? in
+
+                guard load.is_archived == archived else {
+                    return nil
+                }
+
+                guard
+                    (load.status ?? "")
+                        .lowercased() == "delivered"
+                else {
+                    return nil
+                }
+
+                let dateText =
+                    load.delivered_at
+                    ?? load.picked_up_at
+                    ?? load.created_at
+                    ?? ""
+
+                let formatter =
+                    ISO8601DateFormatter()
+
+                formatter.formatOptions = [
+                    .withInternetDateTime,
+                    .withFractionalSeconds
+                ]
+
+                let date =
+                    formatter.date(from: dateText)
+                    ?? ISO8601DateFormatter()
+                        .date(from: dateText)
+
+                guard
+                    let date,
+                    weekInterval.contains(date)
+                else {
+                    return nil
+                }
+
+                let dropoff =
+                    load.dropoff_location?
+                        .trimmingCharacters(
+                            in: .whitespacesAndNewlines
+                        ) ?? ""
+
+                return dropoff.isEmpty
+                    ? nil
+                    : dropoff
+            }
+
+        return Array(Set(names))
+            .sorted {
+                $0.localizedCaseInsensitiveCompare($1)
+                    == .orderedAscending
+            }
+    }
+    
+    func generateInvoice(
+        dropoff: String,
+        archived: Bool
+    ) async {
+
+        guard let settings else {
+            return
+        }
+
+        let loads =
+            await LoadSupabaseManager.shared.fetchLoads()
+
+        let url =
+            WeeklyInvoiceGenerator.createWeeklyInvoicePDF(
+                settings: settings,
+                weekDate: selectedInvoiceWeek,
+                loads: loads,
+                dropoffLocation: dropoff,
+                archived: archived
+            )
+
+        await MainActor.run {
+            weeklyInvoiceURL = url
+        }
+    }
+    
+    func closeWeek() async {
+
+        let loads =
+            await LoadSupabaseManager.shared.fetchLoads()
+
+        let fuel =
+            await FuelSupabaseManager.shared.fetchFuel()
+
+        let completedLoads =
+            loads.filter {
+                $0.status == "delivered" &&
+                $0.is_archived != true
+            }
+
+        print(
+            "📦 Loads being archived:",
+            completedLoads.count
         )
-        
-        CloseWeekArchiveExporter.appendFuel(
-            fuel: fuel
+
+        print(
+            "⛽ Fuel entries being archived:",
+            fuel.count
         )
-        
-        await FuelReceiptManager.shared.saveAllReceiptsToPhotos(
-            fuelEntries: fuel
-        )
-        
-        await FuelSupabaseManager.shared.archiveAllFuel()
-        
-        await LoadSupabaseManager.shared.archiveDeliveredLoads()
-        
+
+        // Save receipt photos to the phone.
+        // FuelReceiptManager also removes the receipt
+        // image from Supabase Storage after it saves.
+        await FuelReceiptManager.shared
+            .saveAllReceiptsToPhotos(
+                fuelEntries: fuel
+            )
+
+        // Keep fuel records for Fuel Reports,
+        // but remove them from the active weekly view.
+        await FuelSupabaseManager.shared
+            .archiveAllFuel()
+
+        // Keep delivered loads in Supabase history,
+        // but remove them from the active week.
+        await LoadSupabaseManager.shared
+            .archiveDeliveredLoads()
+
         print("✅ Week closed")
     }
 }
 
-//CloseWeekArchiveExplorer
+/*//CloseWeekArchiveExplorer
 import Foundation
 
 struct CloseWeekArchiveExporter {
@@ -441,6 +579,6 @@ struct CloseWeekArchiveExporter {
     static func csvSafe(_ value: String) -> String {
         "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
     }
-}
+}*/
 
 

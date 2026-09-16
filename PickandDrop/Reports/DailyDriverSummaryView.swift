@@ -209,41 +209,38 @@ struct DailyDriverSummaryView: View {
     func revenue(
         for load: SupabaseLoad
     ) -> Double {
-        
+
         switch billingType(for: load) {
-            
+
         case "per_load":
             return load.rate_per_load ?? 0
-            
+
         case "per_hour":
-            return
-            (load.billable_hours ?? 0) *
-            (load.rate_per_hour ?? 0)
-            
+            return (load.billable_hours ?? 0) *
+                   (load.rate_per_hour ?? 0)
+
         default:
-            
             let tons =
-            load.pickup_tons ?? 0
-            
+                load.pickup_tons ?? 0
+
             let storedRate =
-            load.rate_per_ton ?? 0
-            
+                load.rate_per_ton ?? 0
+
             let rate =
-            storedRate > 0
-            ? storedRate
-            : settings?.rate_per_ton ?? 0
-            
+                storedRate > 0
+                ? storedRate
+                : settings?.rate_per_ton ?? 0
+
             let storedFuel =
-            load.fuel_surcharge_per_ton ?? 0
-            
+                load.fuel_surcharge_per_ton ?? 0
+
             let fuelRate =
-            storedFuel > 0
-            ? storedFuel
-            : settings?.fuel_surcharge_per_ton ?? 0
-            
-            return
-            (tons * rate) +
-            (tons * fuelRate)
+                storedFuel > 0
+                ? storedFuel
+                : settings?.fuel_surcharge_per_ton ?? 0
+
+            return (tons * rate) +
+                   (tons * fuelRate)
         }
     }
 }
