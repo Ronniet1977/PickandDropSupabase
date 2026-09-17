@@ -454,7 +454,7 @@ struct LoadListView: View {
                 EditSupabaseLoadView(
                     load: load,
                     settings: settings,
-                    canDelete: false
+                    canDelete: true
                 )
             }
         }

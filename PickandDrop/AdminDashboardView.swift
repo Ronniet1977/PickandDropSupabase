@@ -357,7 +357,7 @@ struct AdminDashboardView: View {
                 deliveryTons: loads.reduce(0.0) {
                     $0 + ($1.delivery_tons ?? 0)
                 },
-                fuel: fuelByDriver[driverName] ?? 0,
+                fuel: fuelForDriver(driverName),
                 status: status,
                 isFinished: isFinished
             )
@@ -1115,6 +1115,9 @@ struct AdminDashboardView: View {
             
             Divider()
             
+            let driverFuel =
+                fuelForDriver(driver.name)
+            
             HStack {
                 
                 Label("\(driver.loads)", systemImage: "shippingbox.fill")
@@ -1132,11 +1135,8 @@ struct AdminDashboardView: View {
                     )
                     
                     Text(
-                        "Fuel: $\(fuelForDriver(driver.name), specifier: "%.0f")"
+                        "Fuel: $\(driverFuel, specifier: "%.0f")"
                     )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    
                 }
                 .font(.caption)
             }
@@ -1559,8 +1559,12 @@ struct AdminDashboardView: View {
     
     func fuelForDriver(_ name: String) -> Double {
         supabaseFuel
-            .filter { $0.driver_name == name }
-            .reduce(0.0) { $0 + ($1.amount ?? 0) }
+            .filter {
+                $0.driver_name == name
+            }
+            .reduce(0.0) {
+                $0 + ($1.amount ?? 0)
+            }
     }
     
     func loadFromiCloud() {

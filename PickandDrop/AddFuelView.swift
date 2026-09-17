@@ -21,6 +21,7 @@ struct AddFuelView: View {
     @State private var selectedTruckNumber = ""
     @State private var isSavingFuel = false
     @State private var supabaseDriver: SupabaseDriver?
+    @State private var cloudDrivers: [SupabaseDriver] = []
     
     var settings: CompanySettings? {
         companySettings.first
@@ -241,13 +242,14 @@ struct AddFuelView: View {
                         .fetchDrivers()
 
                 let newTrucks = await loadedTrucks
-                let cloudDrivers = await loadedDrivers
+                let newDrivers = await loadedDrivers
 
                 await MainActor.run {
 
                     trucks = newTrucks
+                    cloudDrivers = newDrivers
 
-                    supabaseDriver = cloudDrivers.first {
+                    supabaseDriver = newDrivers.first {
                         $0.name == driver.name
                     }
 
@@ -320,10 +322,15 @@ struct AddFuelView: View {
                             driverName: driver.name
                         )
             }
+            
+            let fuelDriverName =
+                cloudDrivers.first {
+                    $0.truck_number == selectedTruckNumber
+                }?.name ?? driver.name
 
             let saved =
                 await FuelSupabaseManager.shared.addFuel(
-                    driverName: driver.name,
+                    driverName: fuelDriverName,
                     truckNumber: selectedTruckNumber,
                     amount: amountValue,
                     receiptPath: receiptPath
