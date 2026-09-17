@@ -75,6 +75,46 @@ struct FinishDayView: View {
         supabaseDriver?.truck_number ?? driver.truckNumber
     }
     
+    private var currentPickupName: String {
+        activeShift?.pickup_location ?? "Pickup"
+    }
+
+    private var currentDropoffName: String {
+        activeShift?.dropoff_location ?? "Dropoff"
+    }
+    
+    private var tonBasedLoads: [SupabaseLoad] {
+        shiftLoads.filter {
+            ($0.billing_type ?? "per_ton") == "per_ton"
+        }
+    }
+
+    private var perLoadLoads: [SupabaseLoad] {
+        shiftLoads.filter {
+            $0.billing_type == "per_load"
+        }
+    }
+
+    private var finishDaySummaryText: String {
+
+        if !perLoadLoads.isEmpty &&
+           tonBasedLoads.isEmpty {
+
+            return "\(currentDropoffName) Loads: \(perLoadLoads.count)"
+        }
+
+        let tons =
+            tonBasedLoads.reduce(0.0) {
+                $0 + ($1.delivery_tons ?? 0)
+            }
+
+        return String(
+            format: "%@ Tons: %.2f",
+            currentDropoffName,
+            tons
+        )
+    }
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
@@ -82,12 +122,27 @@ struct FinishDayView: View {
                 Text("Finish Day")
                     .font(.largeTitle)
                     .bold()
-                
+
                 Text("Loads: \(shiftLoads.count)")
-                Text(
-                    "\(settings?.dropoff_company_name ?? "Dropoff") Tons: \(String(format: "%.2f", totalTons))"
-                )
-                
+
+                if currentDropoffName == "Chase" {
+
+                    let deliveredLoads = shiftLoads.filter {
+                        $0.status == "delivered" ||
+                        $0.delivered_at != nil
+                    }
+
+                    Text("Chase Loads: \(deliveredLoads.count)")
+
+                } else {
+
+                    Text(
+                        currentDropoffName +
+                        " Tons: " +
+                        String(format: "%.2f", totalTons)
+                    )
+                }
+
                 if activeShift == nil {
                     Text("No active shift")
                         .foregroundStyle(.secondary)
@@ -112,7 +167,7 @@ struct FinishDayView: View {
                             .foregroundStyle(.blue)
                             
                             Text(
-                                "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
+                                "\(currentPickupName) → \(currentDropoffName)"
                             )
                             .font(.caption)
                             .foregroundStyle(.secondary)

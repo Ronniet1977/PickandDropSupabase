@@ -5,19 +5,62 @@ struct StartShiftView: View {
     
     let driver: DriverProfile
     
-    @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query var shifts: [Shift]
     
     @State private var settings: SupabaseCompanySettings?
     @State private var locations: [SupabaseLocation] = []
+    @State private var supabaseShifts: [SupabaseShift] = []
+    @State private var supabaseDriver: SupabaseDriver?
+    
     @State private var selectedPickupLocation = ""
     @State private var selectedDropoffLocation = ""
     
-    var activeShift: Shift? {
-        shifts.first(where: {
-            $0.driverName == driver.name && $0.status == "active"
-        })
+    var activeShift: SupabaseShift? {
+        supabaseShifts.first {
+            $0.driver_name == driver.name &&
+            $0.status == "active" &&
+            isShiftToday($0)
+        }
+    }
+
+    private func isShiftToday(
+        _ shift: SupabaseShift
+    ) -> Bool {
+
+        guard let date =
+            parseSupabaseDate(shift.started_at)
+        else {
+            return false
+        }
+
+        return Calendar.current.isDateInToday(date)
+    }
+
+    private func parseSupabaseDate(
+        _ value: String
+    ) -> Date? {
+
+        let iso = ISO8601DateFormatter()
+
+        if let date = iso.date(from: value) {
+            return date
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+        formatter.dateFormat =
+            "yyyy-MM-dd HH:mm:ssXXXXX"
+
+        if let date = formatter.date(from: value) {
+            return date
+        }
+
+        formatter.dateFormat =
+            "yyyy-MM-dd HH:mm:ss.SSSSSSXXXXX"
+
+        return formatter.date(from: value)
     }
     
     var pickupLocations: [SupabaseLocation] {
@@ -32,6 +75,11 @@ struct StartShiftView: View {
             $0.location_type == "dropoff" ||
             $0.location_type == "both"
         }
+    }
+    
+    private var currentTruckNumber: String {
+        supabaseDriver?.truck_number
+        ?? driver.truckNumber
     }
     
     var body: some View {
@@ -91,7 +139,7 @@ struct StartShiftView: View {
                         Text(driver.name)
                             .font(.title2.weight(.semibold))
 
-                        Text("Truck \(driver.truckNumber)")
+                        Text("Truck \(currentTruckNumber)")
                             .foregroundStyle(.white.opacity(0.7))
                         
                         Text(
@@ -102,7 +150,7 @@ struct StartShiftView: View {
                         .foregroundStyle(.blue)
 
                         Text(
-                            "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")"
+                            "\(selectedPickupLocation.isEmpty ? "Pickup" : selectedPickupLocation) → \(selectedDropoffLocation.isEmpty ? "Dropoff" : selectedDropoffLocation)"
                         )
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.7))
@@ -116,7 +164,9 @@ struct StartShiftView: View {
 
                 VStack(spacing: 20) {
 
-                    if let shift = activeShift {
+                    if let shift = activeShift,
+                       let startedAt =
+                        parseSupabaseDate(shift.started_at) {
 
                         VStack(spacing: 14) {
 
@@ -128,13 +178,20 @@ struct StartShiftView: View {
                             .foregroundStyle(.green)
 
                             Text(
-                                "Started \(shift.startedAt.formatted(date: .abbreviated, time: .shortened))"
+                                "Started " +
+                                startedAt.formatted(
+                                    date: .abbreviated,
+                                    time: .shortened
+                                )
                             )
                             .foregroundStyle(.white.opacity(0.7))
 
                             TimelineView(.periodic(from: .now, by: 1)) { context in
 
-                                let elapsed = context.date.timeIntervalSince(shift.startedAt)
+                                let elapsed =
+                                    context.date.timeIntervalSince(
+                                        startedAt
+                                    )
 
                                 let hours = Int(elapsed) / 3600
                                 let minutes = (Int(elapsed) % 3600) / 60
@@ -256,16 +313,28 @@ struct StartShiftView: View {
             Task {
                 
                 let loadedSettings =
-                await CompanySupabaseManager.shared
-                    .fetchCompanySettings()
+                    await CompanySupabaseManager.shared
+                        .fetchCompanySettings()
                 
                 let loadedLocations =
-                await LocationSupabaseManager.shared
-                    .fetchLocations()
+                    await LocationSupabaseManager.shared
+                        .fetchLocations()
+                
+                let loadedShifts =
+                    await ShiftSupabaseManager.shared
+                        .fetchShifts()
+                
+                let cloudDrivers =
+                    await DriverSupabaseManager.shared
+                        .fetchDrivers()
                 
                 await MainActor.run {
                     settings = loadedSettings
                     locations = loadedLocations
+                    supabaseShifts = loadedShifts
+                    supabaseDriver = cloudDrivers.first {
+                        $0.name == driver.name
+                    }
                     
                     if selectedPickupLocation.isEmpty {
                         selectedPickupLocation =
@@ -286,63 +355,66 @@ struct StartShiftView: View {
     }
     
     func startShift() async {
-        let newShift = Shift()
-        
-        newShift.driverName =
-        driver.name
-        
-        newShift.companyName =
-        settings?.trucking_company_name ?? ""
-        
-        newShift.pickupLocation =
-        selectedPickupLocation
-        
-        newShift.dropoffLocation =
-        selectedDropoffLocation
 
-        context.insert(newShift)
+        // Protect against accidentally starting
+        // another active cloud shift.
+        let currentShifts =
+            await ShiftSupabaseManager.shared
+                .fetchShifts()
 
-        do {
-            try context.save()
-            print("✅ Shift started")
-            
-            let cloudShift =
+        let alreadyActive =
+            currentShifts.contains {
+                $0.driver_name == driver.name &&
+                $0.status == "active"
+            }
+
+        guard !alreadyActive else {
+
+            await MainActor.run {
+                supabaseShifts = currentShifts
+            }
+
+            print("⚠️ Driver already has an active Supabase shift")
+            return
+        }
+
+        let cloudShift =
             await ShiftSupabaseManager.shared
                 .startShift(
                     driverName: driver.name,
                     username: driver.username,
-                    truckNumber: driver.truckNumber,
+                    truckNumber: currentTruckNumber,
                     pickupLocation: selectedPickupLocation,
                     dropoffLocation: selectedDropoffLocation
                 )
-            
-            if let cloudShift {
-                print(
-                    "☁️ Cloud shift ID:",
-                    cloudShift.id
-                )
-            } else {
-                print(
-                    "⚠️ Local shift started, but cloud shift failed"
-                )
-            }
 
-            print("🟢 Setting duty active for:", driver.username)
+        guard let cloudShift else {
 
-            await DriverSupabaseManager.shared.updateDutyStatus(
+            print("❌ Supabase shift failed to start")
+            return
+        }
+
+        print(
+            "☁️ Cloud shift started:",
+            cloudShift.id
+        )
+
+        await DriverSupabaseManager.shared
+            .updateDutyStatus(
                 username: driver.username,
                 dutyStatus: "active"
             )
 
-            UserDefaults.standard.set(
-                false,
-                forKey: "didCheckPendingDeliveries"
-            )
+        UserDefaults.standard.set(
+            false,
+            forKey: "didCheckPendingDeliveries"
+        )
 
+        await MainActor.run {
+            supabaseShifts = [cloudShift] + currentShifts
             dismiss()
-
-        } catch {
-            print("❌ Failed to start shift:", error)
         }
+
+        print("✅ Shift started")
     }
 }

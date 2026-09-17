@@ -8,6 +8,7 @@ struct LoadListView: View {
     @State private var loads: [SupabaseLoad] = []
     @State private var selectedLoad: SupabaseLoad?
     @State private var settings: SupabaseCompanySettings?
+    @State private var supabaseDriver: SupabaseDriver?
     
     var shiftLoads: [SupabaseLoad] {
         loads
@@ -18,6 +19,11 @@ struct LoadListView: View {
             .sorted {
                 ($0.created_at ?? "") > ($1.created_at ?? "")
             }
+    }
+    
+    private var currentTruckNumber: String {
+        supabaseDriver?.truck_number
+        ?? driver.truckNumber
     }
     
     var body: some View {
@@ -53,49 +59,183 @@ struct LoadListView: View {
                             .font(.largeTitle.bold())
                             .foregroundStyle(.white)
                         
-                        Text("Truck \(driver.truckNumber)")
+                        Text("Truck \(currentTruckNumber)")
                             .foregroundStyle(.white.opacity(0.7))
                         
                         Divider()
                         
-                        let pickupTons = shiftLoads.reduce(0.0) {
+                        let tonLoads = shiftLoads.filter {
+                            ($0.billing_type ?? "per_ton") == "per_ton"
+                        }
+
+                        let perLoadLoads = shiftLoads.filter {
+                            $0.billing_type == "per_load"
+                        }
+
+                        let deliveredPerLoad = perLoadLoads.filter {
+                            $0.status == "delivered" ||
+                            $0.delivered_at != nil
+                        }
+
+                        let pendingPerLoad =
+                            perLoadLoads.count - deliveredPerLoad.count
+
+                        let pickupTons = tonLoads.reduce(0.0) {
                             $0 + ($1.pickup_tons ?? 0)
                         }
-                        
-                        let deliveredTons = shiftLoads.reduce(0.0) {
+
+                        let deliveredTons = tonLoads.reduce(0.0) {
                             $0 + ($1.delivery_tons ?? 0)
                         }
-                        
-                        let remainingTons = pickupTons - deliveredTons
-                        
-                        HStack {
-                            
-                            loadStat(
-                                title: "Loads",
-                                value: "\(shiftLoads.count)"
-                            )
-                            
-                            Spacer()
-                            
-                            loadStat(
-                                title: settings?.pickup_company_name ?? "Pickup",
-                                value: String(format: "%.0f", pickupTons)
-                            )
-                            
-                            Spacer()
-                            
-                            loadStat(
-                                title: settings?.dropoff_company_name
-                                ?? "Dropoff",
-                                value: String(format: "%.0f", deliveredTons)
-                            )
-                            
-                            Spacer()
-                            
-                            loadStat(
-                                title: "Remaining",
-                                value: String(format: "%.0f", remainingTons)
-                            )
+
+                        let remainingTons =
+                            pickupTons - deliveredTons
+
+                        let pickupName =
+                            tonLoads.first?.pickup_location
+                            ?? "Pickup"
+
+                        let dropoffName =
+                            tonLoads.first?.dropoff_location
+                            ?? "Dropoff"
+
+                        if !tonLoads.isEmpty &&
+                           !perLoadLoads.isEmpty {
+
+                            // MIXED ROUTES
+
+                            VStack(spacing: 18) {
+
+                                HStack {
+
+                                    loadStat(
+                                        title: "Total Loads",
+                                        value: "\(shiftLoads.count)"
+                                    )
+
+                                    Spacer()
+
+                                    loadStat(
+                                        title: pickupName,
+                                        value: String(
+                                            format: "%.0f",
+                                            pickupTons
+                                        )
+                                    )
+
+                                    Spacer()
+
+                                    loadStat(
+                                        title: dropoffName,
+                                        value: String(
+                                            format: "%.0f",
+                                            deliveredTons
+                                        )
+                                    )
+
+                                    Spacer()
+
+                                    loadStat(
+                                        title: "Remaining",
+                                        value: String(
+                                            format: "%.0f",
+                                            remainingTons
+                                        )
+                                    )
+                                }
+
+                                Divider()
+
+                                HStack {
+
+                                    loadStat(
+                                        title: "Per-Load",
+                                        value: "\(perLoadLoads.count)"
+                                    )
+
+                                    Spacer()
+
+                                    loadStat(
+                                        title: "Delivered",
+                                        value: "\(deliveredPerLoad.count)"
+                                    )
+
+                                    Spacer()
+
+                                    loadStat(
+                                        title: "Pending",
+                                        value: "\(pendingPerLoad)"
+                                    )
+                                }
+                            }
+
+                        } else if !perLoadLoads.isEmpty {
+
+                            // PER-LOAD ONLY
+
+                            HStack {
+
+                                loadStat(
+                                    title: "Loads",
+                                    value: "\(perLoadLoads.count)"
+                                )
+
+                                Spacer()
+
+                                loadStat(
+                                    title: "Delivered",
+                                    value: "\(deliveredPerLoad.count)"
+                                )
+
+                                Spacer()
+
+                                loadStat(
+                                    title: "Pending",
+                                    value: "\(pendingPerLoad)"
+                                )
+                            }
+
+                        } else {
+
+                            // PER-TON ONLY
+
+                            HStack {
+
+                                loadStat(
+                                    title: "Loads",
+                                    value: "\(tonLoads.count)"
+                                )
+
+                                Spacer()
+
+                                loadStat(
+                                    title: pickupName,
+                                    value: String(
+                                        format: "%.0f",
+                                        pickupTons
+                                    )
+                                )
+
+                                Spacer()
+
+                                loadStat(
+                                    title: dropoffName,
+                                    value: String(
+                                        format: "%.0f",
+                                        deliveredTons
+                                    )
+                                )
+
+                                Spacer()
+
+                                loadStat(
+                                    title: "Remaining",
+                                    value: String(
+                                        format: "%.0f",
+                                        remainingTons
+                                    )
+                                )
+                            }
                         }
                     }
                     .padding(24)
@@ -149,19 +289,41 @@ struct LoadListView: View {
                                             .foregroundStyle(.yellow)
                                         }
                                         
-                                        Label(
-                                            "\(String(format: "%.2f", load.pickup_tons ?? 0)) \(settings?.pickup_company_name ?? "Pickup") Tons",
-                                            systemImage: "arrow.up.circle.fill"
-                                        )
-                                        .foregroundStyle(.blue)
+                                        if load.billing_type == "per_load" {
+
+                                            Label(
+                                                "\(load.pickup_location ?? "Pickup") Pickup",
+                                                systemImage: "arrow.up.circle.fill"
+                                            )
+                                            .foregroundStyle(.blue)
+
+                                        } else {
+
+                                            Label(
+                                                "\(String(format: "%.2f", load.pickup_tons ?? 0)) \(load.pickup_location ?? "Pickup") Tons",
+                                                systemImage: "arrow.up.circle.fill"
+                                            )
+                                            .foregroundStyle(.blue)
+                                        }
                                         
                                         if load.status == "delivered" {
-                                            
-                                            Label(
-                                                "\(String(format: "%.2f", load.delivery_tons ?? 0)) \(settings?.dropoff_company_name ?? "Dropoff") Tons",
-                                                systemImage: "arrow.down.circle.fill"
-                                            )
-                                            .foregroundStyle(.orange)
+
+                                            if load.billing_type == "per_load" {
+
+                                                Label(
+                                                    "\(load.dropoff_location ?? "Dropoff") Load",
+                                                    systemImage: "checkmark.circle.fill"
+                                                )
+                                                .foregroundStyle(.green)
+
+                                            } else {
+
+                                                Label(
+                                                    "\(String(format: "%.2f", load.delivery_tons ?? 0)) \(load.dropoff_location ?? "Dropoff") Tons",
+                                                    systemImage: "arrow.down.circle.fill"
+                                                )
+                                                .foregroundStyle(.orange)
+                                            }
                                         }
                                     }
                                     .font(.subheadline.bold())
@@ -187,7 +349,7 @@ struct LoadListView: View {
                             }
                             
                             Label(
-                                "\(settings?.pickup_company_name ?? "Pickup") → \(settings?.dropoff_company_name ?? "Dropoff")",
+                                "\(load.pickup_location ?? "Pickup") → \(load.dropoff_location ?? "Dropoff")",
                                 systemImage: "arrow.left.arrow.right"
                             )
                             .font(.caption.bold())
@@ -306,9 +468,16 @@ struct LoadListView: View {
                 let loadedSettings =
                 await CompanySupabaseManager.shared.fetchCompanySettings()
                 
+                let cloudDrivers =
+                    await DriverSupabaseManager.shared
+                        .fetchDrivers()
+                
                 await MainActor.run {
                     loads = loadedLoads
                     settings = loadedSettings
+                    supabaseDriver = cloudDrivers.first {
+                        $0.name == driver.name
+                    }
                 }
             }
         }

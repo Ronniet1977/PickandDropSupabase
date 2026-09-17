@@ -48,7 +48,27 @@ struct AddLoadView: View {
     }
     
     var isValidLoad: Bool {
-        (Double(pickupTons) ?? 0) > 0
+
+        if isPerLoadRoute {
+            return true
+        }
+
+        return (Double(pickupTons) ?? 0) > 0
+    }
+    
+    private var selectedDropoff: SupabaseLocation? {
+        locations.first {
+            $0.name == selectedDropoffLocation
+        }
+    }
+
+    private var isPerLoadRoute: Bool {
+        selectedDropoff?.billing_type == "per_load"
+    }
+    
+    private var currentTruckNumber: String {
+        supabaseDriver?.truck_number
+        ?? driver.truckNumber
     }
     
     var body: some View {
@@ -102,7 +122,7 @@ struct AddLoadView: View {
                         Text(driver.name)
                             .foregroundStyle(.white.opacity(0.7))
 
-                        Text("Truck \(driver.truckNumber)")
+                        Text("Truck \(currentTruckNumber)")
                             .foregroundStyle(.white.opacity(0.5))
                     }
 
@@ -225,38 +245,49 @@ struct AddLoadView: View {
                                 .foregroundStyle(.white)
                             }
 
-                            VStack(alignment: .leading, spacing: 8) {
+                            if !isPerLoadRoute {
 
-                                Text(
-                                    "\(selectedPickupLocation.isEmpty ? (activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") : selectedPickupLocation) Tons"
-                                )
+                                VStack(alignment: .leading, spacing: 8) {
+
+                                    Text(
+                                        "\(selectedPickupLocation.isEmpty ? (activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") : selectedPickupLocation) Tons"
+                                    )
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
 
-                                TextField(
-                                    "Enter Tons",
-                                    text: $pickupTons
-                                )
-                                .keyboardType(.decimalPad)
-                                .textFieldStyle(.plain)
-                                .padding()
-                                .background(.white.opacity(0.08))
-                                .clipShape(RoundedRectangle(cornerRadius: 18))
-                                .foregroundStyle(.white)
-                            }
+                                    TextField(
+                                        "Enter Tons",
+                                        text: $pickupTons
+                                    )
+                                    .keyboardType(.decimalPad)
+                                    .textFieldStyle(.plain)
+                                    .padding()
+                                    .background(.white.opacity(0.08))
+                                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                                    .foregroundStyle(.white)
 
-                            if !pickupTons.isEmpty &&
-                                Double(pickupTons) == nil {
+                                    if !pickupTons.isEmpty &&
+                                        Double(pickupTons) == nil {
 
-                                HStack {
+                                        HStack {
 
-                                    Image(systemName: "exclamationmark.circle.fill")
+                                            Image(
+                                                systemName:
+                                                    "exclamationmark.circle.fill"
+                                            )
 
-                                    Text("Enter a valid number for tons")
+                                            Text(
+                                                "Enter a valid number for tons"
+                                            )
+                                        }
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.red)
+                                        .frame(
+                                            maxWidth: .infinity,
+                                            alignment: .leading
+                                        )
+                                    }
                                 }
-                                .font(.caption.bold())
-                                .foregroundStyle(.red)
-                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
                         .padding(26)
@@ -377,10 +408,6 @@ struct AddLoadView: View {
         }
     }
     
-    private var currentTruckNumber: String {
-        supabaseDriver?.truck_number ?? driver.truckNumber
-    }
-    
     @MainActor
     private func scanPickupTicket(
         _ image: UIImage
@@ -467,7 +494,6 @@ struct AddLoadView: View {
     }
     
     func saveLoad() async {
-        guard let tonsValue = Double(pickupTons) else { return }
         
         let cleanTicket =
         pickupTicket.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -497,6 +523,26 @@ struct AddLoadView: View {
         let billingType =
         selectedDropoff?.billing_type
         ?? "per_ton"
+        
+        let tonsValue: Double
+
+        if billingType == "per_load" ||
+           billingType == "per_hour" {
+
+            // Per-load/per-hour routes do not use tons.
+            tonsValue = 0
+
+        } else {
+
+            guard let enteredTons = Double(pickupTons),
+                  enteredTons > 0
+            else {
+                print("❌ Valid pickup tons required")
+                return
+            }
+
+            tonsValue = enteredTons
+        }
         
         let ratePerTon: Double
         let fuelSurchargePerTon: Double
@@ -565,10 +611,27 @@ struct AddLoadView: View {
         )
         
         // ✅ Send admin notification to Supabase
+        let notificationMessage: String
+
+        if billingType == "per_load" {
+
+            notificationMessage =
+                "\(driver.name) picked up \(selectedPickupLocation) → \(selectedDropoffLocation) • \(displayTicket)"
+
+        } else if billingType == "per_hour" {
+
+            notificationMessage =
+                "\(driver.name) picked up \(selectedPickupLocation) → \(selectedDropoffLocation) • \(displayTicket)"
+
+        } else {
+
+            notificationMessage =
+                "\(driver.name) picked up \(selectedPickupLocation) → \(selectedDropoffLocation) • \(displayTicket) • \(tonsValue) tons"
+        }
+
         sendAdminNotification(
             type: "Load Added",
-            message:
-                "\(driver.name) picked up \(selectedPickupLocation) → \(selectedDropoffLocation) • \(displayTicket) • \(tonsValue) tons",
+            message: notificationMessage,
             ticket: cleanTicket
         )
         

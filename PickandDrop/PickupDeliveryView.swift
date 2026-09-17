@@ -325,17 +325,13 @@ struct PickupDeliveryView: View {
                                 
                                 Spacer()
                                 
-                                Picker(
-                                    "",
-                                    selection: $selectedDeliveryLocation
-                                ) {
-                                    ForEach(dropoffLocations) { location in
-                                        Text(location.name)
-                                            .tag(location.name)
-                                    }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.menu)
+                                Text(
+                                    load.dropoff_location
+                                    ?? settings?.dropoff_company_name
+                                    ?? "Dropoff"
+                                )
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.blue)
                             }
                             .padding()
                             .background(.white.opacity(0.08))
@@ -425,24 +421,28 @@ struct PickupDeliveryView: View {
                                 .foregroundStyle(.white)
                             }
 
-                            VStack(alignment: .leading, spacing: 8) {
+                            if selectedDeliveryLocation != "Chase" &&
+                               (load.dropoff_location ?? "") != "Chase" {
 
-                                Text(
-                                    "\(selectedDeliveryLocation.isEmpty ? (load.dropoff_location ?? settings?.dropoff_company_name ?? "Dropoff") : selectedDeliveryLocation) Tons"
-                                )
-                                .font(.caption.bold())
+                                VStack(alignment: .leading, spacing: 8) {
+
+                                    Text(
+                                        "\(selectedDeliveryLocation.isEmpty ? (load.dropoff_location ?? settings?.dropoff_company_name ?? "Dropoff") : selectedDeliveryLocation) Tons"
+                                    )
+                                    .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
 
-                                TextField(
-                                    "Enter Tons",
-                                    text: $deliveryTons
-                                )
-                                .keyboardType(.decimalPad)
-                                .textFieldStyle(.plain)
-                                .padding()
-                                .background(.white.opacity(0.08))
-                                .clipShape(RoundedRectangle(cornerRadius: 18))
-                                .foregroundStyle(.white)
+                                    TextField(
+                                        "Enter Tons",
+                                        text: $deliveryTons
+                                    )
+                                    .keyboardType(.decimalPad)
+                                    .textFieldStyle(.plain)
+                                    .padding()
+                                    .background(.white.opacity(0.08))
+                                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                                    .foregroundStyle(.white)
+                                }
                             }
                         }
                         .padding(24)
@@ -667,13 +667,9 @@ struct PickupDeliveryView: View {
         }
         
         let dropoffName =
-        selectedDeliveryLocation.isEmpty
-        ? (
             load.dropoff_location
             ?? settings?.dropoff_company_name
             ?? "Dropoff"
-        )
-        : selectedDeliveryLocation
         
         let isChase =
             dropoffName == "Chase"

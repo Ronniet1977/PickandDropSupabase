@@ -21,10 +21,13 @@ struct DriverDashboardView: View {
 
     @State private var supabaseSettings: SupabaseCompanySettings?
     @State private var supabaseLoads: [SupabaseLoad] = []
+    @State private var supabaseShifts: [SupabaseShift] = []
+    @State private var supabaseDriver: SupabaseDriver?
     
     @State private var showPendingDeliveryAlert = false
     @State private var showPickupDeliveryView = false
     @State private var showOldShiftAlert = false
+    @State private var showStartDayRequired = false
     
     
     let driver: DriverProfile
@@ -34,39 +37,35 @@ struct DriverDashboardView: View {
     }
     
     var currentPickupName: String {
-        
-        let shiftLocation =
-        activeShift?.pickupLocation
-            .trimmingCharacters(
-                in: .whitespacesAndNewlines
-            )
-        
-        if let shiftLocation,
+
+        if let shiftLocation =
+            activeShift?.pickup_location?
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ),
            !shiftLocation.isEmpty {
-            
+
             return shiftLocation
         }
-        
+
         return settings?.pickup_company_name
-        ?? "Pickup"
+            ?? "Pickup"
     }
     
     var currentDropoffName: String {
-        
-        let shiftLocation =
-        activeShift?.dropoffLocation
-            .trimmingCharacters(
-                in: .whitespacesAndNewlines
-            )
-        
-        if let shiftLocation,
+
+        if let shiftLocation =
+            activeShift?.dropoff_location?
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ),
            !shiftLocation.isEmpty {
-            
+
             return shiftLocation
         }
-        
+
         return settings?.dropoff_company_name
-        ?? "Dropoff"
+            ?? "Dropoff"
     }
     
     var pendingDeliveries: [SupabaseLoad] {
@@ -78,7 +77,8 @@ struct DriverDashboardView: View {
                 load.delivered_at == nil,
                 let pickedString = load.picked_up_at,
                 let pickedDate = parseSupabaseDate(pickedString),
-                let shiftStart = activeShift?.startedAt
+                let startedString = activeShift?.started_at,
+                let shiftStart = parseSupabaseDate(startedString)
             else {
                 return false
             }
@@ -87,10 +87,22 @@ struct DriverDashboardView: View {
         }
     }
     
-    var hasOldActiveShift: Bool {
-        guard let shift = activeShift else { return false }
+    var oldActiveShift: SupabaseShift? {
+        supabaseShifts.first {
+            guard
+                $0.driver_name == driver.name,
+                $0.status == "active",
+                let date = parseSupabaseDate($0.started_at)
+            else {
+                return false
+            }
 
-        return !Calendar.current.isDateInToday(shift.startedAt)
+            return !Calendar.current.isDateInToday(date)
+        }
+    }
+
+    var hasOldActiveShift: Bool {
+        oldActiveShift != nil
     }
 
     var shiftLoads: [SupabaseLoad] {
@@ -110,10 +122,30 @@ struct DriverDashboardView: View {
         shiftLoads
     }
     
-    var activeShift: Shift? {
-        shifts.first(where: {
-            $0.driverName == driver.name && $0.status == "active"
-        })
+    var activeShift: SupabaseShift? {
+        supabaseShifts.first {
+            $0.driver_name == driver.name &&
+            $0.status == "active" &&
+            isShiftToday($0)
+        }
+    }
+    
+    private var currentTruckNumber: String {
+        supabaseDriver?.truck_number
+        ?? driver.truckNumber
+    }
+
+    private func isShiftToday(
+        _ shift: SupabaseShift
+    ) -> Bool {
+
+        guard let date =
+            parseSupabaseDate(shift.started_at)
+        else {
+            return false
+        }
+
+        return Calendar.current.isDateInToday(date)
     }
     
     var hasActiveShift: Bool {
@@ -126,7 +158,14 @@ struct DriverDashboardView: View {
             return "OFF DUTY"
         }
 
-        let seconds = Int(Date().timeIntervalSince(shift.startedAt))
+        guard let startedAt =
+            parseSupabaseDate(shift.started_at)
+        else {
+            return "OFF DUTY"
+        }
+
+        let seconds =
+            Int(Date().timeIntervalSince(startedAt))
 
         let hours = seconds / 3600
         let minutes = (seconds % 3600) / 60
@@ -187,7 +226,7 @@ struct DriverDashboardView: View {
                                         .font(.largeTitle.bold())
                                         .foregroundStyle(.white)
 
-                                    Text("Truck \(driver.truckNumber)")
+                                    Text("Truck \(currentTruckNumber)")
                                         .foregroundStyle(.white.opacity(0.7))
                                     
                                     Text(
@@ -212,13 +251,15 @@ struct DriverDashboardView: View {
                                         .foregroundStyle(.white.opacity(0.7))
                                     }
 
-                                    if let shift = activeShift {
+                                    if let shift = activeShift,
+                                       let startedAt =
+                                        parseSupabaseDate(shift.started_at) {
 
                                         TimelineView(.periodic(from: .now, by: 60)) { context in
 
                                             let seconds = Int(
                                                 context.date.timeIntervalSince(
-                                                    shift.startedAt
+                                                    startedAt
                                                 )
                                             )
 
@@ -248,39 +289,139 @@ struct DriverDashboardView: View {
 
                             Divider()
 
-                            HStack {
+                            let tonLoads = todayLoads.filter {
+                                ($0.billing_type ?? "per_ton") == "per_ton"
+                            }
 
-                                dashboardStat(
-                                    title: "Loads",
-                                    value: "\(todayLoads.count)"
-                                )
+                            let perLoadLoads = todayLoads.filter {
+                                $0.billing_type == "per_load"
+                            }
 
-                                Spacer()
+                            let deliveredPerLoad = perLoadLoads.filter {
+                                $0.status == "delivered" ||
+                                $0.delivered_at != nil
+                            }
 
-                                let totalTons = todayLoads.reduce(0.0) {
-                                    total,
-                                    load in
-                                    total + (load.pickup_tons ?? 0)
+                            let pendingPerLoad =
+                                perLoadLoads.count - deliveredPerLoad.count
+
+                            if !tonLoads.isEmpty &&
+                               !perLoadLoads.isEmpty {
+
+                                // MIXED DAY
+
+                                VStack(spacing: 14) {
+
+                                    HStack {
+
+                                        dashboardStat(
+                                            title: "Loads",
+                                            value: "\(todayLoads.count)"
+                                        )
+
+                                        Spacer()
+
+                                        let pickupTons = tonLoads.reduce(0.0) {
+                                            $0 + ($1.pickup_tons ?? 0)
+                                        }
+
+                                        dashboardStat(
+                                            title: "\(currentPickupName) Tons",
+                                            value: String(
+                                                format: "%.0f",
+                                                pickupTons
+                                            )
+                                        )
+
+                                        Spacer()
+
+                                        dashboardStat(
+                                            title: "Per-Load",
+                                            value: "\(perLoadLoads.count)"
+                                        )
+                                    }
+
+                                    HStack {
+
+                                        dashboardStat(
+                                            title: "Delivered",
+                                            value: "\(deliveredPerLoad.count)"
+                                        )
+
+                                        Spacer()
+
+                                        dashboardStat(
+                                            title: "Pending",
+                                            value: "\(pendingPerLoad)"
+                                        )
+                                    }
                                 }
 
-                                dashboardStat(
-                                    title: "\(currentPickupName) Tons",
-                                    value: String(
-                                        format: "%.0f",
-                                        totalTons
+                            } else if !perLoadLoads.isEmpty {
+
+                                // CHASE / PER-LOAD DAY
+
+                                HStack {
+
+                                    dashboardStat(
+                                        title: "Loads",
+                                        value: "\(perLoadLoads.count)"
                                     )
-                                )
 
-                                Spacer()
+                                    Spacer()
 
-                                let deliveredCount = todayLoads.filter {
-                                    $0.status == "delivered"
-                                }.count
+                                    dashboardStat(
+                                        title: "Delivered",
+                                        value: "\(deliveredPerLoad.count)"
+                                    )
 
-                                dashboardStat(
-                                    title: currentDropoffName,
-                                    value: "\(deliveredCount)"
-                                )
+                                    Spacer()
+
+                                    dashboardStat(
+                                        title: "Pending",
+                                        value: "\(pendingPerLoad)"
+                                    )
+                                }
+
+                            } else {
+
+                                // HONEYGO / PER-TON DAY
+
+                                let pickupTons = tonLoads.reduce(0.0) {
+                                    $0 + ($1.pickup_tons ?? 0)
+                                }
+
+                                let deliveryTons = tonLoads.reduce(0.0) {
+                                    $0 + ($1.delivery_tons ?? 0)
+                                }
+
+                                HStack {
+
+                                    dashboardStat(
+                                        title: "Loads",
+                                        value: "\(tonLoads.count)"
+                                    )
+
+                                    Spacer()
+
+                                    dashboardStat(
+                                        title: "\(currentPickupName) Tons",
+                                        value: String(
+                                            format: "%.0f",
+                                            pickupTons
+                                        )
+                                    )
+
+                                    Spacer()
+
+                                    dashboardStat(
+                                        title: "\(currentDropoffName) Tons",
+                                        value: String(
+                                            format: "%.0f",
+                                            deliveryTons
+                                        )
+                                    )
+                                }
                             }
                         }
                         .padding()
@@ -312,15 +453,32 @@ struct DriverDashboardView: View {
                                 }
                             }
 
-                            NavigationLink {
-                                AddLoadView(driver: driver)
-                            } label: {
+                            if activeShift != nil {
 
-                                ActionCard(
-                                    title: "Add Load",
-                                    icon: "plus.circle.fill",
-                                    color: .blue
-                                )
+                                NavigationLink {
+                                    AddLoadView(driver: driver)
+                                } label: {
+
+                                    ActionCard(
+                                        title: "Add Load",
+                                        icon: "plus.circle.fill",
+                                        color: .blue
+                                    )
+                                }
+
+                            } else {
+
+                                Button {
+                                    showStartDayRequired = true
+                                } label: {
+
+                                    ActionCard(
+                                        title: "Add Load",
+                                        icon: "plus.circle.fill",
+                                        color: .blue
+                                    )
+                                }
+                                .buttonStyle(.plain)
                             }
 
                             NavigationLink {
@@ -400,11 +558,23 @@ struct DriverDashboardView: View {
                         await CompanySupabaseManager
                             .shared
                             .fetchCompanySettings()
+                    
+                    let loadedShifts =
+                        await ShiftSupabaseManager.shared
+                            .fetchShifts()
+                    
+                    let cloudDrivers =
+                        await DriverSupabaseManager.shared
+                            .fetchDrivers()
 
                     await MainActor.run {
 
                         supabaseSettings = loadedSettings
                         supabaseLoads = loadedLoads
+                        supabaseShifts = loadedShifts
+                        supabaseDriver = cloudDrivers.first {
+                            $0.name == driver.name
+                        }
 
                         if hasOldActiveShift {
 
@@ -424,6 +594,14 @@ struct DriverDashboardView: View {
                         }
                     }
                 }
+            }
+            .alert(
+                "Start Day Required",
+                isPresented: $showStartDayRequired
+            ) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("You must start your day before adding a load.")
             }
             .alert(
                 "Previous Day Still Open",
@@ -530,8 +708,14 @@ struct DriverDashboardView: View {
     
     func finishOldShift() async {
 
+        guard let oldShift = oldActiveShift else {
+            print("⚠️ No previous active Supabase shift found")
+            return
+        }
+
         let driverLoads =
-            await LoadSupabaseManager.shared.fetchLoads()
+            await LoadSupabaseManager.shared
+                .fetchLoads()
                 .filter {
                     $0.driver_name == driver.name &&
                     ($0.is_archived ?? false) == false
@@ -544,13 +728,11 @@ struct DriverDashboardView: View {
             if load.status == "delivered" ||
                 load.delivered_at != nil {
 
-                // Do not archive here.
-                // Close Week is the only action that should archive loads.
-
                 print(
                     "✅ Delivered load kept active:",
                     load.pickup_ticket_number ?? ""
                 )
+
             } else {
 
                 print(
@@ -560,17 +742,36 @@ struct DriverDashboardView: View {
             }
         }
 
-        await DriverSupabaseManager.shared.updateDutyStatus(
-            username: driver.username,
-            dutyStatus: "off_duty"
-        )
+        let cloudFinished =
+            await ShiftSupabaseManager.shared
+                .finishActiveShift(
+                    username: driver.username
+                )
 
-        if let shift = activeShift {
-            shift.status = "finished"
-            try? context.save()
+        guard cloudFinished else {
+            print("❌ Previous Supabase shift failed to close")
+            return
         }
 
-        print("✅ Previous shift finished")
+        await DriverSupabaseManager.shared
+            .updateDutyStatus(
+                username: driver.username,
+                dutyStatus: "off_duty"
+            )
+
+        let refreshedShifts =
+            await ShiftSupabaseManager.shared
+                .fetchShifts()
+
+        await MainActor.run {
+            supabaseShifts = refreshedShifts
+            showOldShiftAlert = false
+        }
+
+        print(
+            "✅ Previous Supabase shift finished:",
+            oldShift.id
+        )
     }
     
     func logout() {
