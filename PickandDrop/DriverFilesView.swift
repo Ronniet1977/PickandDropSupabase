@@ -312,7 +312,10 @@ struct WeeklyFuelCardsView: View {
     @State private var fuelEntries: [SupabaseFuel] = []
     @State private var fuelToDelete: SupabaseFuel?
     @State private var showingDeleteConfirmation = false
-
+    @State private var selectedReceipt: SupabaseFuel?
+    @State private var duplicateEntry: SupabaseFuel?
+    @State private var showingDuplicateComparison = false
+    
     var totalFuel: Double {
         fuelEntries.reduce(0.0) {
             $0 + ($1.amount ?? 0)
@@ -385,15 +388,24 @@ struct WeeklyFuelCardsView: View {
                                 
                                 if let receiptPath = entry.receipt_path {
 
-                                    SupabaseStorageImage(path: receiptPath)
-                                        .frame(maxHeight: 220)
-                                        .clipShape(
-                                            RoundedRectangle(cornerRadius: 16)
-                                        )
+                                    Button {
+                                        selectedReceipt = entry
+                                    } label: {
 
-                                    Text("📸 Receipt Attached")
-                                        .font(.caption)
-                                        .foregroundStyle(.green)
+                                        VStack(alignment: .leading, spacing: 8) {
+
+                                            SupabaseStorageImage(path: receiptPath)
+                                                .frame(maxHeight: 220)
+                                                .clipShape(
+                                                    RoundedRectangle(cornerRadius: 16)
+                                                )
+
+                                            Text("📸 Tap to View Receipt")
+                                                .font(.caption)
+                                                .foregroundStyle(.green)
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
 
@@ -414,6 +426,28 @@ struct WeeklyFuelCardsView: View {
                                 }
                                 .buttonStyle(.borderless)
                             }
+                        }
+
+                        if isPossibleDuplicate(entry) {
+
+                            Button {
+                                duplicateEntry =
+                                    matchingDuplicate(for: entry)
+
+                                showingDuplicateComparison =
+                                    duplicateEntry != nil
+
+                            } label: {
+
+                                Label(
+                                    "Possible Duplicate — Tap to Compare",
+                                    systemImage: "exclamationmark.triangle.fill"
+                                )
+                                .font(.caption.bold())
+                                .foregroundStyle(.orange)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.vertical, 4)
                         }
 
                         Text(entry.created_at ?? "")
@@ -482,6 +516,266 @@ struct WeeklyFuelCardsView: View {
 
                 await MainActor.run {
                     fuelEntries = loaded
+                }
+            }
+        }
+        .alert(
+            "Possible Duplicate",
+            isPresented: $showingDuplicateComparison,
+            presenting: duplicateEntry
+        ) { duplicate in
+
+            if duplicate.receipt_path != nil {
+
+                Button("View Matching Receipt") {
+                    selectedReceipt = duplicate
+                }
+            }
+
+            Button("Cancel", role: .cancel) {}
+
+        } message: { duplicate in
+
+            Text(
+                """
+                Driver: \(duplicate.driver_name ?? "Unknown")
+                Truck: \(duplicate.truck_number ?? "Unknown")
+                Amount: \(String(format: "$%.2f", duplicate.amount ?? 0))
+                Date: \(duplicate.created_at ?? "Unknown")
+
+                Compare this receipt before deleting either entry.
+                """
+            )
+        }
+        .sheet(
+            isPresented: Binding(
+                get: {
+                    selectedReceipt != nil
+                },
+                set: { isPresented in
+                    if !isPresented {
+                        selectedReceipt = nil
+                    }
+                }
+            )
+        ) {
+            if let entry = selectedReceipt,
+               let path = entry.receipt_path {
+
+                ReceiptZoomView(
+                    path: path,
+                    entry: entry
+                )
+            }
+        }
+    }
+    
+    private func isPossibleDuplicate(
+        _ entry: SupabaseFuel
+    ) -> Bool {
+
+        guard
+            let driver = entry.driver_name,
+            let amount = entry.amount,
+            let createdText = entry.created_at,
+            let createdDate =
+                ISO8601DateFormatter().date(
+                    from: createdText
+                )
+        else {
+            return false
+        }
+
+        return fuelEntries.contains { other in
+
+            guard
+                other.id != entry.id,
+                other.driver_name == driver,
+                other.amount == amount,
+                let otherCreatedText = other.created_at,
+                let otherCreatedDate =
+                    ISO8601DateFormatter().date(
+                        from: otherCreatedText
+                    )
+            else {
+                return false
+            }
+
+            let difference =
+                abs(
+                    createdDate.timeIntervalSince(
+                        otherCreatedDate
+                    )
+                )
+
+            return difference <= 600
+        }
+    }
+    
+    private func matchingDuplicate(
+        for entry: SupabaseFuel
+    ) -> SupabaseFuel? {
+
+        guard
+            let driver = entry.driver_name,
+            let amount = entry.amount,
+            let createdText = entry.created_at,
+            let createdDate =
+                ISO8601DateFormatter().date(
+                    from: createdText
+                )
+        else {
+            return nil
+        }
+
+        return fuelEntries.first { other in
+
+            guard
+                other.id != entry.id,
+                other.driver_name == driver,
+                other.amount == amount,
+                let otherCreatedText = other.created_at,
+                let otherCreatedDate =
+                    ISO8601DateFormatter().date(
+                        from: otherCreatedText
+                    )
+            else {
+                return false
+            }
+
+            return abs(
+                createdDate.timeIntervalSince(
+                    otherCreatedDate
+                )
+            ) <= 600
+        }
+    }
+}
+
+struct ReceiptZoomView: View {
+
+    let path: String
+    let entry: SupabaseFuel
+
+    @Environment(\.dismiss)
+    private var dismiss
+
+    @State private var scale: CGFloat = 1
+    @State private var lastScale: CGFloat = 1
+
+    var body: some View {
+
+        NavigationStack {
+
+            ScrollView {
+
+                VStack(spacing: 20) {
+
+                    SupabaseStorageImage(path: path)
+                        .scaledToFit()
+                        .scaleEffect(scale)
+                        .gesture(
+                            MagnificationGesture()
+                                .onChanged { value in
+
+                                    scale =
+                                        max(
+                                            1,
+                                            lastScale * value
+                                        )
+                                }
+                                .onEnded { _ in
+                                    lastScale = scale
+                                }
+                        )
+                        .onTapGesture(count: 2) {
+
+                            withAnimation {
+
+                                if scale > 1 {
+                                    scale = 1
+                                    lastScale = 1
+                                } else {
+                                    scale = 2
+                                    lastScale = 2
+                                }
+                            }
+                        }
+
+                    VStack(alignment: .leading, spacing: 14) {
+
+                        Text("Fuel Entry Details")
+                            .font(.headline)
+
+                        LabeledContent(
+                            "Driver",
+                            value:
+                                entry.driver_name
+                                ?? "Unknown"
+                        )
+
+                        LabeledContent(
+                            "Truck",
+                            value:
+                                entry.truck_number
+                                ?? "Unknown"
+                        )
+
+                        LabeledContent(
+                            "Amount",
+                            value:
+                                String(
+                                    format: "$%.2f",
+                                    entry.amount ?? 0
+                                )
+                        )
+
+                        LabeledContent(
+                            "Date",
+                            value:
+                                entry.created_at
+                                ?? "Unknown"
+                        )
+
+                        Divider()
+
+                        VStack(
+                            alignment: .leading,
+                            spacing: 4
+                        ) {
+
+                            Text("Entry ID")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Text(entry.id.uuidString)
+                                .font(.caption.monospaced())
+                                .textSelection(.enabled)
+                        }
+                    }
+                    .padding()
+                    .background(.thinMaterial)
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: 20
+                        )
+                    )
+                    .padding(.horizontal)
+                }
+                .padding(.vertical)
+            }
+            .background(Color.black)
+            .navigationTitle("Fuel Receipt")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+
+                ToolbarItem(
+                    placement: .topBarTrailing
+                ) {
+
+                    Button("Done") {
+                        dismiss()
+                    }
                 }
             }
         }
@@ -1041,13 +1335,23 @@ struct EditCompanyInfoView: View {
                 )
             }
             
-            Section("Routes") {
+            Section("Routes & Equipment") {
+
                 NavigationLink {
                     AdminLocationsView()
                 } label: {
                     Label(
                         "Manage Locations",
                         systemImage: "mappin.and.ellipse"
+                    )
+                }
+
+                NavigationLink {
+                    ManageTrucksView()
+                } label: {
+                    Label(
+                        "Manage Trucks",
+                        systemImage: "truck.box.fill"
                     )
                 }
             }

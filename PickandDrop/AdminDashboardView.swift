@@ -113,6 +113,35 @@ struct AdminDashboardView: View {
             $0.status != "delivered"
         }
     }
+    
+    var tonBasedDashboardLoads: [SupabaseLoad] {
+        dashboardLoads.filter {
+            ($0.billing_type ?? "per_ton") == "per_ton"
+        }
+    }
+
+    var tonBasedPickupTons: Double {
+        tonBasedDashboardLoads.reduce(0.0) {
+            $0 + ($1.pickup_tons ?? 0)
+        }
+    }
+
+    var tonBasedDeliveryTons: Double {
+        tonBasedDashboardLoads.reduce(0.0) {
+            $0 + ($1.delivery_tons ?? 0)
+        }
+    }
+
+    var tonBasedDifference: Double {
+        tonBasedPickupTons - tonBasedDeliveryTons
+    }
+
+    var perLoadDeliveries: Int {
+        dashboardLoads.filter {
+            $0.billing_type == "per_load" &&
+            $0.status == "delivered"
+        }.count
+    }
 
     var supabaseDriverSummaries: [DriverSummary] {
 
@@ -238,35 +267,39 @@ struct AdminDashboardView: View {
     }
     
     //Filter Tabs
-    var filteredLoads: [LoadItem] {
+    var filteredLoads: [SupabaseLoad] {
+
         switch selectedFilter {
-            
+
         case .all:
-            return allLoads
-            
+            return dashboardLoads
+
         case .pickedUp:
-            return allLoads.filter {
-                $0.isPickedUp && !$0.isDelivered
+            return dashboardLoads.filter {
+                $0.status == "picked_up"
             }
-            
+
         case .delivered:
-            return allLoads.filter {
-                $0.isDelivered
+            return dashboardLoads.filter {
+                $0.status == "delivered"
             }
-            
+
         case .open:
-            return allLoads.filter {
-                !$0.isPickedUp
+            return dashboardLoads.filter {
+                $0.status != "picked_up" &&
+                $0.status != "delivered"
             }
         }
     }
     
     var filteredDriverSummaries: [DriverSummary] {
-        let grouped = Dictionary(grouping: filteredLoads) { $0.driverName }
+        let grouped = Dictionary(grouping: filteredLoads) {
+            $0.driver_name ?? "Unknown"
+        }
         
         return grouped.map { driverName, loads in
             
-            let driverProfile = drivers.first {
+            let driverProfile = supabaseDrivers.first {
                 $0.name == driverName
             }
             
@@ -276,15 +309,28 @@ struct AdminDashboardView: View {
                 .first
             
 
-            let isFinished = shift?.status == "finished"
-            let status = isFinished ? "finished" : "active"
+            let status: String
+
+            if let shift {
+                status = shift.status == "finished"
+                    ? "finished"
+                    : "active"
+            } else {
+                status = "offline"
+            }
+
+            let isFinished = status == "finished"
 
             return DriverSummary(
                 name: driverName,
-                truck: driverProfile?.truckNumber ?? "—",
+                truck: driverProfile?.truck_number ?? "—",
                 loads: loads.count,
-                pickupTons: loads.reduce(0.0) { $0 + $1.pickupTons },
-                deliveryTons: loads.reduce(0.0) { $0 + $1.deliveryTons },
+                pickupTons: loads.reduce(0.0) {
+                    $0 + ($1.pickup_tons ?? 0)
+                },
+                deliveryTons: loads.reduce(0.0) {
+                    $0 + ($1.delivery_tons ?? 0)
+                },
                 fuel: fuelByDriver[driverName] ?? 0,
                 status: status,
                 isFinished: isFinished
@@ -300,7 +346,7 @@ struct AdminDashboardView: View {
     }
     
     var visibleDriverSummaries: [DriverSummary] {
-        supabaseDriverSummaries.filter {
+        filteredDriverSummaries.filter {
             !dismissedDrivers.contains($0.name)
         }
     }
@@ -532,30 +578,56 @@ struct AdminDashboardView: View {
                             }
                             
                             HStack(spacing: 12) {
+
                                 BossSummaryCard(
-                                    title: "\(supabaseSettings?.pickup_company_name ?? "Pickup") Tons",
-                                    value: String(format: "%.0f", supabasePickupTons),
-                                    subtitle: "Pickup tons",
+                                    title: "Pickup Tons",
+                                    value: String(
+                                        format: "%.0f",
+                                        tonBasedPickupTons
+                                    ),
+                                    subtitle: "Per-ton loads",
                                     systemImage: "arrow.up.circle.fill"
                                 )
+
                                 BossSummaryCard(
-                                    title: "\(supabaseSettings?.dropoff_company_name ?? "Dropoff") Tons",
-                                    value: String(format: "%.0f", supabaseDeliveryTons),
-                                    subtitle: "Delivery tons",
+                                    title: "Delivery Tons",
+                                    value: String(
+                                        format: "%.0f",
+                                        tonBasedDeliveryTons
+                                    ),
+                                    subtitle: "Per-ton loads",
                                     systemImage: "arrow.down.circle.fill"
                                 )
+
+                                BossSummaryCard(
+                                    title: "Per-Load",
+                                    value: "\(perLoadDeliveries)",
+                                    subtitle: "Delivered loads",
+                                    systemImage: "shippingbox.fill"
+                                )
                             }
-                            
+
                             BossSummaryCard(
-                                title: "Difference",
-                                value: String(format: "%.0f", supabaseTonsDifference),
-                                subtitle: tonsDifference == 0 ? "Balanced" : "Check pickup vs delivery",
-                                systemImage: tonsDifference == 0 ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                                title: "Tons Difference",
+                                value: String(
+                                    format: "%.0f",
+                                    tonBasedDifference
+                                ),
+                                subtitle:
+                                    abs(tonBasedDifference) < 0.01
+                                    ? "Balanced"
+                                    : "Per-ton loads only",
+                                systemImage:
+                                    abs(tonBasedDifference) < 0.01
+                                    ? "checkmark.circle.fill"
+                                    : "exclamationmark.triangle.fill"
                             )
                             .foregroundStyle(
-                                supabaseTonsDifference == 0 ? .green :
-                                    abs(supabaseTonsDifference) < 5 ? .yellow :
-                                        .red
+                                abs(tonBasedDifference) < 0.01
+                                ? .green
+                                : abs(tonBasedDifference) < 5
+                                    ? .yellow
+                                    : .red
                             )
                             
                             Toggle(
@@ -914,9 +986,30 @@ struct AdminDashboardView: View {
     
     func driverCard(_ driver: DriverSummary) -> some View {
         
+        let driverTonLoads =
+            filteredLoads.filter {
+                $0.driver_name == driver.name &&
+                ($0.billing_type ?? "per_ton") == "per_ton"
+            }
+
+        let driverPickupTons =
+            driverTonLoads.reduce(0.0) {
+                $0 + ($1.pickup_tons ?? 0)
+            }
+
+        let driverDeliveryTons =
+            driverTonLoads.reduce(0.0) {
+                $0 + ($1.delivery_tons ?? 0)
+            }
+
+        let roundedDifference = abs(
+            driverPickupTons.rounded() -
+            driverDeliveryTons.rounded()
+        )
+
         let hasMismatch =
-            driver.deliveryTons > 0 &&
-            abs(driver.pickupTons - driver.deliveryTons) > 0.01
+            driverDeliveryTons > 0 &&
+            roundedDifference > 0
         
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -926,17 +1019,22 @@ struct AdminDashboardView: View {
                     Text(driver.name)
                         .font(.headline)
 
-                    if driver.isFinished {
+                    switch driver.status {
 
+                    case "finished":
                         Text("✅ Finished")
                             .font(.caption)
                             .foregroundStyle(.green)
 
-                    } else {
-
+                    case "active":
                         Text("🟢 Active")
                             .font(.caption)
                             .foregroundStyle(.blue)
+
+                    default:
+                        Text("⚪ Offline")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -975,11 +1073,11 @@ struct AdminDashboardView: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     
                     Text(
-                        "\(supabaseSettings?.pickup_company_name ?? "Pickup"): \(driver.pickupTons, specifier: "%.0f")"
+                        "Pickup Tons: \(driverPickupTons, specifier: "%.0f")"
                     )
-                    
+
                     Text(
-                        "\(supabaseSettings?.dropoff_company_name ?? "Dropoff"): \(driver.deliveryTons, specifier: "%.0f")"
+                        "Delivery Tons: \(driverDeliveryTons, specifier: "%.0f")"
                     )
                     
                     Text(
@@ -994,16 +1092,18 @@ struct AdminDashboardView: View {
             .foregroundStyle(.secondary)
             
             if hasMismatch {
-                Text("⚠️ Pickup / delivery tons mismatch")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.red)
+                Label(
+                    "\(roundedDifference, specifier: "%.0f") ton difference",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.orange)
             }
         }
         .padding()
         .background(
-            hasMismatch
-            ? Color.red.opacity(0.18)
-            : Color.green.opacity(0.12)
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.secondary.opacity(0.08))
         )
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
@@ -1190,25 +1290,29 @@ struct AdminDashboardView: View {
     }
     
     
-    func count(for filter: AdminLoadFilter) -> Int {
+    func count(
+        for filter: AdminLoadFilter
+    ) -> Int {
+
         switch filter {
-            
+
         case .all:
-            return allLoads.count
-            
+            return dashboardLoads.count
+
         case .pickedUp:
-            return allLoads.filter {
-                $0.isPickedUp && !$0.isDelivered
+            return dashboardLoads.filter {
+                $0.status == "picked_up"
             }.count
-            
+
         case .delivered:
-            return allLoads.filter {
-                $0.isDelivered
+            return dashboardLoads.filter {
+                $0.status == "delivered"
             }.count
-            
+
         case .open:
-            return allLoads.filter {
-                !$0.isPickedUp
+            return dashboardLoads.filter {
+                $0.status != "picked_up" &&
+                $0.status != "delivered"
             }.count
         }
     }

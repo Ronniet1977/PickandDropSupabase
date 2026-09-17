@@ -603,6 +603,7 @@ struct EditDriverView: View {
     @State private var isSaving = false
     @State private var errorMessage = ""
     @State private var showError = false
+    @State private var trucks: [SupabaseTruck] = []
     
     var body: some View {
         
@@ -615,10 +616,35 @@ struct EditDriverView: View {
                     text: $name
                 )
                 
-                TextField(
+                Picker(
                     "Truck Number",
-                    text: $truckNumber
-                )
+                    selection: $truckNumber
+                ) {
+
+                    Text("Select Truck")
+                        .tag("")
+
+                    // Preserve an existing assignment even if
+                    // that truck has since been deactivated.
+                    if !truckNumber.isEmpty &&
+                        !trucks.contains(
+                            where: {
+                                $0.truck_number == truckNumber
+                            }
+                        ) {
+
+                        Text("Truck \(truckNumber) (Inactive)")
+                            .tag(truckNumber)
+                    }
+
+                    ForEach(
+                        trucks.filter { $0.is_active }
+                    ) { truck in
+
+                        Text("Truck \(truck.truck_number)")
+                            .tag(truck.truck_number)
+                    }
+                }
                 
                 Picker(
                     "Role",
@@ -683,10 +709,22 @@ struct EditDriverView: View {
             }
         }
         .onAppear {
+
             name = driver.name
             truckNumber = driver.truck_number
             role = driver.role
             isActive = driver.is_active
+
+            Task {
+
+                let loadedTrucks =
+                    await TruckSupabaseManager.shared
+                        .fetchActiveTrucks()
+
+                await MainActor.run {
+                    trucks = loadedTrucks
+                }
+            }
         }
         .alert(
             "Unable to Save",

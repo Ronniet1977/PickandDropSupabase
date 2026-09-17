@@ -342,6 +342,33 @@ private struct DriverLoadRow: View {
         return fallbackDropoffCompany
     }
     
+    private var deliveryBillingDescription: String {
+
+        switch load.billing_type ?? "per_ton" {
+
+        case "per_load":
+
+            return String(
+                format: "$%.2f Per Load",
+                load.rate_per_load ?? 0
+            )
+
+        case "per_hour":
+
+            return String(
+                format: "$%.2f / Hour",
+                load.rate_per_hour ?? 0
+            )
+
+        default:
+
+            return String(
+                format: "%.2f Tons",
+                load.delivery_tons ?? 0
+            )
+        }
+    }
+    
     var body: some View {
         VStack(
             alignment: .leading,
@@ -381,11 +408,9 @@ private struct DriverLoadRow: View {
                     
                     Spacer()
                     
-                    Text(
-                        "\(load.delivery_tons ?? 0, specifier: "%.2f") Tons"
-                    )
-                    .foregroundStyle(.green)
-                    .fontWeight(.semibold)
+                    Text(deliveryBillingDescription)
+                        .foregroundStyle(.green)
+                        .fontWeight(.semibold)
                 }
                 
             } else {
@@ -518,6 +543,8 @@ struct EditSupabaseLoadView: View {
             }
             
             Section("Scan Ticket") {
+                
+                // BRC pickup ticket
                 Button {
                     selectedScanMode = .pickupOnly
                     showTicketCamera = true
@@ -528,14 +555,30 @@ struct EditSupabaseLoadView: View {
                     )
                 }
                 
-                Button {
-                    selectedScanMode = .deliveryOnly
-                    showTicketCamera = true
-                } label: {
-                    Label(
-                        "Scan HoneyGo Ticket",
-                        systemImage: "arrow.down.doc.fill"
-                    )
+                // Delivery ticket depends on selected dropoff
+                if selectedDropoffLocation == "Chase" {
+                    
+                    Button {
+                        selectedScanMode = .chaseDeliveryOnly
+                        showTicketCamera = true
+                    } label: {
+                        Label(
+                            "Scan Chase Ticket",
+                            systemImage: "arrow.down.doc.fill"
+                        )
+                    }
+                    
+                } else if selectedDropoffLocation == "HoneyGo" {
+                    
+                    Button {
+                        selectedScanMode = .deliveryOnly
+                        showTicketCamera = true
+                    } label: {
+                        Label(
+                            "Scan HoneyGo Ticket",
+                            systemImage: "arrow.down.doc.fill"
+                        )
+                    }
                 }
             }
             .disabled(isScanningTicket)
@@ -814,37 +857,112 @@ struct EditSupabaseLoadView: View {
     }
     
     func save() async {
+
+        guard let settings else {
+            return
+        }
+
+        // Find the newly selected dropoff.
+        let selectedDropoff =
+            locations.first {
+                $0.name == selectedDropoffLocation
+            }
+
+        let billingType =
+            selectedDropoff?.billing_type
+            ?? "per_ton"
+
+        let ratePerTon: Double
+        let fuelSurchargePerTon: Double
+        let ratePerLoad: Double
+        let ratePerHour: Double
+
+        switch billingType {
+
+        case "per_load":
+
+            ratePerTon = 0
+            fuelSurchargePerTon = 0
+
+            ratePerLoad =
+                selectedDropoff?.rate_per_load
+                ?? 0
+
+            ratePerHour = 0
+
+        case "per_hour":
+
+            ratePerTon = 0
+            fuelSurchargePerTon = 0
+            ratePerLoad = 0
+
+            ratePerHour =
+                selectedDropoff?.rate_per_hour
+                ?? 0
+
+        default:
+
+            ratePerTon =
+                selectedDropoff?.rate_per_ton
+                ?? settings.rate_per_ton
+
+            fuelSurchargePerTon =
+                selectedDropoff?.fuel_surcharge_per_ton
+                ?? settings.fuel_surcharge_per_ton
+
+            ratePerLoad = 0
+            ratePerHour = 0
+        }
+
         await LoadSupabaseManager.shared.updateLoad(
             id: load.id,
-            
+
             pickupLocation:
                 selectedPickupLocation,
-            
+
             dropoffLocation:
                 selectedDropoffLocation,
-            
+
             pickupTicketNumber:
                 pickupTicket.trimmingCharacters(
                     in: .whitespacesAndNewlines
                 ),
-            
+
             pickupTons:
                 Double(pickupTons) ?? 0,
-            
+
             deliveryTicketNumber:
                 deliveryTicket.trimmingCharacters(
                     in: .whitespacesAndNewlines
                 ),
-            
+
             deliveryTons:
-                Double(deliveryTons) ?? 0,
-            
-            status: status,
-            
+                billingType == "per_load"
+                ? 0
+                : (Double(deliveryTons) ?? 0),
+
+            status:
+                status,
+
             existingDeliveredAt:
-                load.delivered_at
+                load.delivered_at,
+
+            billingType:
+                billingType,
+
+            ratePerTon:
+                ratePerTon,
+
+            fuelSurchargePerTon:
+                fuelSurchargePerTon,
+
+            ratePerLoad:
+                ratePerLoad,
+
+            ratePerHour:
+                ratePerHour
         )
-        
+
         await MainActor.run {
             onSaved?()
             showSavedAlert = true
@@ -985,6 +1103,15 @@ struct EditSupabaseLoadView: View {
                     "✅ Edit HoneyGo ticket scanned"
                 )
                 
+            case .chaseDeliveryOnly:
+                
+                if !result.deliveryTicket.isEmpty {
+                    deliveryTicket =
+                        result.deliveryTicket
+                }
+                
+                print("✅ Edit Chase ticket scanned")
+                
             case .combined:
                 break
             }
@@ -1101,12 +1228,25 @@ struct AdminAddLoadView: View {
                 }
                 
                 if selectedDropoffLocation == "HoneyGo" {
+                    
                     Button {
                         selectedScanMode = .deliveryOnly
                         showTicketCamera = true
                     } label: {
                         Label(
                             "Scan HoneyGo Ticket",
+                            systemImage: "arrow.down.doc.fill"
+                        )
+                    }
+                    
+                } else if selectedDropoffLocation == "Chase" {
+                    
+                    Button {
+                        selectedScanMode = .chaseDeliveryOnly
+                        showTicketCamera = true
+                    } label: {
+                        Label(
+                            "Scan Chase Ticket",
                             systemImage: "arrow.down.doc.fill"
                         )
                     }
@@ -1150,12 +1290,16 @@ struct AdminAddLoadView: View {
                     "Ticket Number",
                     text: $deliveryTicket
                 )
-                
-                TextField(
-                    "Tons",
-                    text: $deliveryTons
-                )
-                .keyboardType(.decimalPad)
+
+                // Chase is billed per load,
+                // so delivery tons are not required.
+                if selectedDropoffLocation != "Chase" {
+                    TextField(
+                        "Tons",
+                        text: $deliveryTons
+                    )
+                    .keyboardType(.decimalPad)
+                }
             }
             
             Section("Status") {
@@ -1271,20 +1415,41 @@ struct AdminAddLoadView: View {
     }
     
     private var isValidLoad: Bool {
+        
+        // Every load needs pickup tons.
         guard
             (Double(pickupTons) ?? 0) > 0
         else {
             return false
         }
         
+        // Picked-up loads do not need
+        // delivery information yet.
         if status != "delivered" {
             return true
         }
         
-        return !deliveryTicket
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .isEmpty &&
-        (Double(deliveryTons) ?? 0) > 0
+        // Every delivered load needs
+        // a delivery ticket.
+        guard
+            !deliveryTicket
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+                .isEmpty
+        else {
+            return false
+        }
+        
+        // Chase is billed per load,
+        // so delivery tons are not required.
+        if selectedDropoffLocation == "Chase" {
+            return true
+        }
+        
+        // HoneyGo / other per-ton destinations
+        // still require delivery tons.
+        return (Double(deliveryTons) ?? 0) > 0
     }
     
     @MainActor
@@ -1498,6 +1663,15 @@ struct AdminAddLoadView: View {
                 print(
                     "✅ Admin HoneyGo ticket scanned"
                 )
+                
+            case .chaseDeliveryOnly:
+                
+                if !result.deliveryTicket.isEmpty {
+                    deliveryTicket =
+                        result.deliveryTicket
+                }
+                
+                print("✅ Admin Chase ticket scanned")
                 
             case .combined:
                 break

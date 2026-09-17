@@ -24,6 +24,7 @@ struct PickupDeliveryView: View {
     @State private var isScanningTicket = false
     @State private var scanError = ""
     @State private var showScanError = false
+    @State private var selectedScanMode: TicketScanMode = .deliveryOnly
     
     @State private var locations: [SupabaseLocation] = []
     @State private var selectedDeliveryLocation = ""
@@ -321,43 +322,67 @@ struct PickupDeliveryView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 18))
 
                             VStack(alignment: .leading, spacing: 8) {
-                                if (load.dropoff_location
+                                let dropoffName =
+                                    load.dropoff_location
                                     ?? settings?.dropoff_company_name
-                                    ?? "")
-                                    .localizedCaseInsensitiveCompare("HoneyGo") == .orderedSame {
-                                    
+                                    ?? ""
+
+                                if dropoffName == "HoneyGo" {
+
                                     Button {
+                                        selectedScanMode = .deliveryOnly
                                         showTicketCamera = true
                                     } label: {
-                                        
+
                                         HStack {
-                                            
                                             Spacer()
-                                            
+
                                             if isScanningTicket {
-                                                
                                                 ProgressView()
-                                                
                                             } else {
-                                                
                                                 Label(
                                                     "Scan HoneyGo Ticket",
-                                                    systemImage:
-                                                        "doc.viewfinder.fill"
+                                                    systemImage: "doc.viewfinder.fill"
                                                 )
                                             }
-                                            
+
                                             Spacer()
                                         }
                                     }
                                     .buttonStyle(.borderedProminent)
                                     .tint(.green)
                                     .disabled(isScanningTicket)
-                                    
+
+                                } else if dropoffName == "Chase" {
+
+                                    Button {
+                                        selectedScanMode = .chaseDeliveryOnly
+                                        showTicketCamera = true
+                                    } label: {
+
+                                        HStack {
+                                            Spacer()
+
+                                            if isScanningTicket {
+                                                ProgressView()
+                                            } else {
+                                                Label(
+                                                    "Scan Chase Ticket",
+                                                    systemImage: "doc.viewfinder.fill"
+                                                )
+                                            }
+
+                                            Spacer()
+                                        }
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.green)
+                                    .disabled(isScanningTicket)
+
                                 } else {
-                                    
+
                                     Text(
-                                        "Enter the \(load.dropoff_location ?? "delivery") ticket manually."
+                                        "Enter the \(dropoffName.isEmpty ? "delivery" : dropoffName) ticket manually."
                                     )
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -424,7 +449,11 @@ struct PickupDeliveryView: View {
                                         in: .whitespacesAndNewlines
                                     )
                                     .isEmpty ||
-                                (Double(deliveryTons) ?? 0) <= 0 ||
+                                (
+                                    selectedDeliveryLocation != "Chase" &&
+                                    (load.dropoff_location ?? "") != "Chase" &&
+                                    (Double(deliveryTons) ?? 0) <= 0
+                                ) ||
                                 isScanningTicket
                             )
                             .font(.title3)
@@ -495,40 +524,74 @@ struct PickupDeliveryView: View {
             let result =
             try await ScaleTicketOCR.scan(
                 image: image,
-                mode: .deliveryOnly
+                mode: selectedScanMode
             )
             
-            guard
-                !result.deliveryTicket.isEmpty ||
+            let isChase =
+                selectedScanMode == .chaseDeliveryOnly
+            
+            if isChase {
+                
+                // Chase is billed per load.
+                // We only need the ticket number.
+                guard !result.deliveryTicket.isEmpty else {
+                    
+                    scanError =
+                    "The Chase ticket was recognized, but the ticket number could not be read. Try taking the picture again."
+                    
+                    showScanError = true
+                    return
+                }
+                
+            } else {
+                
+                // HoneyGo needs the delivery
+                // ticket and/or tonnage.
+                guard
+                    !result.deliveryTicket.isEmpty ||
                     !result.deliveryTons.isEmpty
-            else {
-                
-                scanError =
-                "The HoneyGo ticket was recognized, but the ticket number and tons could not be read. Try taking the picture again."
-                
-                showScanError = true
-                return
+                else {
+                    
+                    scanError =
+                    "The HoneyGo ticket was recognized, but the ticket number and tons could not be read. Try taking the picture again."
+                    
+                    showScanError = true
+                    return
+                }
             }
             
             if !result.deliveryTicket.isEmpty {
                 deliveryTicket =
-                result.deliveryTicket
+                    result.deliveryTicket
             }
             
-            if !result.deliveryTons.isEmpty {
+            // Chase does not need tons.
+            if !isChase &&
+                !result.deliveryTons.isEmpty {
+                
                 deliveryTons =
-                result.deliveryTons
+                    result.deliveryTons
             }
             
-            print("✅ HoneyGo ticket scanned")
+            if isChase {
+                
+                print("✅ Chase ticket scanned")
+                
+            } else {
+                
+                print("✅ HoneyGo ticket scanned")
+            }
+            
             print(
                 "Ticket:",
                 result.deliveryTicket
             )
+            
             print(
                 "Tons:",
                 result.deliveryTons
             )
+            
             print(
                 "Truck:",
                 result.truckNumber
@@ -537,7 +600,7 @@ struct PickupDeliveryView: View {
         } catch {
             
             scanError =
-            error.localizedDescription
+                error.localizedDescription
             
             showScanError = true
         }
@@ -579,12 +642,7 @@ struct PickupDeliveryView: View {
                 in: .whitespacesAndNewlines
             )
         
-        guard
-            !cleanTicket.isEmpty,
-            let tonsValue =
-                Double(deliveryTons),
-            tonsValue > 0
-        else {
+        guard !cleanTicket.isEmpty else {
             return
         }
         
@@ -597,22 +655,62 @@ struct PickupDeliveryView: View {
         )
         : selectedDeliveryLocation
         
+        let isChase =
+            dropoffName == "Chase"
+        
+        let tonsValue: Double
+        
+        if isChase {
+            
+            // Chase is billed per load.
+            // Tons are not required.
+            tonsValue = 0
+            
+        } else {
+            
+            // HoneyGo / per-ton deliveries
+            // still require valid tons.
+            guard
+                let parsedTons =
+                    Double(deliveryTons),
+                parsedTons > 0
+            else {
+                return
+            }
+            
+            tonsValue = parsedTons
+        }
+        
         await LoadSupabaseManager.shared
             .deliverLoad(
                 loadID: load.id,
                 dropoffLocation:
-                    selectedDeliveryLocation,
+                    dropoffName,
                 deliveryTicketNumber:
                     cleanTicket,
                 deliveryTons:
                     tonsValue
             )
         
+        let notificationMessage: String
+        
+        if isChase {
+            
+            notificationMessage =
+                "\(driver.name) delivered \(dropoffName) ticket \(cleanTicket)"
+            
+        } else {
+            
+            notificationMessage =
+                "\(driver.name) delivered \(dropoffName) ticket \(cleanTicket) • \(tonsValue) tons"
+        }
+        
         sendAdminNotification(
             type: "Delivered",
             message:
-                "\(driver.name) delivered \(dropoffName) ticket \(cleanTicket) • \(tonsValue) tons",
-            ticket: cleanTicket
+                notificationMessage,
+            ticket:
+                cleanTicket
         )
         
         await MainActor.run {

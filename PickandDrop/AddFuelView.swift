@@ -17,8 +17,9 @@ struct AddFuelView: View {
     @State private var showCamera = false
     @State private var receiptImage: UIImage?
     
-    @State private var drivers: [SupabaseDriver] = []
+    @State private var trucks: [SupabaseTruck] = []
     @State private var selectedTruckNumber = ""
+    @State private var isSavingFuel = false
     
     var settings: CompanySettings? {
         companySettings.first
@@ -179,18 +180,27 @@ struct AddFuelView: View {
                             }
                         }
 
-                        Button {
+                    Button {
 
-                            saveFuel()
+                        guard !isSavingFuel else {
+                            return
+                        }
 
-                        } label: {
+                        isSavingFuel = true
+                        saveFuel()
+
+                    } label: {
 
                             HStack(spacing: 14) {
 
                                 Image(systemName: "fuelpump.fill")
 
-                                Text("Save Fuel")
-                                    .fontWeight(.bold)
+                                Text(
+                                    isSavingFuel
+                                    ? "Saving Fuel..."
+                                    : "Save Fuel"
+                                )
+                                .fontWeight(.bold)
                             }
                             .font(.title3)
                             .foregroundStyle(.white)
@@ -202,6 +212,7 @@ struct AddFuelView: View {
                         }
                         .padding(.horizontal)
                         .disabled(
+                            isSavingFuel ||
                             selectedTruckNumber.isEmpty ||
                             (Double(fuelAmount) ?? 0) <= 0
                         )
@@ -216,16 +227,27 @@ struct AddFuelView: View {
         .onAppear {
             Task {
 
-                let loadedDrivers =
-                    await DriverSupabaseManager.shared
-                        .fetchDrivers()
+                let loadedTrucks =
+                    await TruckSupabaseManager.shared
+                        .fetchActiveTrucks()
 
                 await MainActor.run {
-                    drivers = loadedDrivers
 
+                    trucks = loadedTrucks
+
+                    // Use the driver's assigned truck
+                    // only if it exists in the active truck list.
                     if selectedTruckNumber.isEmpty {
-                        selectedTruckNumber =
-                            driver.truckNumber
+
+                        if loadedTrucks.contains(
+                            where: {
+                                $0.truck_number ==
+                                driver.truckNumber
+                            }
+                        ) {
+                            selectedTruckNumber =
+                                driver.truckNumber
+                        }
                     }
                 }
             }
@@ -255,56 +277,71 @@ struct AddFuelView: View {
     }
     
     func saveFuel() {
-        
-        guard let amountValue = Double(fuelAmount),
-              amountValue > 0
+
+        guard
+            let amountValue = Double(fuelAmount),
+            amountValue > 0
         else {
+            isSavingFuel = false
             return
         }
-        
+
         let amount = amountValue
-        
-        // If there is an active shift,
-        // also count it toward the local shift fuel total.
-        if let shift = activeShift {
-            
-            shift.fuelTotal += amount
-            
-            do {
-                try context.save()
-                print("✅ Shift fuel total updated")
-            } catch {
-                print("❌ Shift fuel total save failed:", error)
-            }
-        }
-        
+
         Task {
-            
-            var receiptPath: String?
-            
-            if let receiptImage {
-                
-                receiptPath =
-                await FuelReceiptStorageManager.shared
-                    .uploadReceipt(
-                        image: receiptImage,
-                        driverName: driver.name
-                    )
+
+            defer {
+                Task { @MainActor in
+                    isSavingFuel = false
+                }
             }
-            
-            await FuelSupabaseManager.shared.addFuel(
-                driverName: driver.name,
-                truckNumber: selectedTruckNumber,
-                amount: amountValue,
-                receiptPath: receiptPath
-            )
-            
+
+            var receiptPath: String?
+
+            if let receiptImage {
+
+                receiptPath =
+                    await FuelReceiptStorageManager.shared
+                        .uploadReceipt(
+                            image: receiptImage,
+                            driverName: driver.name
+                        )
+            }
+
+            let saved =
+                await FuelSupabaseManager.shared.addFuel(
+                    driverName: driver.name,
+                    truckNumber: selectedTruckNumber,
+                    amount: amountValue,
+                    receiptPath: receiptPath
+                )
+
+            guard saved else {
+
+                print("❌ Fuel was not saved — keeping screen open")
+
+                return
+            }
+
+            // Only update shift after Supabase succeeds.
+            if let shift = activeShift {
+
+                shift.fuelTotal += amount
+
+                do {
+                    try context.save()
+                    print("✅ Shift fuel total updated")
+                } catch {
+                    print("❌ Shift fuel total save failed:", error)
+                }
+            }
+
             sendAdminNotification(
                 type: "Fuel Added",
                 message:
                     "\(driver.name) added fuel to Truck \(selectedTruckNumber) • $\(String(format: "%.2f", amountValue))"
             )
-            
+
             await MainActor.run {
                 fuelAmount = ""
                 receiptImage = nil
@@ -314,14 +351,11 @@ struct AddFuelView: View {
     }
     
     private var truckNumbers: [String] {
-        Array(
-            Set(
-                drivers
-                    .filter { $0.is_active }
-                    .map { $0.truck_number }
-            )
-        )
-        .sorted()
+
+        trucks
+            .filter { $0.is_active }
+            .map { $0.truck_number }
+            .sorted()
     }
 }
 

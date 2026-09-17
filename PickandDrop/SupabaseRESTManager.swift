@@ -613,9 +613,14 @@ final class LoadSupabaseManager {
         deliveryTicketNumber: String,
         deliveryTons: Double,
         status: String,
-        existingDeliveredAt: String?
+        existingDeliveredAt: String?,
+        billingType: String,
+        ratePerTon: Double,
+        fuelSurchargePerTon: Double,
+        ratePerLoad: Double,
+        ratePerHour: Double
     ) async {
-        
+
         var body: [String: Any] = [
             "pickup_ticket_number": pickupTicketNumber,
             "pickup_tons": pickupTons,
@@ -623,9 +628,16 @@ final class LoadSupabaseManager {
             "delivery_tons": deliveryTons,
             "status": status,
             "pickup_location": pickupLocation,
-            "dropoff_location": dropoffLocation
+            "dropoff_location": dropoffLocation,
+
+            // Billing snapshot
+            "billing_type": billingType,
+            "rate_per_ton": ratePerTon,
+            "fuel_surcharge_per_ton": fuelSurchargePerTon,
+            "rate_per_load": ratePerLoad,
+            "rate_per_hour": ratePerHour
         ]
-        
+
         if status == "delivered" {
             body["delivered_at"] =
                 existingDeliveredAt ??
@@ -633,23 +645,30 @@ final class LoadSupabaseManager {
         } else {
             body["delivered_at"] = NSNull()
         }
-        
+
         do {
             let data = try JSONSerialization.data(
                 withJSONObject: body
             )
-            
+
             _ = try await SupabaseRESTManager.shared.request(
                 table: "pickdrop_loads",
                 method: "PATCH",
                 query: "?id=eq.\(id.uuidString)",
                 body: data
             )
-            
-            print("✅ Supabase load updated")
-            
+
+            print(
+                "✅ Supabase load updated:",
+                dropoffLocation,
+                billingType
+            )
+
         } catch {
-            print("❌ Failed updating Supabase load:", error)
+            print(
+                "❌ Failed updating Supabase load:",
+                error
+            )
         }
     }
     

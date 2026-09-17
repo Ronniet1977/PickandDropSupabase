@@ -18,7 +18,7 @@ final class FuelSupabaseManager {
         truckNumber: String,
         amount: Double,
         receiptPath: String? = nil
-    ) async {
+    ) async -> Bool {
 
         var body: [String: Any] = [
             "driver_name": driverName,
@@ -31,7 +31,10 @@ final class FuelSupabaseManager {
         }
 
         do {
-            let data = try JSONSerialization.data(withJSONObject: body)
+            let data =
+                try JSONSerialization.data(
+                    withJSONObject: body
+                )
 
             _ = try await SupabaseRESTManager.shared.request(
                 table: "pickdrop_fuel",
@@ -40,9 +43,11 @@ final class FuelSupabaseManager {
             )
 
             print("✅ Supabase fuel added")
+            return true
 
         } catch {
             print("❌ Supabase fuel add failed:", error)
+            return false
         }
     }
     

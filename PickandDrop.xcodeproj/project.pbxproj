@@ -32,6 +32,8 @@
 		8760FA762FBD7A1600AADD94 /* CameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8760FA752FBD7A1100AADD94 /* CameraPicker.swift */; };
 		8760FA782FBD7E9800AADD94 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8760FA772FBD7E9000AADD94 /* HelpView.swift */; };
 		8760FA7A2FBD818500AADD94 /* DriverFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8760FA792FBD817B00AADD94 /* DriverFilesView.swift */; };
+		8771AA8E305B92BD00331807 /* TruckSupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8771AA8D305B92B700331807 /* TruckSupabaseManager.swift */; };
+		8771AA90305B953E00331807 /* ManageTrucksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8771AA8F305B953900331807 /* ManageTrucksView.swift */; };
 		8787AA9B2FD2072200A8DC15 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9A2FD2071700A8DC15 /* SupabaseConfig.swift */; };
 		8787AA9D2FD2075100A8DC15 /* SupabaseRESTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9C2FD2074C00A8DC15 /* SupabaseRESTManager.swift */; };
 		8787AA9F2FD20AFC00A8DC15 /* PickDropNotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9E2FD20AF800A8DC15 /* PickDropNotification.swift */; };
@@ -80,6 +82,8 @@
 		8760FA752FBD7A1100AADD94 /* CameraPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPicker.swift; sourceTree = "<group>"; };
 		8760FA772FBD7E9000AADD94 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		8760FA792FBD817B00AADD94 /* DriverFilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverFilesView.swift; sourceTree = "<group>"; };
+		8771AA8D305B92B700331807 /* TruckSupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TruckSupabaseManager.swift; sourceTree = "<group>"; };
+		8771AA8F305B953900331807 /* ManageTrucksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageTrucksView.swift; sourceTree = "<group>"; };
 		8787AA9A2FD2071700A8DC15 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
 		8787AA9C2FD2074C00A8DC15 /* SupabaseRESTManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseRESTManager.swift; sourceTree = "<group>"; };
 		8787AA9E2FD20AF800A8DC15 /* PickDropNotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickDropNotification.swift; sourceTree = "<group>"; };
@@ -128,6 +132,8 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				8771AA8F305B953900331807 /* ManageTrucksView.swift */,
+				8771AA8D305B92B700331807 /* TruckSupabaseManager.swift */,
 				8743DB4C3044B11C008B5C84 /* AppUpdateAdminView.swift */,
 				8743D9F8303FBFCC008B5C84 /* LegacyShiftMigrationManager.swift */,
 				8743D9F6303FBF7A008B5C84 /* DailyTimeTicketView.swift */,
@@ -278,6 +284,7 @@
 				87FC05093031FE75001C2F7E /* SupabaseAuthManager.swift in Sources */,
 				8751679E2FAD689800E8B528 /* AddFuelView.swift in Sources */,
 				8751679F2FAD689800E8B528 /* AddLoadView.swift in Sources */,
+				8771AA8E305B92BD00331807 /* TruckSupabaseManager.swift in Sources */,
 				8760FA7A2FBD818500AADD94 /* DriverFilesView.swift in Sources */,
 				875167A02FAD689800E8B528 /* AdminDashboardView.swift in Sources */,
 				875167A12FAD689800E8B528 /* CSVExporter.swift in Sources */,
@@ -301,6 +308,7 @@
 				875167AB2FAD689800E8B528 /* RootView.swift in Sources */,
 				875167AC2FAD689800E8B528 /* SetupView.swift in Sources */,
 				879F500B301EFCFC007C5D1C /* ScaleTicketOCR.swift in Sources */,
+				8771AA90305B953E00331807 /* ManageTrucksView.swift in Sources */,
 				8743D9F9303FBFCC008B5C84 /* LegacyShiftMigrationManager.swift in Sources */,
 				8749487B2FAEC7E2006E0BFB /* DriverManagerView.swift in Sources */,
 				8743D9F5303FBECC008B5C84 /* ShiftSupabaseManager.swift in Sources */,

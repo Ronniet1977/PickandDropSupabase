@@ -26,6 +26,7 @@ enum TicketScanMode {
     case combined
     case pickupOnly
     case deliveryOnly
+    case chaseDeliveryOnly
 }
 
 
@@ -91,6 +92,7 @@ enum ScaleTicketOCR {
                 "RECYCLING",
                 "HONEYGO",
                 "HONEY-GO",
+                "CHASE",
                 "GROSS WEIGHT",
                 "TARE WEIGHT",
                 "NET WEIGHT",
@@ -161,6 +163,17 @@ enum ScaleTicketOCR {
             
             let result =
             parseDeliveryOnly(
+                text: recognizedText
+            )
+            
+            debug(result)
+            
+            return result
+            
+        case .chaseDeliveryOnly:
+            
+            let result =
+            parseChaseDeliveryOnly(
                 text: recognizedText
             )
             
@@ -259,6 +272,32 @@ enum ScaleTicketOCR {
         return result
     }
     
+    // MARK: - Chase / Delivery
+
+    private static func parseChaseDeliveryOnly(
+        text: String
+    ) -> ScannedLoadTicketData {
+        
+        var result =
+        ScannedLoadTicketData()
+        
+        result.rawText = text
+        
+        let normalized =
+        normalize(text)
+        
+        result.deliveryTicket =
+        findChaseTicket(
+            in: normalized
+        )
+        
+        result.truckNumber =
+        findTruckNumber(
+            in: normalized
+        )
+        
+        return result
+    }
     
     // MARK: - Combined
     
@@ -730,6 +769,42 @@ enum ScaleTicketOCR {
         ?? ""
     }
     
+    // MARK: - Chase Ticket
+
+    private static func findChaseTicket(
+        in text: String
+    ) -> String {
+        
+        // First choice:
+        // Find the ticket number near the
+        // TICKET label on a Chase ticket.
+        //
+        // We don't assume a starting digit
+        // like BRC (1) or HoneyGo (4).
+        if let ticket =
+            ticketAfterLabel(
+                in: text,
+                digitCount: 9
+            ) {
+            
+            return ticket
+        }
+        
+        // Fallback:
+        // Chase ticket number is a
+        // standalone 9-digit number.
+        if let ticket =
+            firstMatch(
+                pattern:
+                    #"\b(\d{9})\b"#,
+                in: text
+            ) {
+            
+            return ticket
+        }
+        
+        return ""
+    }
     
     // MARK: - Ticket Label Fallback
     
