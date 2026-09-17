@@ -18,6 +18,7 @@ struct PickupDeliveryView: View {
     
     @State private var supabaseLoads: [SupabaseLoad] = []
     @State private var selectedLoad: SupabaseLoad?
+    @State private var supabaseDriver: SupabaseDriver?
     
     @State private var ticketImage: UIImage?
     @State private var showTicketCamera = false
@@ -85,6 +86,10 @@ struct PickupDeliveryView: View {
         
         return settings?.dropoff_company_name
         ?? "Dropoff"
+    }
+    
+    private var currentTruckNumber: String {
+        supabaseDriver?.truck_number ?? driver.truckNumber
     }
     
     var body: some View {
@@ -235,20 +240,35 @@ struct PickupDeliveryView: View {
 
             Task {
 
-                let loadedSettings =
-                    await CompanySupabaseManager.shared.fetchCompanySettings()
+                async let loadedSettings =
+                    CompanySupabaseManager.shared
+                        .fetchCompanySettings()
 
-                let loadedLoads =
-                    await LoadSupabaseManager.shared.fetchLoads()
-                
-                let loadedLocations =
-                await LocationSupabaseManager.shared
-                    .fetchLocations()
+                async let loadedLoads =
+                    LoadSupabaseManager.shared
+                        .fetchLoads()
+
+                async let loadedLocations =
+                    LocationSupabaseManager.shared
+                        .fetchLocations()
+
+                async let loadedDrivers =
+                    DriverSupabaseManager.shared
+                        .fetchDrivers()
+
+                let newSettings = await loadedSettings
+                let newLoads = await loadedLoads
+                let newLocations = await loadedLocations
+                let cloudDrivers = await loadedDrivers
 
                 await MainActor.run {
-                    settings = loadedSettings
-                    supabaseLoads = loadedLoads
-                    locations = loadedLocations
+                    settings = newSettings
+                    supabaseLoads = newLoads
+                    locations = newLocations
+
+                    supabaseDriver = cloudDrivers.first {
+                        $0.name == driver.name
+                    }
                 }
             }
         }
@@ -624,7 +644,7 @@ struct PickupDeliveryView: View {
         let note = AppNotification(
             type: type,
             driverName: driver.name,
-            truckNumber: driver.truckNumber,
+            truckNumber: currentTruckNumber,
             message: message,
             loadTicket: ticket
         )

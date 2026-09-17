@@ -62,6 +62,7 @@ struct AdminDashboardView: View {
     @State private var supabaseDrivers: [SupabaseDriver] = []
     @State private var supabaseSettings: SupabaseCompanySettings?
     @State private var supabaseFuel: [SupabaseFuel] = []
+    @State private var supabaseShifts: [SupabaseShift] = []
     
     @State private var showArchivedLoads = false
     
@@ -293,28 +294,53 @@ struct AdminDashboardView: View {
     }
     
     var filteredDriverSummaries: [DriverSummary] {
-        let grouped = Dictionary(grouping: filteredLoads) {
+
+        let groupedLoads = Dictionary(grouping: filteredLoads) {
             $0.driver_name ?? "Unknown"
         }
-        
-        return grouped.map { driverName, loads in
-            
+
+        var driverNames = Set(groupedLoads.keys)
+
+        // Add real drivers with an active Supabase shift TODAY.
+        for shift in supabaseShifts {
+
+            guard shift.status == "active",
+                  isShiftToday(shift)
+            else {
+                continue
+            }
+
+            let isRealDriver = supabaseDrivers.contains {
+                $0.name == shift.driver_name &&
+                $0.is_active
+            }
+
+            if isRealDriver {
+                driverNames.insert(shift.driver_name)
+            }
+        }
+
+        return driverNames.map { driverName in
+
+            let loads = groupedLoads[driverName] ?? []
+
             let driverProfile = supabaseDrivers.first {
                 $0.name == driverName
             }
-            
-            let shift = shifts
-                .filter { $0.driverName == driverName }
-                .sorted { $0.startedAt > $1.startedAt }
-                .first
-            
+
+            // Shifts are newest-first.
+            // Only consider today's shift for current status.
+            let latestShift = supabaseShifts.first {
+                $0.driver_name == driverName &&
+                isShiftToday($0)
+            }
 
             let status: String
 
-            if let shift {
-                status = shift.status == "finished"
-                    ? "finished"
-                    : "active"
+            if let latestShift {
+                status = latestShift.status == "active"
+                    ? "active"
+                    : "finished"
             } else {
                 status = "offline"
             }
@@ -337,10 +363,22 @@ struct AdminDashboardView: View {
             )
         }
         .sorted {
+
+            if $0.status != $1.status {
+
+                if $0.status == "active" {
+                    return true
+                }
+
+                if $1.status == "active" {
+                    return false
+                }
+            }
+
             if $0.isFinished != $1.isFinished {
                 return !$0.isFinished
             }
-            
+
             return $0.name < $1.name
         }
     }
@@ -876,6 +914,19 @@ struct AdminDashboardView: View {
                 )
             }
         }
+    }
+        
+    func isShiftToday(_ shift: SupabaseShift) -> Bool {
+
+        guard let date =
+            ISO8601DateFormatter().date(
+                from: shift.started_at
+            )
+        else {
+            return false
+        }
+
+        return Calendar.current.isDateInToday(date)
     }
     
     func notificationCard(_ note: AppNotification) -> some View {
@@ -1489,9 +1540,13 @@ struct AdminDashboardView: View {
                 await CompanySupabaseManager.shared.fetchCompanySettings()
             let fuel = await FuelSupabaseManager.shared.fetchFuel()
 
+            let loadedShifts =
+                await ShiftSupabaseManager.shared.fetchShifts()
+
             await MainActor.run {
                 supabaseSettings = companySettings
                 supabaseLoads = loads
+                supabaseShifts = loadedShifts
                 supabaseDrivers = drivers
                 supabaseFuel = fuel
                 lastUpdated = Date()

@@ -20,6 +20,7 @@ struct AddFuelView: View {
     @State private var trucks: [SupabaseTruck] = []
     @State private var selectedTruckNumber = ""
     @State private var isSavingFuel = false
+    @State private var supabaseDriver: SupabaseDriver?
     
     var settings: CompanySettings? {
         companySettings.first
@@ -72,8 +73,12 @@ struct AddFuelView: View {
                         Text(driver.name)
                             .foregroundStyle(.white.opacity(0.7))
 
-                        Text("Truck \(driver.truckNumber)")
-                            .foregroundStyle(.white.opacity(0.5))
+                        Text(
+                            selectedTruckNumber.isEmpty
+                            ? "Select Truck"
+                            : "Truck \(selectedTruckNumber)"
+                        )
+                        .foregroundStyle(.white.opacity(0.5))
                     }
                     
                         VStack(spacing: 22) {
@@ -227,27 +232,35 @@ struct AddFuelView: View {
         .onAppear {
             Task {
 
-                let loadedTrucks =
-                    await TruckSupabaseManager.shared
+                async let loadedTrucks =
+                    TruckSupabaseManager.shared
                         .fetchActiveTrucks()
+
+                async let loadedDrivers =
+                    DriverSupabaseManager.shared
+                        .fetchDrivers()
+
+                let newTrucks = await loadedTrucks
+                let cloudDrivers = await loadedDrivers
 
                 await MainActor.run {
 
-                    trucks = loadedTrucks
+                    trucks = newTrucks
 
-                    // Use the driver's assigned truck
-                    // only if it exists in the active truck list.
-                    if selectedTruckNumber.isEmpty {
+                    supabaseDriver = cloudDrivers.first {
+                        $0.name == driver.name
+                    }
 
-                        if loadedTrucks.contains(
-                            where: {
-                                $0.truck_number ==
-                                driver.truckNumber
-                            }
-                        ) {
-                            selectedTruckNumber =
-                                driver.truckNumber
-                        }
+                    let assignedTruck =
+                        supabaseDriver?.truck_number
+                        ?? driver.truckNumber
+
+                    if selectedTruckNumber.isEmpty,
+                       newTrucks.contains(where: {
+                           $0.truck_number == assignedTruck
+                       }) {
+
+                        selectedTruckNumber = assignedTruck
                     }
                 }
             }

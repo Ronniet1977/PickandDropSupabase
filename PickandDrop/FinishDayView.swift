@@ -1,17 +1,14 @@
 import SwiftUI
-import SwiftData
 
 struct FinishDayView: View {
     let driver: DriverProfile
     
-    @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     
-    @Query var shifts: [Shift]
-
     @State private var supabaseLoads: [SupabaseLoad] = []
     @State private var supabaseSettings: SupabaseCompanySettings?
-    
+    @State private var supabaseDriver: SupabaseDriver?
+    @State private var supabaseShifts: [SupabaseShift] = []
     
     @StateObject private var notificationManager = NotificationSyncManager()
     
@@ -25,17 +22,34 @@ struct FinishDayView: View {
         supabaseSettings
     }
     
-    var activeShift: Shift? {
-        shifts.first(where: {
-            $0.driverName == driver.name && $0.status == "active"
-        })
-    }
-    
     var shiftLoads: [SupabaseLoad] {
         supabaseLoads.filter {
             $0.driver_name == driver.name &&
             ($0.is_archived ?? false) == false
         }
+    }
+    
+    var activeShift: SupabaseShift? {
+        supabaseShifts.first {
+            $0.driver_name == driver.name &&
+            $0.status == "active" &&
+            isShiftToday($0)
+        }
+    }
+
+    private func isShiftToday(
+        _ shift: SupabaseShift
+    ) -> Bool {
+
+        guard let date =
+            ISO8601DateFormatter().date(
+                from: shift.started_at
+            )
+        else {
+            return false
+        }
+
+        return Calendar.current.isDateInToday(date)
     }
     
     var totalTons: Double {
@@ -55,6 +69,10 @@ struct FinishDayView: View {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .isEmpty
         }
+    }
+    
+    private var currentTruckNumber: String {
+        supabaseDriver?.truck_number ?? driver.truckNumber
     }
     
     var body: some View {
@@ -129,15 +147,32 @@ struct FinishDayView: View {
         }
         .onAppear {
             Task {
-                let loadedLoads =
-                    await LoadSupabaseManager.shared.fetchLoads()
 
-                let loadedSettings =
-                    await CompanySupabaseManager.shared.fetchCompanySettings()
+                async let loadedLoads =
+                    LoadSupabaseManager.shared.fetchLoads()
+
+                async let loadedSettings =
+                    CompanySupabaseManager.shared.fetchCompanySettings()
+
+                async let loadedDrivers =
+                    DriverSupabaseManager.shared.fetchDrivers()
+                
+                async let loadedShifts =
+                    ShiftSupabaseManager.shared.fetchShifts()
+
+                let newLoads = await loadedLoads
+                let newSettings = await loadedSettings
+                let cloudDrivers = await loadedDrivers
+                let cloudShifts = await loadedShifts
 
                 await MainActor.run {
-                    supabaseLoads = loadedLoads
-                    supabaseSettings = loadedSettings
+                    supabaseLoads = newLoads
+                    supabaseSettings = newSettings
+                    supabaseShifts = cloudShifts
+
+                    supabaseDriver = cloudDrivers.first {
+                        $0.name == driver.name
+                    }
                 }
             }
         }
@@ -168,7 +203,7 @@ struct FinishDayView: View {
         let note = AppNotification(
             type: type,
             driverName: driver.name,
-            truckNumber: driver.truckNumber,
+            truckNumber: currentTruckNumber,
             message: message,
             loadTicket: nil
         )
@@ -177,7 +212,11 @@ struct FinishDayView: View {
     }
     
     func finishDay() async {
-        guard let shift = activeShift else { return }
+
+        guard activeShift != nil else {
+            print("⚠️ No active Supabase shift for today")
+            return
+        }
 
         let driverLoads =
             await LoadSupabaseManager.shared.fetchLoads()
@@ -225,50 +264,45 @@ struct FinishDayView: View {
             }
         }
 
-        shift.status = "finished"
-        shift.endedAt = Date()
-
-        do {
-            try context.save()
-            
-            let cloudFinished =
+        let cloudFinished =
             await ShiftSupabaseManager.shared
                 .finishActiveShift(
                     username: driver.username
                 )
-            
-            if cloudFinished {
-                
-                print("☁️ Cloud shift closed")
-                
-            } else {
-                
-                print(
-                    "⚠️ Local shift finished, but cloud shift failed"
-                )
-            }
 
-            sendAdminNotification(
-                type: "Finished Day",
-                message: "\(driver.name) finished the day • \(driverLoads.count) loads"
+        if cloudFinished {
+
+            print("☁️ Cloud shift closed")
+
+        } else {
+
+            print(
+                "⚠️ Supabase shift failed to close"
             )
 
-            CSVExporter.deleteActiveCSV(driver: driver)
-            
-            await DriverSupabaseManager.shared
-                .updateDutyStatus(
-                    username: driver.username,
-                    dutyStatus: "off_duty"
-                )
-
-            await MainActor.run {
-                didFinish = true
-            }
-
-            print("✅ Shift finished")
-
-        } catch {
-            print("❌ Failed to finish day:", error)
+            // Don't finish the screen if the cloud
+            // shift could not be closed.
+            return
         }
+
+        sendAdminNotification(
+            type: "Finished Day",
+            message:
+                "\(driver.name) finished the day • \(driverLoads.count) loads"
+        )
+
+        CSVExporter.deleteActiveCSV(driver: driver)
+
+        await DriverSupabaseManager.shared
+            .updateDutyStatus(
+                username: driver.username,
+                dutyStatus: "off_duty"
+            )
+
+        await MainActor.run {
+            didFinish = true
+        }
+
+        print("✅ Shift finished")
     }
 }

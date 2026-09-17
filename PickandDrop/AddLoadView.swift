@@ -24,6 +24,7 @@ struct AddLoadView: View {
     
     @State private var selectedPickupLocation = ""
     @State private var selectedDropoffLocation = ""
+    @State private var supabaseDriver: SupabaseDriver?
     
     var pickupLocations: [SupabaseLocation] {
         locations.filter {
@@ -297,50 +298,59 @@ struct AddLoadView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {
             Task {
-                
+
                 async let loadedSettings =
-                CompanySupabaseManager.shared
-                    .fetchCompanySettings()
-                
+                    CompanySupabaseManager.shared
+                        .fetchCompanySettings()
+
                 async let loadedLocations =
-                LocationSupabaseManager.shared
-                    .fetchLocations()
-                
+                    LocationSupabaseManager.shared
+                        .fetchLocations()
+
+                async let loadedDrivers =
+                    DriverSupabaseManager.shared
+                        .fetchDrivers()
+
                 let newSettings = await loadedSettings
                 let newLocations = await loadedLocations
-                
+                let cloudDrivers = await loadedDrivers
+
                 await MainActor.run {
-                    
+
                     settings = newSettings
                     locations = newLocations
-                    
-                    if let shift = activeShift {
-                        
-                        selectedPickupLocation =
-                        shift.pickupLocation
-                        
-                        selectedDropoffLocation =
-                        shift.dropoffLocation
+
+                    supabaseDriver = cloudDrivers.first {
+                        $0.name == driver.name
                     }
-                    
+
+                    if let shift = activeShift {
+
+                        selectedPickupLocation =
+                            shift.pickupLocation
+
+                        selectedDropoffLocation =
+                            shift.dropoffLocation
+                    }
+
                     if selectedPickupLocation.isEmpty {
                         selectedPickupLocation =
-                        newLocations.first {
-                            $0.location_type == "pickup" ||
-                            $0.location_type == "both"
-                        }?.name
-                        ?? newSettings?.pickup_company_name
-                        ?? ""
+                            newLocations.first {
+                                $0.location_type == "pickup" ||
+                                $0.location_type == "both"
+                            }?.name
+                            ?? newSettings?.pickup_company_name
+                            ?? ""
                     }
-                    
+
                     if selectedDropoffLocation.isEmpty {
                         selectedDropoffLocation =
-                        newLocations.first {
-                            $0.location_type == "dropoff" ||
-                            $0.location_type == "both"
-                        }?.name
-                        ?? newSettings?.dropoff_company_name
-                        ?? ""
+                            newLocations.first {
+                                $0.location_type == "dropoff" ||
+                                $0.location_type == "both"
+                            }?.name
+                            ?? newSettings?.dropoff_company_name
+                            ?? ""
                     }
                 }
             }
@@ -365,6 +375,10 @@ struct AddLoadView: View {
         } message: {
             Text(scanError)
         }
+    }
+    
+    private var currentTruckNumber: String {
+        supabaseDriver?.truck_number ?? driver.truckNumber
     }
     
     @MainActor
@@ -444,7 +458,7 @@ struct AddLoadView: View {
         let note = AppNotification(
             type: type,
             driverName: driver.name,
-            truckNumber: driver.truckNumber,
+            truckNumber: currentTruckNumber,
             message: message,
             loadTicket: ticket
         )
@@ -520,7 +534,7 @@ struct AddLoadView: View {
         
         await LoadSupabaseManager.shared.addLoad(
             driverName: driver.name,
-            truckNumber: driver.truckNumber,
+            truckNumber: currentTruckNumber,
             
             pickupLocation:
                 selectedPickupLocation,
