@@ -133,6 +133,17 @@ struct ReportsView: View {
                                 color: .blue
                             )
                         }
+                        
+                        NavigationLink {
+                            WeeklyDriverVerificationView()
+                        } label: {
+                            reportCard(
+                                title: "Weekly Driver Verification",
+                                subtitle: "Verify loads and billing totals by date range",
+                                icon: "checklist.checked",
+                                color: .blue
+                            )
+                        }
 
                         NavigationLink {
                             DailyDriverSummaryView()

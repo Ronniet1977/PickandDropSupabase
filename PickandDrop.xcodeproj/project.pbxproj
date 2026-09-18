@@ -34,6 +34,7 @@
 		8760FA7A2FBD818500AADD94 /* DriverFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8760FA792FBD817B00AADD94 /* DriverFilesView.swift */; };
 		8771AA8E305B92BD00331807 /* TruckSupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8771AA8D305B92B700331807 /* TruckSupabaseManager.swift */; };
 		8771AA90305B953E00331807 /* ManageTrucksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8771AA8F305B953900331807 /* ManageTrucksView.swift */; };
+		8771AAAA305CB75E00331807 /* WeeklyDriverVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8771AAA9305CB75800331807 /* WeeklyDriverVerificationView.swift */; };
 		8787AA9B2FD2072200A8DC15 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9A2FD2071700A8DC15 /* SupabaseConfig.swift */; };
 		8787AA9D2FD2075100A8DC15 /* SupabaseRESTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9C2FD2074C00A8DC15 /* SupabaseRESTManager.swift */; };
 		8787AA9F2FD20AFC00A8DC15 /* PickDropNotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9E2FD20AF800A8DC15 /* PickDropNotification.swift */; };
@@ -84,6 +85,7 @@
 		8760FA792FBD817B00AADD94 /* DriverFilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverFilesView.swift; sourceTree = "<group>"; };
 		8771AA8D305B92B700331807 /* TruckSupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TruckSupabaseManager.swift; sourceTree = "<group>"; };
 		8771AA8F305B953900331807 /* ManageTrucksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageTrucksView.swift; sourceTree = "<group>"; };
+		8771AAA9305CB75800331807 /* WeeklyDriverVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyDriverVerificationView.swift; sourceTree = "<group>"; };
 		8787AA9A2FD2071700A8DC15 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
 		8787AA9C2FD2074C00A8DC15 /* SupabaseRESTManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseRESTManager.swift; sourceTree = "<group>"; };
 		8787AA9E2FD20AF800A8DC15 /* PickDropNotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickDropNotification.swift; sourceTree = "<group>"; };
@@ -132,6 +134,7 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				8771AAA9305CB75800331807 /* WeeklyDriverVerificationView.swift */,
 				8771AA8F305B953900331807 /* ManageTrucksView.swift */,
 				8771AA8D305B92B700331807 /* TruckSupabaseManager.swift */,
 				8743DB4C3044B11C008B5C84 /* AppUpdateAdminView.swift */,
@@ -278,6 +281,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8771AAAA305CB75E00331807 /* WeeklyDriverVerificationView.swift in Sources */,
 				8789BB052FB06063004400C5 /* CompanySetupView.swift in Sources */,
 				87FC050D30321E91001C2F7E /* AdminDriverAuthManager.swift in Sources */,
 				8787AA9D2FD2075100A8DC15 /* SupabaseRESTManager.swift in Sources */,

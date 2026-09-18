@@ -449,7 +449,20 @@ struct LoadListView: View {
         .navigationTitle(
             "\(settings?.pickup_company_name ?? "Pickup") Loads"
         )
-        .sheet(item: $selectedLoad) { load in
+        .sheet(
+            item: $selectedLoad,
+            onDismiss: {
+                Task {
+                    let refreshedLoads =
+                        await LoadSupabaseManager.shared.fetchLoads()
+
+                    await MainActor.run {
+                        loads = refreshedLoads
+                    }
+                }
+            }
+        ) { load in
+
             NavigationStack {
                 EditSupabaseLoadView(
                     load: load,
