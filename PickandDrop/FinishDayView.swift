@@ -319,10 +319,15 @@ struct FinishDayView: View {
             }
         }
 
+        guard let activeShift else {
+            print("⚠️ No active shift to finish")
+            return
+        }
+
         let cloudFinished =
             await ShiftSupabaseManager.shared
-                .finishActiveShift(
-                    username: driver.username
+                .finishShift(
+                    id: activeShift.id
                 )
 
         if cloudFinished {

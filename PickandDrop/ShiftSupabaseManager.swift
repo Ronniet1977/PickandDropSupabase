@@ -274,6 +274,51 @@ final class ShiftSupabaseManager {
             return false
         }
     }
+    
+    func finishShift(
+        id: UUID
+    ) async -> Bool {
+
+        let now =
+            ISO8601DateFormatter()
+                .string(from: Date())
+
+        let body: [String: Any] = [
+            "ended_at": now,
+            "status": "finished"
+        ]
+
+        do {
+
+            let bodyData =
+                try JSONSerialization.data(
+                    withJSONObject: body
+                )
+
+            _ = try await SupabaseRESTManager.shared.request(
+                table: "pickdrop_shifts",
+                method: "PATCH",
+                query: "?id=eq.\(id.uuidString)",
+                body: bodyData
+            )
+
+            print(
+                "✅ Specific Supabase shift finished:",
+                id
+            )
+
+            return true
+
+        } catch {
+
+            print(
+                "❌ Failed finishing specific Supabase shift:",
+                error
+            )
+
+            return false
+        }
+    }
 }
 
 struct SupabaseLocation: Codable, Identifiable {

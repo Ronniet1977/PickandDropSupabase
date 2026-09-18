@@ -744,8 +744,8 @@ struct DriverDashboardView: View {
 
         let cloudFinished =
             await ShiftSupabaseManager.shared
-                .finishActiveShift(
-                    username: driver.username
+                .finishShift(
+                    id: oldShift.id
                 )
 
         guard cloudFinished else {

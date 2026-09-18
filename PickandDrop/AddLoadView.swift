@@ -11,6 +11,7 @@ struct AddLoadView: View {
     
     @StateObject private var notificationManager = NotificationSyncManager()
     @State private var settings: SupabaseCompanySettings?
+    @State private var supabaseShifts: [SupabaseShift] = []
 
     @State private var pickupTicket = ""
     @State private var pickupTons = ""
@@ -40,11 +41,12 @@ struct AddLoadView: View {
         }
     }
     
-    var activeShift: Shift? {
-        shifts.first(where: {
-            $0.driverName == driver.name &&
-            $0.status.lowercased() == "active"
-        })
+    var activeShift: SupabaseShift? {
+        supabaseShifts.first {
+            $0.driver_name == driver.name &&
+            $0.status.lowercased() == "active" &&
+            isShiftToday($0)
+        }
     }
     
     var isValidLoad: Bool {
@@ -69,6 +71,26 @@ struct AddLoadView: View {
     private var currentTruckNumber: String {
         supabaseDriver?.truck_number
         ?? driver.truckNumber
+    }
+    
+    private var currentPickupName: String {
+        if !selectedPickupLocation.isEmpty {
+            return selectedPickupLocation
+        }
+
+        return activeShift?.pickup_location
+            ?? settings?.pickup_company_name
+            ?? "Pickup"
+    }
+
+    private var currentDropoffName: String {
+        if !selectedDropoffLocation.isEmpty {
+            return selectedDropoffLocation
+        }
+
+        return activeShift?.dropoff_location
+            ?? settings?.dropoff_company_name
+            ?? "Dropoff"
     }
     
     var body: some View {
@@ -109,9 +131,7 @@ struct AddLoadView: View {
                             .font(.system(size: 38, weight: .bold))
                             .foregroundStyle(.white)
                         
-                        Text(
-                            "\(selectedPickupLocation.isEmpty ? (activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") : selectedPickupLocation) → \(selectedDropoffLocation.isEmpty ? (activeShift?.dropoffLocation ?? settings?.dropoff_company_name ?? "Dropoff") : selectedDropoffLocation)"
-                        )
+                        Text("\(currentPickupName) → \(currentDropoffName)")
                         .font(.caption.bold())
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
@@ -170,7 +190,7 @@ struct AddLoadView: View {
                                             "",
                                             selection: $selectedPickupLocation
                                         ) {
-                                            ForEach(pickupLocations) { location in
+                                            ForEach(pickupLocations, id: \.id) { location in
                                                 Text(location.name)
                                                     .tag(location.name)
                                             }
@@ -194,7 +214,7 @@ struct AddLoadView: View {
                                             "",
                                             selection: $selectedDropoffLocation
                                         ) {
-                                            ForEach(dropoffLocations) { location in
+                                            ForEach(dropoffLocations, id: \.id) { location in
                                                 Text(location.name)
                                                     .tag(location.name)
                                             }
@@ -228,9 +248,7 @@ struct AddLoadView: View {
                                 .buttonStyle(.borderedProminent)
                                 .disabled(isScanningTicket)
 
-                                Text(
-                                    "\(selectedPickupLocation.isEmpty ? (activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") : selectedPickupLocation) Ticket Number (Optional)"
-                                )
+                                Text("\(currentPickupName) Ticket Number (Optional)")
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
 
@@ -249,9 +267,7 @@ struct AddLoadView: View {
 
                                 VStack(alignment: .leading, spacing: 8) {
 
-                                    Text(
-                                        "\(selectedPickupLocation.isEmpty ? (activeShift?.pickupLocation ?? settings?.pickup_company_name ?? "Pickup") : selectedPickupLocation) Tons"
-                                    )
+                                    Text("\(currentPickupName) Tons")
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
 
@@ -341,8 +357,12 @@ struct AddLoadView: View {
                 async let loadedDrivers =
                     DriverSupabaseManager.shared
                         .fetchDrivers()
+                
+                async let loadedShifts =
+                    ShiftSupabaseManager.shared.fetchShifts()
 
                 let newSettings = await loadedSettings
+                let cloudShifts = await loadedShifts
                 let newLocations = await loadedLocations
                 let cloudDrivers = await loadedDrivers
 
@@ -350,6 +370,7 @@ struct AddLoadView: View {
 
                     settings = newSettings
                     locations = newLocations
+                    supabaseShifts = cloudShifts
 
                     supabaseDriver = cloudDrivers.first {
                         $0.name == driver.name
@@ -358,10 +379,10 @@ struct AddLoadView: View {
                     if let shift = activeShift {
 
                         selectedPickupLocation =
-                            shift.pickupLocation
+                            shift.pickup_location ?? ""
 
                         selectedDropoffLocation =
-                            shift.dropoffLocation
+                            shift.dropoff_location ?? ""
                     }
 
                     if selectedPickupLocation.isEmpty {
@@ -406,6 +427,17 @@ struct AddLoadView: View {
         } message: {
             Text(scanError)
         }
+    }
+    
+    private func isShiftToday(_ shift: SupabaseShift) -> Bool {
+
+        let formatter = ISO8601DateFormatter()
+
+        guard let date = formatter.date(from: shift.started_at) else {
+            return false
+        }
+
+        return Calendar.current.isDateInToday(date)
     }
     
     @MainActor
