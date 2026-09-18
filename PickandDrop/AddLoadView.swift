@@ -50,12 +50,7 @@ struct AddLoadView: View {
     }
     
     var isValidLoad: Bool {
-
-        if isPerLoadRoute {
-            return true
-        }
-
-        return (Double(pickupTons) ?? 0) > 0
+        (Double(pickupTons) ?? 0) > 0
     }
     
     private var selectedDropoff: SupabaseLocation? {
@@ -263,46 +258,43 @@ struct AddLoadView: View {
                                 .foregroundStyle(.white)
                             }
 
-                            if !isPerLoadRoute {
+                            VStack(alignment: .leading, spacing: 8) {
 
-                                VStack(alignment: .leading, spacing: 8) {
-
-                                    Text("\(currentPickupName) Tons")
+                                Text("\(currentPickupName) Tons")
                                     .font(.caption.bold())
                                     .foregroundStyle(.white.opacity(0.7))
 
-                                    TextField(
-                                        "Enter Tons",
-                                        text: $pickupTons
-                                    )
-                                    .keyboardType(.decimalPad)
-                                    .textFieldStyle(.plain)
-                                    .padding()
-                                    .background(.white.opacity(0.08))
-                                    .clipShape(RoundedRectangle(cornerRadius: 18))
-                                    .foregroundStyle(.white)
+                                TextField(
+                                    "Enter Tons",
+                                    text: $pickupTons
+                                )
+                                .keyboardType(.decimalPad)
+                                .textFieldStyle(.plain)
+                                .padding()
+                                .background(.white.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                .foregroundStyle(.white)
 
-                                    if !pickupTons.isEmpty &&
-                                        Double(pickupTons) == nil {
+                                if !pickupTons.isEmpty &&
+                                    Double(pickupTons) == nil {
 
-                                        HStack {
+                                    HStack {
 
-                                            Image(
-                                                systemName:
-                                                    "exclamationmark.circle.fill"
-                                            )
+                                        Image(
+                                            systemName:
+                                                "exclamationmark.circle.fill"
+                                        )
 
-                                            Text(
-                                                "Enter a valid number for tons"
-                                            )
-                                        }
-                                        .font(.caption.bold())
-                                        .foregroundStyle(.red)
-                                        .frame(
-                                            maxWidth: .infinity,
-                                            alignment: .leading
+                                        Text(
+                                            "Enter a valid number for tons"
                                         )
                                     }
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.red)
+                                    .frame(
+                                        maxWidth: .infinity,
+                                        alignment: .leading
+                                    )
                                 }
                             }
                         }
@@ -556,24 +548,11 @@ struct AddLoadView: View {
         selectedDropoff?.billing_type
         ?? "per_ton"
         
-        let tonsValue: Double
-
-        if billingType == "per_load" ||
-           billingType == "per_hour" {
-
-            // Per-load/per-hour routes do not use tons.
-            tonsValue = 0
-
-        } else {
-
-            guard let enteredTons = Double(pickupTons),
-                  enteredTons > 0
-            else {
-                print("❌ Valid pickup tons required")
-                return
-            }
-
-            tonsValue = enteredTons
+        guard let tonsValue = Double(pickupTons),
+              tonsValue > 0
+        else {
+            print("❌ Valid pickup tons required")
+            return
         }
         
         let ratePerTon: Double
@@ -648,12 +627,12 @@ struct AddLoadView: View {
         if billingType == "per_load" {
 
             notificationMessage =
-                "\(driver.name) picked up \(selectedPickupLocation) → \(selectedDropoffLocation) • \(displayTicket)"
+                "\(driver.name) picked up \(selectedPickupLocation) → \(selectedDropoffLocation) • \(displayTicket) • \(tonsValue) tons"
 
         } else if billingType == "per_hour" {
 
             notificationMessage =
-                "\(driver.name) picked up \(selectedPickupLocation) → \(selectedDropoffLocation) • \(displayTicket)"
+                    "\(driver.name) picked up \(selectedPickupLocation) → \(selectedDropoffLocation) • \(displayTicket) • \(tonsValue) tons"
 
         } else {
 
