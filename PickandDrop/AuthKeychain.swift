@@ -15,6 +15,9 @@ enum AuthKeychain {
 
     private static let refreshTokenAccount =
         "supabase.refreshToken"
+    
+    private static let rememberedPasswordAccount =
+        "login.rememberedPassword"
 
     static func saveRefreshToken(
         _ token: String
@@ -162,5 +165,150 @@ enum AuthKeychain {
         )
 
         print("🔐 Auth refresh token removed")
+    }
+    
+    // MARK: - Remembered Password
+
+    static func saveRememberedPassword(
+        _ password: String
+    ) {
+
+        guard let data =
+            password.data(using: .utf8)
+        else {
+            return
+        }
+
+        let query: [String: Any] = [
+            kSecClass as String:
+                kSecClassGenericPassword,
+
+            kSecAttrService as String:
+                service,
+
+            kSecAttrAccount as String:
+                rememberedPasswordAccount
+        ]
+
+        let attributes: [String: Any] = [
+            kSecValueData as String:
+                data,
+
+            kSecAttrAccessible as String:
+                kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        ]
+
+        let updateStatus =
+            SecItemUpdate(
+                query as CFDictionary,
+                attributes as CFDictionary
+            )
+
+        if updateStatus == errSecSuccess {
+
+            print("🔐 Remembered password updated")
+            return
+        }
+
+        if updateStatus != errSecItemNotFound {
+
+            print(
+                "❌ Remembered password update failed:",
+                updateStatus
+            )
+
+            return
+        }
+
+        var newItem = query
+
+        newItem[
+            kSecValueData as String
+        ] = data
+
+        newItem[
+            kSecAttrAccessible as String
+        ] =
+            kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+
+        let addStatus =
+            SecItemAdd(
+                newItem as CFDictionary,
+                nil
+            )
+
+        if addStatus == errSecSuccess {
+
+            print("🔐 Remembered password saved")
+
+        } else {
+
+            print(
+                "❌ Remembered password save failed:",
+                addStatus
+            )
+        }
+    }
+
+    static func loadRememberedPassword() -> String? {
+
+        let query: [String: Any] = [
+            kSecClass as String:
+                kSecClassGenericPassword,
+
+            kSecAttrService as String:
+                service,
+
+            kSecAttrAccount as String:
+                rememberedPasswordAccount,
+
+            kSecReturnData as String:
+                true,
+
+            kSecMatchLimit as String:
+                kSecMatchLimitOne
+        ]
+
+        var result: CFTypeRef?
+
+        let status =
+            SecItemCopyMatching(
+                query as CFDictionary,
+                &result
+            )
+
+        guard
+            status == errSecSuccess,
+            let data = result as? Data,
+            let password =
+                String(
+                    data: data,
+                    encoding: .utf8
+                )
+        else {
+            return nil
+        }
+
+        return password
+    }
+
+    static func deleteRememberedPassword() {
+
+        let query: [String: Any] = [
+            kSecClass as String:
+                kSecClassGenericPassword,
+
+            kSecAttrService as String:
+                service,
+
+            kSecAttrAccount as String:
+                rememberedPasswordAccount
+        ]
+
+        SecItemDelete(
+            query as CFDictionary
+        )
+
+        print("🔐 Remembered password removed")
     }
 }

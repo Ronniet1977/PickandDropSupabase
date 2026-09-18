@@ -35,6 +35,7 @@
 		8771AA8E305B92BD00331807 /* TruckSupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8771AA8D305B92B700331807 /* TruckSupabaseManager.swift */; };
 		8771AA90305B953E00331807 /* ManageTrucksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8771AA8F305B953900331807 /* ManageTrucksView.swift */; };
 		8771AAAA305CB75E00331807 /* WeeklyDriverVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8771AAA9305CB75800331807 /* WeeklyDriverVerificationView.swift */; };
+		8771AB3F305DEF5100331807 /* BiometricAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8771AB3E305DEF4D00331807 /* BiometricAuthManager.swift */; };
 		8787AA9B2FD2072200A8DC15 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9A2FD2071700A8DC15 /* SupabaseConfig.swift */; };
 		8787AA9D2FD2075100A8DC15 /* SupabaseRESTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9C2FD2074C00A8DC15 /* SupabaseRESTManager.swift */; };
 		8787AA9F2FD20AFC00A8DC15 /* PickDropNotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8787AA9E2FD20AF800A8DC15 /* PickDropNotification.swift */; };
@@ -86,6 +87,7 @@
 		8771AA8D305B92B700331807 /* TruckSupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TruckSupabaseManager.swift; sourceTree = "<group>"; };
 		8771AA8F305B953900331807 /* ManageTrucksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageTrucksView.swift; sourceTree = "<group>"; };
 		8771AAA9305CB75800331807 /* WeeklyDriverVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyDriverVerificationView.swift; sourceTree = "<group>"; };
+		8771AB3E305DEF4D00331807 /* BiometricAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricAuthManager.swift; sourceTree = "<group>"; };
 		8787AA9A2FD2071700A8DC15 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
 		8787AA9C2FD2074C00A8DC15 /* SupabaseRESTManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseRESTManager.swift; sourceTree = "<group>"; };
 		8787AA9E2FD20AF800A8DC15 /* PickDropNotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickDropNotification.swift; sourceTree = "<group>"; };
@@ -134,6 +136,7 @@
 		8751679A2FAD689800E8B528 /* PickandDrop */ = {
 			isa = PBXGroup;
 			children = (
+				8771AB3E305DEF4D00331807 /* BiometricAuthManager.swift */,
 				8771AAA9305CB75800331807 /* WeeklyDriverVerificationView.swift */,
 				8771AA8F305B953900331807 /* ManageTrucksView.swift */,
 				8771AA8D305B92B700331807 /* TruckSupabaseManager.swift */,
@@ -292,6 +295,7 @@
 				8760FA7A2FBD818500AADD94 /* DriverFilesView.swift in Sources */,
 				875167A02FAD689800E8B528 /* AdminDashboardView.swift in Sources */,
 				875167A12FAD689800E8B528 /* CSVExporter.swift in Sources */,
+				8771AB3F305DEF5100331807 /* BiometricAuthManager.swift in Sources */,
 				8743DB4D3044B11C008B5C84 /* AppUpdateAdminView.swift in Sources */,
 				875167A32FAD689800E8B528 /* DriverDashboardView.swift in Sources */,
 				875167A42FAD689800E8B528 /* DriverDetailView.swift in Sources */,
@@ -469,6 +473,8 @@
 				INFOPLIST_KEY_CFBundleDisplayName = PickandDropSupabase;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Fuel receipt photos are used for operational fuel tracking.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to securely sign in to Pick and Drop.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save fuel receipt photos to your photo library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "";
@@ -510,6 +516,8 @@
 				INFOPLIST_KEY_CFBundleDisplayName = PickandDropSupabase;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Fuel receipt photos are used for operational fuel tracking.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to securely sign in to Pick and Drop.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save fuel receipt photos to your photo library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "";

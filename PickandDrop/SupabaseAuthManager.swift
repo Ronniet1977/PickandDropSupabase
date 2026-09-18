@@ -594,9 +594,23 @@ final class SupabaseAuthManager {
         refreshToken = nil
         currentUserID = nil
 
-        AuthKeychain.deleteRefreshToken()
+        // Keep the refresh token in Keychain.
+        // This allows Remember Me / Face ID to restore
+        // the authenticated session later.
 
-        print("✅ Local Auth session cleared")
+        print("🔒 Local Auth session cleared — saved login preserved")
+    }
+    
+    func clearSavedSession() {
+
+        accessToken = nil
+        refreshToken = nil
+        currentUserID = nil
+
+        AuthKeychain.deleteRefreshToken()
+        AuthKeychain.deleteRememberedPassword()
+
+        print("🗑️ Saved Auth session completely cleared")
     }
 
     // MARK: - Error Handling
