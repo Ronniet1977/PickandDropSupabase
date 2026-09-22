@@ -469,39 +469,30 @@ final class LocationSupabaseManager {
         }
     }
     
-    func deactivateLocation(
+    func deleteLocation(
         id: UUID
     ) async -> Bool {
         
-        let body: [String: Any] = [
-            "is_active": false
-        ]
-        
         do {
             
-            let data =
-            try JSONSerialization.data(
-                withJSONObject: body
-            )
-            
-            _ = try await
+            let response = try await
             SupabaseRESTManager.shared
                 .request(
                     table: "pickdrop_locations",
-                    method: "PATCH",
+                    method: "DELETE",
                     query:
-                        "?id=eq.\(id.uuidString)",
-                    body: data
+                        "?id=eq.\(id.uuidString)&select=*"
                 )
             
-            print("✅ Location deactivated")
+            print("🗑️ DELETE RESPONSE:")
+            print(String(data: response, encoding: .utf8) ?? "No response body")
             
             return true
             
         } catch {
             
             print(
-                "❌ Failed deactivating location:",
+                "❌ Failed deleting location:",
                 error
             )
             

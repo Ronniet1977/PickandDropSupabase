@@ -1689,22 +1689,8 @@ struct AdminLocationsView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             }
+                            .contentShape(Rectangle())
                             .buttonStyle(.plain)
-                            
-                            Button(
-                                role: .destructive
-                            ) {
-                                
-                                Task {
-                                    await deactivate(location)
-                                }
-                                
-                            } label: {
-                                
-                                Image(
-                                    systemName: "trash"
-                                )
-                            }
                         }
                     }
                 }
@@ -1799,25 +1785,6 @@ struct AdminLocationsView: View {
         
         isSaving = false
     }
-    
-    @MainActor
-    private func deactivate(
-        _ location: SupabaseLocation
-    ) async {
-        
-        let success =
-        await LocationSupabaseManager.shared
-            .deactivateLocation(
-                id: location.id
-            )
-        
-        if success {
-            
-            locations =
-            await LocationSupabaseManager.shared
-                .fetchLocations()
-        }
-    }
 }
 
 struct EditLocationRatesView: View {
@@ -1837,6 +1804,7 @@ struct EditLocationRatesView: View {
     @State private var ratePerHour = ""
     
     @State private var isSaving = false
+    @State private var showingDeleteConfirmation = false
     
     var body: some View {
         
@@ -1969,6 +1937,29 @@ struct EditLocationRatesView: View {
                     }
                 }
                 .disabled(isSaving)
+                
+                Section {
+                    
+                    Button(role: .destructive) {
+                        
+                        showingDeleteConfirmation = true
+                        
+                    } label: {
+                        
+                        HStack {
+                            
+                            Spacer()
+                            
+                            Label(
+                                "Delete Location",
+                                systemImage: "trash.fill"
+                            )
+                            
+                            Spacer()
+                        }
+                    }
+                    .disabled(isSaving)
+                }
             }
             .navigationTitle("Edit Rates")
             .navigationBarTitleDisplayMode(.inline)
@@ -1988,7 +1979,53 @@ struct EditLocationRatesView: View {
             .onAppear {
                 loadExistingRates()
             }
+            .confirmationDialog(
+                "Delete \(location.name)?",
+                isPresented: $showingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                
+                Button(
+                    "Delete Location",
+                    role: .destructive
+                ) {
+                    Task {
+                        await deleteLocation()
+                    }
+                }
+                
+                Button(
+                    "Cancel",
+                    role: .cancel
+                ) {}
+                
+            } message: {
+                
+                Text("This will permanently delete the location from Supabase."
+                )
+            }
         }
+    }
+    
+    @MainActor
+    private func deleteLocation() async {
+        
+        guard !isSaving else {
+            return
+        }
+        
+        isSaving = true
+        
+        let success = await LocationSupabaseManager.shared
+            .deleteLocation(id: location.id)
+        
+        if success {
+            
+            onSaved?()
+            dismiss()
+        }
+        
+        isSaving = false
     }
     
     private func loadExistingRates() {
