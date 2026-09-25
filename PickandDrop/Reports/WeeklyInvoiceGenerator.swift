@@ -29,6 +29,9 @@ struct WeeklyInvoiceRow {
     let ratePerHour: Double
     let billableHours: Double
     
+    let hourlyStartedAt: Date?
+    let hourlyEndedAt: Date?
+    
     var loadRevenue: Double {
         
         switch billingType {
@@ -100,6 +103,7 @@ enum WeeklyInvoiceGenerator {
         settings: SupabaseCompanySettings,
         weekDate: Date,
         loads: [SupabaseLoad],
+        shifts: [SupabaseShift],
         dropoffLocation: String,
         archived: Bool = false
     ) -> URL? {
@@ -147,6 +151,273 @@ enum WeeklyInvoiceGenerator {
     var rows: [WeeklyInvoiceRow] = []
 
         let iso = ISO8601DateFormatter()
+        
+        func parseDate(
+            _ value: String?
+        ) -> Date? {
+            
+            guard let value else {
+                return nil
+            }
+            
+            let iso = ISO8601DateFormatter()
+            
+            if let date = iso.date(from: value) {
+                return date
+            }
+            
+            let formatter = DateFormatter()
+            formatter.locale =
+            Locale(identifier: "en_US_POSIX")
+            formatter.timeZone =
+            TimeZone(secondsFromGMT: 0)
+            
+            formatter.dateFormat =
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXXXX"
+            
+            if let date = formatter.date(from: value) {
+                return date
+            }
+            
+            formatter.dateFormat =
+            "yyyy-MM-dd HH:mm:ss.SSSSSSXXXXX"
+            
+            if let date = formatter.date(from: value) {
+                return date
+            }
+            
+            formatter.dateFormat =
+            "yyyy-MM-dd HH:mm:ssXXXXX"
+            
+            return formatter.date(from: value)
+        }
+        
+        // MARK: - Hourly Shift Rows
+        
+        let hourlyShifts =
+        shifts.filter { shift in
+            
+            guard
+                shift.hourly_started_at != nil,
+                shift.dropoff_location?
+                    .caseInsensitiveCompare(
+                        dropoffLocation
+                    ) == .orderedSame
+            else {
+                return false
+            }
+            
+            return true
+        }
+        
+        for shift in hourlyShifts {
+            
+            guard
+                let hourlyStartedText =
+                    shift.hourly_started_at,
+                
+                    let hourlyStartedDate =
+                    parseDate(hourlyStartedText),
+                
+                    weekInterval.contains(
+                        hourlyStartedDate
+                    ),
+                
+                    shift.hourly_ended_at != nil,
+                
+                    let billableHours =
+                    shift.hourly_billable_hours,
+                
+                    billableHours > 0
+            else {
+                continue
+            }
+            
+            // Use the REAL shift window to find tickets.
+            // Admin edits to hourly start/end should not
+            // make the pickup tickets disappear.
+            
+            guard
+                let shiftStartedDate =
+                    parseDate(shift.started_at)
+            else {
+                continue
+            }
+            
+            let shiftEndedDate: Date
+            
+            if let endedText = shift.ended_at,
+               let endedDate = parseDate(endedText) {
+                
+                shiftEndedDate = endedDate
+                
+            } else {
+                
+                shiftEndedDate = Date()
+            }
+            
+            let shiftLoads =
+            loads
+                .filter { load in
+                    
+                    guard
+                        load.driver_name ==
+                            shift.driver_name,
+                        
+                            load.pickup_location ==
+                            shift.pickup_location,
+                        
+                            load.dropoff_location ==
+                            shift.dropoff_location,
+                        
+                            load.is_archived ==
+                            archived,
+                        
+                            let createdText =
+                            load.created_at,
+                        
+                            let createdDate =
+                            parseDate(createdText)
+                    else {
+                        return false
+                    }
+                    
+                    guard (load.pickup_tons ?? 0) > 0 else {
+                        return false
+                    }
+                    
+                    return createdDate >= shiftStartedDate &&
+                    createdDate <= shiftEndedDate
+                }
+                .sorted { first, second in
+                    
+                    guard
+                        let firstText = first.created_at,
+                        let secondText = second.created_at,
+                        let firstDate = parseDate(firstText),
+                        let secondDate = parseDate(secondText)
+                    else {
+                        return false
+                    }
+                    
+                    return firstDate < secondDate
+                }
+            
+            let hourlyRate =
+            shift.hourly_rate ?? 0
+            
+            // MARK: Pickup tickets
+            
+            for load in shiftLoads {
+                
+                let pickupTons =
+                load.pickup_tons ?? 0
+                
+                guard pickupTons > 0 else {
+                    continue
+                }
+                
+                let pickupTicket =
+                load.pickup_ticket_number ?? "—"
+                
+                // Only the FIRST ticket row carries
+                // the hourly billing for this shift.
+                
+                rows.append(
+                    WeeklyInvoiceRow(
+                        date:
+                            hourlyStartedDate,
+                        
+                        pickupLocation:
+                            load.pickup_location
+                        ?? shift.pickup_location
+                        ?? settings.pickup_company_name,
+                        
+                        pickupTicket:
+                            pickupTicket,
+                        
+                        pickupTons:
+                            pickupTons,
+                        
+                        dropoffLocation:
+                            load.dropoff_location
+                        ?? shift.dropoff_location
+                        ?? dropoffLocation,
+                        
+                        // Hourly jobs do not need
+                        // a dropoff ticket.
+                        deliveryTicket:
+                            "—",
+                        
+                        driver:
+                            shift.driver_name,
+                        
+                        billingType:
+                            "per_hour",
+                        
+                        ratePerTon:
+                            0,
+                        
+                        fuelSurchargePerTon:
+                            0,
+                        
+                        ratePerLoad:
+                            0,
+                        
+                        ratePerHour: 0,
+                        billableHours: 0,
+                        
+                        hourlyStartedAt: nil,
+                        hourlyEndedAt: nil
+                    )
+                )
+            }
+            
+            // MARK: Hourly billing row
+            
+            rows.append(
+                WeeklyInvoiceRow(
+                    date: hourlyStartedDate,
+                    
+                    pickupLocation: "",
+                    
+                    pickupTicket:
+                        "Hourly Billing",
+                    
+                    pickupTons: 0,
+                    
+                    dropoffLocation:
+                        shift.dropoff_location
+                    ?? dropoffLocation,
+                    
+                    deliveryTicket: "—",
+                    
+                    driver:
+                        shift.driver_name,
+                    
+                    billingType:
+                        "per_hour",
+                    
+                    ratePerTon: 0,
+                    fuelSurchargePerTon: 0,
+                    ratePerLoad: 0,
+                    
+                    ratePerHour:
+                        hourlyRate,
+                    
+                    billableHours:
+                        billableHours,
+                    
+                    hourlyStartedAt:
+                        hourlyStartedDate,
+                    
+                    hourlyEndedAt:
+                        parseDate(
+                            shift.hourly_ended_at
+                        )
+                )
+            )
+        }
 
         for load in loads {
             guard load.is_archived == archived else {
@@ -187,6 +458,12 @@ enum WeeklyInvoiceGenerator {
             let billingType =
             load.billing_type
             ?? "per_ton"
+            
+            // Hourly billing is generated from the shift,
+            // not from individual tickets.
+            if billingType == "per_hour" {
+                continue
+            }
             
             let storedRatePerTon =
             load.rate_per_ton ?? 0
@@ -263,7 +540,10 @@ enum WeeklyInvoiceGenerator {
                         ratePerHour,
                     
                     billableHours:
-                        billableHours
+                        billableHours,
+                    
+                    hourlyStartedAt: nil,
+                    hourlyEndedAt: nil
                 )
             )
         }
@@ -271,6 +551,11 @@ enum WeeklyInvoiceGenerator {
         let totalTons =
         rows.reduce(0.0) {
             $0 + $1.pickupTons
+        }
+        
+        let totalBillableHours =
+        rows.reduce(0.0) {
+            $0 + $1.billableHours
         }
         
         let loadRevenue =
@@ -326,6 +611,10 @@ enum WeeklyInvoiceGenerator {
                 
                 let formatter = DateFormatter()
                 formatter.dateStyle = .short
+                
+                let timeFormatter = DateFormatter()
+                timeFormatter.timeStyle = .short
+                timeFormatter.dateStyle = .none
                 
                 func drawText(
                     _ text: String,
@@ -413,7 +702,11 @@ enum WeeklyInvoiceGenerator {
 
                     let billingText: String
 
-                    if let firstRow = rows.first {
+                    if let firstRow =
+                        rows.first(where: {
+                            $0.billingType != "per_hour" ||
+                            $0.ratePerHour > 0
+                        }) {
 
                         switch firstRow.billingType {
 
@@ -500,6 +793,9 @@ enum WeeklyInvoiceGenerator {
                     )
                 }
                 
+                let isHourlyInvoice =
+                rows.first?.billingType == "per_hour"
+                
                 func drawTableHeader(at y: CGFloat) {
                     
                     UIColor.systemBlue.setFill()
@@ -559,12 +855,14 @@ enum WeeklyInvoiceGenerator {
                              width: 58,
                              color: .white)
                     
-                    drawText("Ticket",
-                             x: 328,
-                             y: textY,
-                             font: font,
-                             width: 68,
-                             color: .white)
+                    drawText(
+                        isHourlyInvoice ? "Hours" : "Ticket",
+                        x: 328,
+                        y: textY,
+                        font: font,
+                        width: 68,
+                        color: .white
+                    )
                     
                     drawText("Rate",
                              x: 398,
@@ -638,8 +936,23 @@ enum WeeklyInvoiceGenerator {
                         width: 44
                     )
                     
+                    let pickupDisplay: String
+                    
+                    if row.billingType == "per_hour",
+                       row.pickupTicket == "Hourly Billing",
+                       let start = row.hourlyStartedAt {
+                        
+                        pickupDisplay =
+                        "Start \(timeFormatter.string(from: start))"
+                        
+                    } else {
+                        
+                        pickupDisplay =
+                        row.pickupLocation
+                    }
+                    
                     drawText(
-                        row.pickupLocation,
+                        pickupDisplay,
                         x: 100,
                         y: textY,
                         font: font,
@@ -655,15 +968,33 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        String(format: "%.2f", row.pickupTons),
+                        row.billingType == "per_hour" &&
+                        row.pickupTicket == "Hourly Billing"
+                        ? ""
+                        : String(format: "%.2f", row.pickupTons),
                         x: 226,
                         y: textY,
                         font: font,
                         width: 40
                     )
                     
+                    let dropoffDisplay: String
+                    
+                    if row.billingType == "per_hour",
+                       row.pickupTicket == "Hourly Billing",
+                       let finish = row.hourlyEndedAt {
+                        
+                        dropoffDisplay =
+                        "Finish \(timeFormatter.string(from: finish))"
+                        
+                    } else {
+                        
+                        dropoffDisplay =
+                        row.dropoffLocation
+                    }
+                    
                     drawText(
-                        row.dropoffLocation,
+                        dropoffDisplay,
                         x: 268,
                         y: textY,
                         font: font,
@@ -671,7 +1002,16 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        row.deliveryTicket,
+                        row.billingType == "per_hour"
+                        ? (
+                            row.billableHours > 0
+                            ? String(
+                                format: "%.1f hrs",
+                                row.billableHours
+                            )
+                            : ""
+                        )
+                        : row.deliveryTicket,
                         x: 328,
                         y: textY,
                         font: font,
@@ -755,7 +1095,9 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        "Load Revenue:",
+                        isHourlyInvoice
+                        ? "Billable Hours:"
+                        : "Load Revenue:",
                         x: boxX + 15,
                         y: y + 29,
                         font: .boldSystemFont(ofSize: 9.5),
@@ -763,7 +1105,9 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        String(format: "$%.2f", loadRevenue),
+                        isHourlyInvoice
+                        ? String(format: "%.1f", totalBillableHours)
+                        : String(format: "$%.2f", loadRevenue),
                         x: boxX + 145,
                         y: y + 29,
                         font: .systemFont(ofSize: 9.5),
@@ -772,7 +1116,9 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        "Fuel Surcharge:",
+                        isHourlyInvoice
+                        ? "Hourly Revenue:"
+                        : "Fuel Surcharge:",
                         x: boxX + 15,
                         y: y + 48,
                         font: .boldSystemFont(ofSize: 9.5),
@@ -780,7 +1126,9 @@ enum WeeklyInvoiceGenerator {
                     )
                     
                     drawText(
-                        String(format: "$%.2f", fuelSurcharge),
+                        isHourlyInvoice
+                        ? String(format: "$%.2f", loadRevenue)
+                        : String(format: "$%.2f", fuelSurcharge),
                         x: boxX + 145,
                         y: y + 48,
                         font: .systemFont(ofSize: 9.5),

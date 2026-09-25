@@ -413,23 +413,30 @@ struct ReportsView: View {
         dropoff: String,
         archived: Bool
     ) async {
-
+        
         guard let settings else {
             return
         }
-
-        let loads =
-            await LoadSupabaseManager.shared.fetchLoads()
-
+        
+        async let loadedLoads =
+        LoadSupabaseManager.shared.fetchLoads()
+        
+        async let loadedShifts =
+        ShiftSupabaseManager.shared.fetchShifts()
+        
+        let loads = await loadedLoads
+        let shifts = await loadedShifts
+        
         let url =
-            WeeklyInvoiceGenerator.createWeeklyInvoicePDF(
-                settings: settings,
-                weekDate: selectedInvoiceWeek,
-                loads: loads,
-                dropoffLocation: dropoff,
-                archived: archived
-            )
-
+        WeeklyInvoiceGenerator.createWeeklyInvoicePDF(
+            settings: settings,
+            weekDate: selectedInvoiceWeek,
+            loads: loads,
+            shifts: shifts,
+            dropoffLocation: dropoff,
+            archived: archived
+        )
+        
         await MainActor.run {
             weeklyInvoiceURL = url
         }

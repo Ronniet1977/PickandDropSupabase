@@ -66,6 +66,15 @@ struct DriverFilesView: View {
                             systemImage: "shippingbox.and.arrow.backward.fill"
                         )
                     }
+                    
+                    NavigationLink {
+                        AdminHourlyJobsView()
+                    } label: {
+                        Label(
+                            "Hourly Jobs",
+                            systemImage: "clock.fill"
+                        )
+                    }
 
                     NavigationLink("Weekly Fuel") {
                         WeeklyFuelCardsView()
@@ -1177,6 +1186,752 @@ struct AdminLoadManagementView: View {
         settings = await loadedSettings
         
         isLoading = false
+    }
+}
+
+struct AdminHourlyJobsView: View {
+    
+    @State private var shifts: [SupabaseShift] = []
+    @State private var isLoading = false
+    @State private var loads: [SupabaseLoad] = []
+    @State private var selectedWeekStart =
+    Calendar.current.dateInterval(
+        of: .weekOfYear,
+        for: Date()
+    )?.start ?? Date()
+    
+    private var hourlyShifts: [SupabaseShift] {
+        shifts.filter {
+            $0.hourly_started_at != nil
+        }
+    }
+    
+    private func loadsForHourlyShift(
+        _ shift: SupabaseShift
+    ) -> [SupabaseLoad] {
+        
+        guard let shiftStart =
+                hourlyDate(shift.started_at)
+        else {
+            return []
+        }
+        
+        let shiftFinish =
+        hourlyDate(shift.ended_at)
+        ?? Date()
+        
+        return loads.filter { load in
+            
+            guard
+                load.driver_name == shift.driver_name,
+                load.pickup_location == shift.pickup_location,
+                load.dropoff_location == shift.dropoff_location,
+                let loadDate =
+                    hourlyDate(load.created_at)
+            else {
+                return false
+            }
+            
+            return loadDate >= shiftStart &&
+            loadDate <= shiftFinish
+        }
+    }
+    
+    private func ticketCount(
+        for shift: SupabaseShift
+    ) -> Int {
+        
+        loadsForHourlyShift(shift)
+            .filter {
+                !($0.pickup_ticket_number ?? "")
+                    .trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    )
+                    .isEmpty
+            }
+            .count
+    }
+    
+    private func totalTons(
+        for shift: SupabaseShift
+    ) -> Double {
+        
+        loadsForHourlyShift(shift)
+            .reduce(0) {
+                $0 + ($1.pickup_tons ?? 0)
+            }
+    }
+    
+    private var selectedWeekEnd: Date {
+        Calendar.current.date(
+            byAdding: .day,
+            value: 7,
+            to: selectedWeekStart
+        ) ?? selectedWeekStart
+    }
+    
+    private var weeklyHourlyShifts: [SupabaseShift] {
+        
+        hourlyShifts.filter { shift in
+            
+            guard let date =
+                    hourlyDate(
+                        shift.hourly_started_at
+                    )
+            else {
+                return false
+            }
+            
+            return date >= selectedWeekStart &&
+            date < selectedWeekEnd
+        }
+    }
+    
+    private var weekTitle: String {
+        
+        let end =
+        Calendar.current.date(
+            byAdding: .day,
+            value: 6,
+            to: selectedWeekStart
+        ) ?? selectedWeekStart
+        
+        return
+        "\(selectedWeekStart.formatted(date: .abbreviated, time: .omitted)) – \(end.formatted(date: .abbreviated, time: .omitted))"
+    }
+    
+    private var weeklyJobCount: Int {
+        weeklyHourlyShifts.count
+    }
+    
+    private var weeklyTicketCount: Int {
+        weeklyHourlyShifts.reduce(0) {
+            $0 + ticketCount(for: $1)
+        }
+    }
+    
+    private var weeklyTons: Double {
+        weeklyHourlyShifts.reduce(0) {
+            $0 + totalTons(for: $1)
+        }
+    }
+    
+    private var weeklyBillableHours: Double {
+        weeklyHourlyShifts.reduce(0) {
+            $0 + ($1.hourly_billable_hours ?? 0)
+        }
+    }
+    
+    private var weeklyTotal: Double {
+        weeklyHourlyShifts.reduce(0) {
+            $0 +
+            (($1.hourly_billable_hours ?? 0) *
+             ($1.hourly_rate ?? 0))
+        }
+    }
+    
+    var body: some View {
+        
+        ScrollView {
+            
+            VStack(spacing: 16) {
+                HStack {
+                    
+                    Button {
+                        if let previous =
+                            Calendar.current.date(
+                                byAdding: .day,
+                                value: -7,
+                                to: selectedWeekStart
+                            ) {
+                            
+                            selectedWeekStart = previous
+                        }
+                    } label: {
+                        Image(systemName: "chevron.left.circle.fill")
+                            .font(.title2)
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(spacing: 3) {
+                        
+                        Text("Week")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        Text(weekTitle)
+                            .font(.headline)
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        if let next =
+                            Calendar.current.date(
+                                byAdding: .day,
+                                value: 7,
+                                to: selectedWeekStart
+                            ) {
+                            
+                            selectedWeekStart = next
+                        }
+                    } label: {
+                        Image(systemName: "chevron.right.circle.fill")
+                            .font(.title2)
+                    }
+                }
+                .padding()
+                .background(AppTheme.cardBackground)
+                .clipShape(
+                    RoundedRectangle(cornerRadius: 20)
+                )
+                
+                if !weeklyHourlyShifts.isEmpty {
+                    
+                    VStack(alignment: .leading, spacing: 14) {
+                        
+                        Label(
+                            "Weekly Summary",
+                            systemImage: "chart.bar.fill"
+                        )
+                        .font(.headline)
+                        
+                        Divider()
+                        
+                        LabeledContent(
+                            "Hourly Jobs",
+                            value: "\(weeklyJobCount)"
+                        )
+                        
+                        LabeledContent(
+                            "Tickets",
+                            value: "\(weeklyTicketCount)"
+                        )
+                        
+                        LabeledContent(
+                            "Total Tons",
+                            value:
+                                String(
+                                    format: "%.2f tons",
+                                    weeklyTons
+                                )
+                        )
+                        
+                        LabeledContent(
+                            "Billable Hours",
+                            value:
+                                String(
+                                    format: "%.1f hrs",
+                                    weeklyBillableHours
+                                )
+                        )
+                        
+                        Divider()
+                        
+                        LabeledContent(
+                            "Weekly Total",
+                            value:
+                                String(
+                                    format: "$%.2f",
+                                    weeklyTotal
+                                )
+                        )
+                        .font(.headline)
+                    }
+                    .frame(
+                        maxWidth: .infinity,
+                        alignment: .leading
+                    )
+                    .padding()
+                    .background(AppTheme.cardBackground)
+                    .clipShape(
+                        RoundedRectangle(cornerRadius: 24)
+                    )
+                }
+                
+                if isLoading && hourlyShifts.isEmpty {
+                    
+                    ProgressView("Loading hourly jobs...")
+                        .padding(.top, 40)
+                    
+                } else if weeklyHourlyShifts.isEmpty {
+                    
+                    ContentUnavailableView(
+                        "No Hourly Jobs",
+                        systemImage: "clock.fill",
+                        description:
+                            Text(
+                                "No hourly jobs were found for \(weekTitle)."
+                            )
+                    )
+                    .padding(.top, 40)
+                    
+                } else {
+                    
+                    ForEach(weeklyHourlyShifts) { shift in
+                        
+                        NavigationLink {
+                            
+                            EditHourlyJobView(
+                                shift: shift
+                            ) {
+                                Task {
+                                    await loadShifts()
+                                }
+                            }
+                            
+                        } label: {
+                            
+                            VStack(
+                            alignment: .leading,
+                            spacing: 12
+                        ) {
+                            
+                            HStack {
+                                
+                                VStack(
+                                    alignment: .leading,
+                                    spacing: 4
+                                ) {
+                                    
+                                    Text(shift.driver_name)
+                                        .font(.title2.bold())
+                                    
+                                    Text(
+                                        "Truck \(shift.truck_number)"
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                Text(
+                                    shift.status.capitalized
+                                )
+                                .font(.caption.bold())
+                                .foregroundStyle(
+                                    shift.status == "active"
+                                    ? .green
+                                    : .secondary
+                                )
+                            }
+                            
+                            Divider()
+                            
+                            Label(
+                                "\(shift.pickup_location ?? "Pickup") → \(shift.dropoff_location ?? "Dropoff")",
+                                systemImage: "arrow.right"
+                            )
+                            
+                            if let start =
+                                hourlyDate(
+                                    shift.hourly_started_at
+                                ) {
+                                
+                                LabeledContent(
+                                    "Started",
+                                    value:
+                                        start.formatted(
+                                            date: .abbreviated,
+                                            time: .shortened
+                                        )
+                                )
+                            }
+                            
+                            if let finish =
+                                hourlyDate(
+                                    shift.hourly_ended_at
+                                ) {
+                                
+                                LabeledContent(
+                                    "Finished",
+                                    value:
+                                        finish.formatted(
+                                            date: .omitted,
+                                            time: .shortened
+                                        )
+                                )
+                            }
+                            
+                            if let start =
+                                hourlyDate(
+                                    shift.hourly_started_at
+                                ),
+                               let finish =
+                                hourlyDate(
+                                    shift.hourly_ended_at
+                                ) {
+                                
+                                let seconds =
+                                max(
+                                    0,
+                                    finish.timeIntervalSince(start)
+                                )
+                                
+                                let hours =
+                                Int(seconds) / 3600
+                                
+                                let minutes =
+                                (Int(seconds) % 3600) / 60
+                                
+                                LabeledContent(
+                                    "Actual Time",
+                                    value:
+                                        "\(hours) hr \(minutes) min"
+                                )
+                            }
+                            
+                            LabeledContent(
+                                "Tickets",
+                                value:
+                                    "\(ticketCount(for: shift))"
+                            )
+                            
+                            LabeledContent(
+                                "Total Tons",
+                                value:
+                                    String(
+                                        format: "%.2f tons",
+                                        totalTons(for: shift)
+                                    )
+                            )
+                            
+                            if let hours =
+                                shift.hourly_billable_hours {
+                                
+                                LabeledContent(
+                                    "Billable Hours",
+                                    value:
+                                        String(
+                                            format: "%.1f hrs",
+                                            hours
+                                        )
+                                )
+                            }
+                            
+                            if let rate =
+                                shift.hourly_rate {
+                                
+                                LabeledContent(
+                                    "Hourly Rate",
+                                    value:
+                                        String(
+                                            format: "$%.2f/hr",
+                                            rate
+                                        )
+                                )
+                                
+                                if let hours =
+                                    shift.hourly_billable_hours {
+                                    
+                                    LabeledContent(
+                                        "Total",
+                                        value:
+                                            String(
+                                                format:
+                                                    "$%.2f",
+                                                hours * rate
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                        .frame(
+                            maxWidth: .infinity,
+                            alignment: .leading
+                        )
+                        .padding()
+                        .background(
+                            AppTheme.cardBackground
+                        )
+                        .clipShape(
+                            RoundedRectangle(
+                                cornerRadius: 24
+                            )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Hourly Jobs")
+        .task {
+            await loadShifts()
+            
+            let loadedLoads =
+            await LoadSupabaseManager.shared
+                .fetchLoads()
+            
+            await MainActor.run {
+                loads = loadedLoads
+            }
+        }
+        .refreshable {
+            let loaded =
+            await ShiftSupabaseManager.shared
+                .fetchShifts()
+            
+            if !loaded.isEmpty {
+                await MainActor.run {
+                    shifts = loaded
+                }
+            }
+        }
+    }
+    
+    @MainActor
+    private func loadShifts() async {
+        
+        guard !isLoading else {
+            return
+        }
+        
+        isLoading = true
+        
+        let loaded =
+        await ShiftSupabaseManager.shared
+            .fetchShifts()
+        
+        if !loaded.isEmpty {
+            shifts = loaded
+        }
+        
+        isLoading = false
+    }
+}
+
+private func hourlyDate(
+    _ value: String?
+) -> Date? {
+    
+    guard let value else {
+        return nil
+    }
+    
+    // Supabase timestamp with fractional seconds
+    let fractional =
+    ISO8601DateFormatter()
+    
+    fractional.formatOptions = [
+        .withInternetDateTime,
+        .withFractionalSeconds
+    ]
+    
+    if let date =
+        fractional.date(from: value) {
+        return date
+    }
+    
+    // Supabase timestamp without fractional seconds
+    let standard =
+    ISO8601DateFormatter()
+    
+    standard.formatOptions = [
+        .withInternetDateTime
+    ]
+    
+    if let date =
+        standard.date(from: value) {
+        return date
+    }
+    
+    print(
+        "⚠️ Could not parse Supabase date:",
+        value
+    )
+    
+    return nil
+}
+
+struct EditHourlyJobView: View {
+    
+    let shift: SupabaseShift
+    var onSaved: (() -> Void)? = nil
+    
+    @Environment(\.dismiss)
+    private var dismiss
+    
+    @State private var startDate = Date()
+    @State private var endDate = Date()
+    @State private var isSaving = false
+    
+    private var billableHours: Double {
+        
+        let seconds =
+        max(
+            0,
+            endDate.timeIntervalSince(startDate)
+        )
+        
+        let hours =
+        seconds / 3600
+        
+        return (hours * 2).rounded() / 2
+    }
+    
+    private var total: Double {
+        billableHours * (shift.hourly_rate ?? 0)
+    }
+    
+    var body: some View {
+        
+        Form {
+            
+            Section("Hourly Job") {
+                
+                LabeledContent(
+                    "Driver",
+                    value: shift.driver_name
+                )
+                
+                LabeledContent(
+                    "Route",
+                    value:
+                        "\(shift.pickup_location ?? "Pickup") → \(shift.dropoff_location ?? "Dropoff")"
+                )
+                
+                LabeledContent(
+                    "Rate",
+                    value:
+                        String(
+                            format:
+                                "$%.2f/hr",
+                            shift.hourly_rate ?? 0
+                        )
+                )
+            }
+            
+            Section("Time") {
+                
+                DatePicker(
+                    "Start",
+                    selection: $startDate
+                )
+                
+                DatePicker(
+                    "Finish",
+                    selection: $endDate
+                )
+            }
+            
+            Section("Billing") {
+                
+                LabeledContent(
+                    "Billable Hours",
+                    value:
+                        String(
+                            format:
+                                "%.1f hrs",
+                            billableHours
+                        )
+                )
+                
+                LabeledContent(
+                    "Total",
+                    value:
+                        String(
+                            format:
+                                "$%.2f",
+                            total
+                        )
+                )
+            }
+            
+            Button {
+                
+                Task {
+                    await save()
+                }
+                
+            } label: {
+                
+                HStack {
+                    
+                    Spacer()
+                    
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Label(
+                            "Save Times",
+                            systemImage:
+                                "checkmark.circle.fill"
+                        )
+                    }
+                    
+                    Spacer()
+                }
+            }
+            .disabled(
+                isSaving ||
+                endDate < startDate
+            )
+        }
+        .navigationTitle("Edit Hourly Time")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            loadTimes()
+        }
+    }
+    
+    private func loadTimes() {
+        
+        let formatter =
+        ISO8601DateFormatter()
+        
+        if let value =
+            shift.hourly_started_at,
+           
+            let date =
+            formatter.date(from: value) {
+            
+            startDate = date
+        }
+        
+        if let value =
+            shift.hourly_ended_at,
+           
+            let date =
+            formatter.date(from: value) {
+            
+            endDate = date
+            
+        } else {
+            
+            endDate = Date()
+        }
+    }
+    
+    @MainActor
+    private func save() async {
+        
+        guard !isSaving else {
+            return
+        }
+        
+        guard endDate >= startDate else {
+            return
+        }
+        
+        isSaving = true
+        
+        let success =
+        await ShiftSupabaseManager.shared
+            .updateHourlyTimes(
+                id: shift.id,
+                startDate: startDate,
+                endDate: endDate
+            )
+        
+        if success {
+            dismiss()
+        }
+        
+        isSaving = false
     }
 }
 

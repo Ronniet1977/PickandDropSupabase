@@ -621,6 +621,33 @@ struct AddLoadView: View {
                 ratePerHour
         )
         
+        // MARK: - Start Hourly Job On First Ticket
+        
+        if billingType == "per_hour" {
+            
+            if let activeShift =
+                await ShiftSupabaseManager.shared
+                .fetchActiveShift(
+                    driverName: driver.name
+                ) {
+                
+                let hourlyRate =
+                selectedDropoff?.rate_per_hour ?? 0
+                
+                _ = await ShiftSupabaseManager.shared
+                    .startHourlyJobIfNeeded(
+                        shift: activeShift,
+                        hourlyRate: hourlyRate
+                    )
+                
+            } else {
+                
+                print(
+                    "⚠️ No active shift found for hourly job"
+                )
+            }
+        }
+        
         // ✅ Send admin notification to Supabase
         let notificationMessage: String
 

@@ -16,6 +16,13 @@ struct SupabaseShift: Codable, Identifiable {
     
     let status: String
     let created_at: String?
+    
+    // MARK: - Hourly Job Tracking
+    
+    let hourly_started_at: String?
+    let hourly_ended_at: String?
+    let hourly_rate: Double?
+    let hourly_billable_hours: Double?
 }
 
 final class ShiftSupabaseManager {
@@ -232,6 +239,64 @@ final class ShiftSupabaseManager {
         }
     }
     
+    // MARK: - Start Hourly Job
+    
+    func startHourlyJobIfNeeded(
+        shift: SupabaseShift,
+        hourlyRate: Double
+    ) async -> Bool {
+        
+        // Already started — never reset the first-ticket time.
+        if shift.hourly_started_at != nil {
+            print("⏱️ Hourly job already started")
+            return true
+        }
+        
+        let now =
+        ISO8601DateFormatter()
+            .string(from: Date())
+        
+        let body: [String: Any] = [
+            "hourly_started_at": now,
+            "hourly_rate": hourlyRate
+        ]
+        
+        do {
+            
+            let bodyData =
+            try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
+            _ = try await
+            SupabaseRESTManager.shared.request(
+                table: "pickdrop_shifts",
+                method: "PATCH",
+                query:
+                    "?id=eq.\(shift.id.uuidString)&hourly_started_at=is.null",
+                body: bodyData
+            )
+            
+            print(
+                "⏱️ Hourly job started:",
+                shift.driver_name,
+                "Rate:",
+                hourlyRate
+            )
+            
+            return true
+            
+        } catch {
+            
+            print(
+                "❌ Failed starting hourly job:",
+                error
+            )
+            
+            return false
+        }
+    }
+    
     func finishActiveShift(
         username: String
     ) async -> Bool {
@@ -278,44 +343,180 @@ final class ShiftSupabaseManager {
     func finishShift(
         id: UUID
     ) async -> Bool {
-
+        
+        let finishDate = Date()
+        
+        let formatter =
+        ISO8601DateFormatter()
+        
         let now =
-            ISO8601DateFormatter()
-                .string(from: Date())
-
-        let body: [String: Any] = [
+        formatter.string(from: finishDate)
+        
+        // Fetch the shift first so we can determine
+        // whether an hourly job was started.
+        
+        let shifts = await fetchShifts()
+        
+        guard let shift =
+                shifts.first(where: { $0.id == id })
+        else {
+            print("❌ Shift not found:", id)
+            return false
+        }
+        
+        var body: [String: Any] = [
             "ended_at": now,
             "status": "finished"
         ]
-
+        
+        // MARK: - Finish Hourly Job
+        
+        if let hourlyStartedString =
+            shift.hourly_started_at,
+           
+            let hourlyStartedDate =
+            formatter.date(
+                from: hourlyStartedString
+            ) {
+            
+            let elapsedSeconds =
+            finishDate.timeIntervalSince(
+                hourlyStartedDate
+            )
+            
+            let actualHours =
+            max(0, elapsedSeconds / 3600)
+            
+            // Round to nearest 30 minutes.
+            // Examples:
+            // 8:14 -> 8.0
+            // 8:15 -> 8.5
+            // 8:44 -> 8.5
+            // 8:45 -> 9.0
+            
+            let billableHours =
+            (actualHours * 2).rounded() / 2
+            
+            body["hourly_ended_at"] = now
+            body["hourly_billable_hours"] =
+            billableHours
+            
+            print(
+                "⏱️ Hourly job finished",
+                "Actual:",
+                actualHours,
+                "Billable:",
+                billableHours
+            )
+        }
+        
         do {
-
+            
             let bodyData =
-                try JSONSerialization.data(
-                    withJSONObject: body
-                )
-
-            _ = try await SupabaseRESTManager.shared.request(
+            try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
+            _ = try await
+            SupabaseRESTManager.shared.request(
                 table: "pickdrop_shifts",
                 method: "PATCH",
-                query: "?id=eq.\(id.uuidString)",
+                query:
+                    "?id=eq.\(id.uuidString)",
                 body: bodyData
             )
-
+            
             print(
                 "✅ Specific Supabase shift finished:",
                 id
             )
-
+            
             return true
-
+            
         } catch {
-
+            
             print(
                 "❌ Failed finishing specific Supabase shift:",
                 error
             )
-
+            
+            return false
+        }
+    }
+    
+    func updateHourlyTimes(
+        id: UUID,
+        startDate: Date,
+        endDate: Date
+    ) async -> Bool {
+        
+        guard endDate >= startDate else {
+            print("❌ Hourly end time is before start time")
+            return false
+        }
+        
+        let formatter =
+        ISO8601DateFormatter()
+        
+        let startString =
+        formatter.string(from: startDate)
+        
+        let endString =
+        formatter.string(from: endDate)
+        
+        let actualHours =
+        endDate.timeIntervalSince(startDate) / 3600
+        
+        // Nearest 30 minutes.
+        // 8:14 -> 8.0
+        // 8:15 -> 8.5
+        // 8:44 -> 8.5
+        // 8:45 -> 9.0
+        
+        let billableHours =
+        (actualHours * 2).rounded() / 2
+        
+        let body: [String: Any] = [
+            "hourly_started_at": startString,
+            "hourly_ended_at": endString,
+            "hourly_billable_hours": billableHours
+        ]
+        
+        do {
+            
+            let bodyData =
+            try JSONSerialization.data(
+                withJSONObject: body
+            )
+            
+            _ = try await
+            SupabaseRESTManager.shared.request(
+                table: "pickdrop_shifts",
+                method: "PATCH",
+                query:
+                    "?id=eq.\(id.uuidString)",
+                body: bodyData
+            )
+            
+            print(
+                "✅ Hourly times updated",
+                "Start:",
+                startString,
+                "End:",
+                endString,
+                "Billable:",
+                billableHours
+            )
+            
+            return true
+            
+        } catch {
+            
+            print(
+                "❌ Failed updating hourly times:",
+                error
+            )
+            
             return false
         }
     }

@@ -10,6 +10,16 @@ struct PickandDrop: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .task {
+                    let granted =
+                    await DriverReminderManager.shared
+                        .requestPermission()
+                    
+                    if granted {
+                        await DriverReminderManager.shared
+                            .scheduleDriverReminders()
+                    }
+                }
         }
         .modelContainer(
             for: [

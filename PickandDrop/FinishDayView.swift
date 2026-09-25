@@ -325,23 +325,23 @@ struct FinishDayView: View {
         }
 
         let cloudFinished =
-            await ShiftSupabaseManager.shared
-                .finishShift(
-                    id: activeShift.id
-                )
-
-        if cloudFinished {
-
-            print("☁️ Cloud shift closed")
-
-        } else {
-
-            print(
-                "⚠️ Supabase shift failed to close"
+        await ShiftSupabaseManager.shared
+            .finishShift(
+                id: activeShift.id
             )
-
-            // Don't finish the screen if the cloud
-            // shift could not be closed.
+        
+        if cloudFinished {
+            
+            print("☁️ Cloud shift closed")
+            
+            // Driver finished the day,
+            // so the 4 PM reminder is no longer needed.
+            DriverReminderManager.shared
+                .cancelFinishDayReminder()
+            
+        } else {
+            
+            print("⚠️ Supabase shift failed to close")
             return
         }
 
