@@ -1296,8 +1296,7 @@ struct AdminHourlyJobsView: View {
             to: selectedWeekStart
         ) ?? selectedWeekStart
         
-        return
-        "\(selectedWeekStart.formatted(date: .abbreviated, time: .omitted)) – \(end.formatted(date: .abbreviated, time: .omitted))"
+        return "\(selectedWeekStart.formatted(date: .abbreviated, time: .omitted)) – \(end.formatted(date: .abbreviated, time: .omitted))"
     }
     
     private var weeklyJobCount: Int {
