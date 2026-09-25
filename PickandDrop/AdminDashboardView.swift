@@ -301,23 +301,15 @@ struct AdminDashboardView: View {
 
         var driverNames = Set(groupedLoads.keys)
 
-        // Add real drivers with an active Supabase shift TODAY.
-        for shift in supabaseShifts {
+        // Always include every enabled Supabase driver,
+        // even when they have no loads today.
+        for driver in supabaseDrivers {
 
-            guard shift.status == "active",
-                  isShiftToday(shift)
-            else {
+            guard driver.is_active else {
                 continue
             }
 
-            let isRealDriver = supabaseDrivers.contains {
-                $0.name == shift.driver_name &&
-                $0.is_active
-            }
-
-            if isRealDriver {
-                driverNames.insert(shift.driver_name)
-            }
+            driverNames.insert(driver.name)
         }
 
         return driverNames.map { driverName in
@@ -330,22 +322,30 @@ struct AdminDashboardView: View {
 
             // Shifts are newest-first.
             // Only consider today's shift for current status.
-            let latestShift = supabaseShifts.first {
-                $0.driver_name == driverName &&
-                isShiftToday($0)
-            }
+            let dutyStatus =
+                driverProfile?.duty_status?
+                    .trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    )
+                    .lowercased()
+                ?? "off_duty"
 
             let status: String
 
-            if let latestShift {
-                status = latestShift.status == "active"
-                    ? "active"
-                    : "finished"
-            } else {
-                status = "offline"
+            switch dutyStatus {
+
+            case "active":
+                status = "active"
+
+            case "off_duty":
+                status = "off_duty"
+
+            default:
+                status = dutyStatus
             }
 
-            let isFinished = status == "finished"
+            let isFinished =
+                status == "off_duty"
 
             return DriverSummary(
                 name: driverName,
