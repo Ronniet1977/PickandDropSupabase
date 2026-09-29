@@ -14,6 +14,8 @@ struct StartShiftView: View {
     
     @State private var selectedPickupLocation = ""
     @State private var selectedDropoffLocation = ""
+    @AppStorage("lastPickupLocation")
+    private var lastPickupLocation = ""
     
     var activeShift: SupabaseShift? {
         supabaseShifts.first {
@@ -337,10 +339,24 @@ struct StartShiftView: View {
                     }
                     
                     if selectedPickupLocation.isEmpty {
-                        selectedPickupLocation =
-                        pickupLocations.first?.name
-                        ?? loadedSettings?.pickup_company_name
-                        ?? ""
+                        
+                        if !lastPickupLocation.isEmpty,
+                           pickupLocations.contains(
+                            where: {
+                                $0.name == lastPickupLocation
+                            }
+                           ) {
+                            
+                            selectedPickupLocation =
+                            lastPickupLocation
+                            
+                        } else {
+                            
+                            selectedPickupLocation =
+                            loadedSettings?.pickup_company_name
+                            ?? pickupLocations.first?.name
+                            ?? ""
+                        }
                     }
                     
                     if selectedDropoffLocation.isEmpty {
@@ -398,7 +414,16 @@ struct StartShiftView: View {
             "☁️ Cloud shift started:",
             cloudShift.id
         )
-
+        
+        await MainActor.run {
+            lastPickupLocation =
+            selectedPickupLocation
+        }
+        
+        // Schedule today's 4:00 PM Finish Day reminder.
+        await DriverReminderManager.shared
+            .scheduleFinishDayReminder()
+        
         await DriverSupabaseManager.shared
             .updateDutyStatus(
                 username: driver.username,

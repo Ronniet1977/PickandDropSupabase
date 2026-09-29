@@ -29,6 +29,9 @@ struct DriverDashboardView: View {
     @State private var showOldShiftAlert = false
     @State private var showStartDayRequired = false
     
+    @State private var showHourlyClockOut = false
+    @State private var hourlyClockOutTime = Date()
+    
     
     let driver: DriverProfile
     
@@ -608,8 +611,30 @@ struct DriverDashboardView: View {
                 isPresented: $showOldShiftAlert
             ) {
                 Button("Finish Previous Day") {
-                    Task {
-                        await finishOldShift()
+                    
+                    if let oldShift = oldActiveShift,
+                       oldShift.hourly_started_at != nil,
+                       oldShift.hourly_ended_at == nil {
+                        
+                        showOldShiftAlert = false
+                        
+                        if let startedAt =
+                            parseSupabaseDate(oldShift.started_at) {
+                            
+                            hourlyClockOutTime = startedAt
+                        }
+                        
+                        DispatchQueue.main.asyncAfter(
+                            deadline: .now() + 0.25
+                        ) {
+                            showHourlyClockOut = true
+                        }
+                        
+                    } else {
+                        
+                        Task {
+                            await finishOldShift()
+                        }
                     }
                 }
             } message: {
@@ -643,6 +668,92 @@ struct DriverDashboardView: View {
 
                 NavigationStack {
                     PickupDeliveryView(driver: driver)
+                }
+            }
+            .sheet(isPresented: $showHourlyClockOut) {
+                
+                NavigationStack {
+                    
+                    VStack(spacing: 28) {
+                        
+                        Image(systemName: "clock.badge.checkmark")
+                            .font(.system(size: 64))
+                            .foregroundStyle(.orange)
+                        
+                        Text("Hourly Job Still Open")
+                            .font(.largeTitle.bold())
+                        
+                        Text("What time did you clock out?")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        
+                        DatePicker(
+                            "Clock Out",
+                            selection: $hourlyClockOutTime,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                        .datePickerStyle(.graphical)
+                        .padding()
+                        
+                        Button {
+                            
+                            Task {
+                                
+                                guard let oldShift = oldActiveShift,
+                                      let hourlyStartString =
+                                        oldShift.hourly_started_at,
+                                      let hourlyStart =
+                                        parseSupabaseDate(
+                                            hourlyStartString
+                                        )
+                                else {
+                                    print(
+                                        "❌ Could not find hourly start time"
+                                    )
+                                    return
+                                }
+                                
+                                let updated =
+                                await ShiftSupabaseManager.shared
+                                    .updateHourlyTimes(
+                                        id: oldShift.id,
+                                        startDate: hourlyStart,
+                                        endDate: hourlyClockOutTime
+                                    )
+                                
+                                guard updated else {
+                                    print(
+                                        "❌ Could not save hourly clock-out"
+                                    )
+                                    return
+                                }
+                                
+                                await MainActor.run {
+                                    showHourlyClockOut = false
+                                }
+                                
+                                await finishOldShift()
+                            }
+                            
+                        } label: {
+                            
+                            Text("Finish Previous Day")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(.red.gradient)
+                                .clipShape(
+                                    RoundedRectangle(cornerRadius: 20)
+                                )
+                        }
+                        .padding(.horizontal)
+                        
+                        Spacer()
+                    }
+                    .padding()
+                    .navigationTitle("Clock Out")
+                    .navigationBarTitleDisplayMode(.inline)
                 }
             }
         }

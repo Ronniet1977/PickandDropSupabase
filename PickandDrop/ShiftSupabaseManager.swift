@@ -371,7 +371,8 @@ final class ShiftSupabaseManager {
         
         // MARK: - Finish Hourly Job
         
-        if let hourlyStartedString =
+        if shift.hourly_ended_at == nil,
+           let hourlyStartedString =
             shift.hourly_started_at,
            
             let hourlyStartedDate =
