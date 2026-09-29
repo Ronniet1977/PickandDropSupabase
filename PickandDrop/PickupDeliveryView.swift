@@ -29,6 +29,8 @@ struct PickupDeliveryView: View {
     
     @State private var locations: [SupabaseLocation] = []
     @State private var selectedDeliveryLocation = ""
+    @State private var showDeliverySaved = false
+    @State private var savedDeliveryMessage = ""
     
     var dropoffLocations: [SupabaseLocation] {
         locations.filter {
@@ -519,6 +521,39 @@ struct PickupDeliveryView: View {
                 } message: {
                     Text(scanError)
                 }
+                .alert(
+                    "Delivery Saved",
+                    isPresented: $showDeliverySaved
+                ) {
+                    Button("OK") {
+                        
+                        selectedLoad = nil
+                        
+                        DispatchQueue.main.asyncAfter(
+                            deadline: .now() + 0.25
+                        ) {
+                            dismiss()
+                        }
+                    }
+                } message: {
+                    Text(savedDeliveryMessage)
+                }.alert(
+                    "Delivery Saved",
+                    isPresented: $showDeliverySaved
+                ) {
+                    Button("OK") {
+                        
+                        selectedLoad = nil
+                        
+                        DispatchQueue.main.asyncAfter(
+                            deadline: .now() + 0.25
+                        ) {
+                            dismiss()
+                        }
+                    }
+                } message: {
+                    Text(savedDeliveryMessage)
+                }
             }
         }
     }
@@ -697,6 +732,7 @@ struct PickupDeliveryView: View {
             tonsValue = parsedTons
         }
         
+        let saved =
         await LoadSupabaseManager.shared
             .deliverLoad(
                 loadID: load.id,
@@ -707,6 +743,11 @@ struct PickupDeliveryView: View {
                 deliveryTons:
                     tonsValue
             )
+        
+        guard saved else {
+            print("❌ Delivery was not saved")
+            return
+        }
         
         let notificationMessage: String
         
@@ -730,14 +771,28 @@ struct PickupDeliveryView: View {
         )
         
         await MainActor.run {
+            
+            if isChase {
+                
+                savedDeliveryMessage =
+                "Ticket \(cleanTicket)"
+                
+            } else {
+                
+                savedDeliveryMessage =
+                String(
+                    format:
+                        "Ticket %@ • %.2f tons",
+                    cleanTicket,
+                    tonsValue
+                )
+            }
+            
             deliveryTicket = ""
             deliveryTons = ""
-            selectedLoad = nil
+            
+            showDeliverySaved = true
         }
-        
-        supabaseLoads =
-        await LoadSupabaseManager.shared
-            .fetchLoads()
     }
     
     func statusText(_ status: String) -> String {

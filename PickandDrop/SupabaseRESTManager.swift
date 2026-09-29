@@ -478,7 +478,61 @@ final class LoadSupabaseManager {
         fuelSurchargePerTon: Double,
         ratePerLoad: Double,
         ratePerHour: Double
-    ) async {
+    ) async -> Bool {
+        
+        let cleanTicket =
+        pickupTicketNumber
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+        
+        if !cleanTicket.isEmpty {
+            
+            do {
+                
+                let encodedDriver =
+                driverName.addingPercentEncoding(
+                    withAllowedCharacters:
+                            .urlQueryAllowed
+                ) ?? driverName
+                
+                let encodedTicket =
+                cleanTicket.addingPercentEncoding(
+                    withAllowedCharacters:
+                            .urlQueryAllowed
+                ) ?? cleanTicket
+                
+                let data =
+                try await SupabaseRESTManager.shared.request(
+                    table: "pickdrop_loads",
+                    query:
+                        "?select=id&driver_name=eq.\(encodedDriver)&pickup_ticket_number=eq.\(encodedTicket)&is_archived=eq.false&limit=1"
+                )
+                
+                let existing =
+                try JSONSerialization.jsonObject(
+                    with: data
+                ) as? [[String: Any]]
+                
+                if !(existing?.isEmpty ?? true) {
+                    
+                    print(
+                        "⛔️ Duplicate pickup ticket blocked:",
+                        driverName,
+                        cleanTicket
+                    )
+                    
+                    return false
+                }
+                
+            } catch {
+                
+                print(
+                    "⚠️ Duplicate ticket check failed:",
+                    error
+                )
+            }
+        }
         
         let body: [String: Any] = [
             "driver_name": driverName,
@@ -487,7 +541,7 @@ final class LoadSupabaseManager {
             "pickup_location": pickupLocation,
             "dropoff_location": dropoffLocation,
             
-            "pickup_ticket_number": pickupTicketNumber,
+            "pickup_ticket_number": cleanTicket,
             "pickup_tons": pickupTons,
             
             "status": "pickedUp",
@@ -520,7 +574,7 @@ final class LoadSupabaseManager {
                 body: data
             )
             
-            print("✅ Supabase load added")
+            print("✅ Load added to Supabase")
             
             print(
                 "📍 Route:",
@@ -560,12 +614,16 @@ final class LoadSupabaseManager {
                 )
             }
             
+            return true
+            
         } catch {
-            print(
-                "❌ Failed adding Supabase load:",
-                error
-            )
-        }
+    print(
+        "❌ Failed adding Supabase load:",
+        error
+    )
+
+    return false
+}
     }
     
     func deliverLoad(
@@ -573,34 +631,45 @@ final class LoadSupabaseManager {
         dropoffLocation: String,
         deliveryTicketNumber: String,
         deliveryTons: Double
-    ) async {
-
+    ) async -> Bool {
+        
         let body: [String: Any] = [
             "dropoff_location": dropoffLocation,
             "delivery_ticket_number": deliveryTicketNumber,
             "delivery_tons": deliveryTons,
             "status": "delivered",
-            "delivered_at": ISO8601DateFormatter().string(from: Date())
+            "delivered_at":
+                ISO8601DateFormatter()
+                .string(from: Date())
         ]
-
+        
         do {
-
-            let data = try JSONSerialization.data(
+            
+            let data =
+            try JSONSerialization.data(
                 withJSONObject: body
             )
-
-            _ = try await SupabaseRESTManager.shared.request(
+            
+            _ = try await
+            SupabaseRESTManager.shared.request(
                 table: "pickdrop_loads",
                 method: "PATCH",
                 query: "?id=eq.\(loadID.uuidString)",
                 body: data
             )
-
+            
             print("✅ Supabase load delivered")
-
+            
+            return true
+            
         } catch {
-
-            print("❌ Failed delivering load:", error)
+            
+            print(
+                "❌ Failed delivering load:",
+                error
+            )
+            
+            return false
         }
     }
     

@@ -26,6 +26,9 @@ struct AddLoadView: View {
     @State private var selectedPickupLocation = ""
     @State private var selectedDropoffLocation = ""
     @State private var supabaseDriver: SupabaseDriver?
+    @State private var isSaving = false
+    @State private var showPickupSaved = false
+    @State private var savedPickupMessage = ""
     
     var pickupLocations: [SupabaseLocation] {
         locations.filter {
@@ -308,13 +311,18 @@ struct AddLoadView: View {
                                 await saveLoad()
                             }
                         } label: {
-
+                            
                             HStack(spacing: 14) {
-
-                                Image(systemName: "plus.circle.fill")
-
-                                Text("Save Load")
-                                    .fontWeight(.bold)
+                                
+                                if isSaving {
+                                    ProgressView()
+                                        .tint(.white)
+                                } else {
+                                    Image(systemName: "plus.circle.fill")
+                                    
+                                    Text("Save Load")
+                                        .fontWeight(.bold)
+                                }
                             }
                             .font(.title3)
                             .foregroundStyle(.white)
@@ -325,7 +333,11 @@ struct AddLoadView: View {
                             .shadow(color: .blue.opacity(0.4), radius: 14)
                         }
                         .padding(.horizontal)
-                        .disabled(!isValidLoad || activeShift == nil)
+                        .disabled(
+                            !isValidLoad ||
+                            activeShift == nil ||
+                            isSaving
+                        )
                     }
 
                     Spacer(minLength: 40)
@@ -418,6 +430,16 @@ struct AddLoadView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text(scanError)
+        }
+        .alert(
+            "Pickup Saved",
+            isPresented: $showPickupSaved
+        ) {
+            Button("OK") {
+                dismiss()
+            }
+        } message: {
+            Text(savedPickupMessage)
         }
     }
     
@@ -519,8 +541,25 @@ struct AddLoadView: View {
     
     func saveLoad() async {
         
+        guard !isSaving else {
+            print("⛔️ Load save already in progress")
+            return
+        }
+        
+        await MainActor.run {
+            isSaving = true
+        }
+        
+        defer {
+            Task { @MainActor in
+                isSaving = false
+            }
+        }
+        
         let cleanTicket =
-        pickupTicket.trimmingCharacters(in: .whitespacesAndNewlines)
+        pickupTicket.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
         
         let displayTicket =
         cleanTicket.isEmpty ? "No pickup ticket yet" : cleanTicket
@@ -589,6 +628,7 @@ struct AddLoadView: View {
             ratePerHour = 0
         }
         
+        let saved =
         await LoadSupabaseManager.shared.addLoad(
             driverName: driver.name,
             truckNumber: currentTruckNumber,
@@ -620,6 +660,11 @@ struct AddLoadView: View {
             ratePerHour:
                 ratePerHour
         )
+        
+        guard saved else {
+            print("❌ Pickup was not saved")
+            return
+        }
         
         // MARK: - Start Hourly Job On First Ticket
         
@@ -674,9 +719,24 @@ struct AddLoadView: View {
         )
         
         await MainActor.run {
+            
+            savedPickupMessage =
+            cleanTicket.isEmpty
+            ? String(
+                format: "%.2f tons",
+                tonsValue
+            )
+            : String(
+                format:
+                    "Ticket %@ • %.2f tons",
+                cleanTicket,
+                tonsValue
+            )
+            
             pickupTicket = ""
             pickupTons = ""
-            dismiss()
+            
+            showPickupSaved = true
         }
     }
 }
