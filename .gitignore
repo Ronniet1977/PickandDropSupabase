@@ -1,0 +1,42 @@
+# Xcode user data
+xcuserdata/
+*.xcuserstate
+
+# Xcode workspace user settings
+*.xcworkspace/xcuserdata/
+*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+
+# Swift Package Manager
+.build/
+Packages/
+
+# Derived Data
+DerivedData/
+*.moved-aside
+
+# macOS junk
+.DS_Store
+
+# Simulator/device junk
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Temporary files
+*.swp
+*.tmp
+
+# Logs
+*.log
+
+# Xcode Cloud cache
+SourcePackages/
+
+# Personal editor state
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# App storage test files
+tmp/
+cache/
