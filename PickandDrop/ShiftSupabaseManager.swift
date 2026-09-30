@@ -388,15 +388,15 @@ final class ShiftSupabaseManager {
             let actualHours =
             max(0, elapsedSeconds / 3600)
             
-            // Round to nearest 30 minutes.
-            // Examples:
-            // 8:14 -> 8.0
-            // 8:15 -> 8.5
-            // 8:44 -> 8.5
-            // 8:45 -> 9.0
+            // Company dumping allowance:
+            // +30 minutes before hourly work
+            // +30 minutes after hourly work
+            // = +1.0 billable hour total.
+            //
+            // Then round to nearest 30 minutes.
             
             let billableHours =
-            (actualHours * 2).rounded() / 2
+            ((actualHours + 1.0) * 2).rounded() / 2
             
             body["hourly_ended_at"] = now
             body["hourly_billable_hours"] =
@@ -468,14 +468,15 @@ final class ShiftSupabaseManager {
         let actualHours =
         endDate.timeIntervalSince(startDate) / 3600
         
-        // Nearest 30 minutes.
-        // 8:14 -> 8.0
-        // 8:15 -> 8.5
-        // 8:44 -> 8.5
-        // 8:45 -> 9.0
+        // Company dumping allowance:
+        // +30 minutes before hourly work
+        // +30 minutes after hourly work
+        // = +1.0 billable hour total.
+        //
+        // Then round to nearest 30 minutes.
         
         let billableHours =
-        (actualHours * 2).rounded() / 2
+        ((actualHours + 1.0) * 2).rounded() / 2
         
         let body: [String: Any] = [
             "hourly_started_at": startString,

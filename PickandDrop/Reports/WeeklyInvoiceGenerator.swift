@@ -264,11 +264,10 @@ enum WeeklyInvoiceGenerator {
                         load.driver_name ==
                             shift.driver_name,
                         
-                            load.pickup_location ==
-                            shift.pickup_location,
-                        
-                            load.dropoff_location ==
-                            shift.dropoff_location,
+                            load.dropoff_location?
+                            .caseInsensitiveCompare(
+                                shift.dropoff_location ?? ""
+                            ) == .orderedSame,
                         
                             load.is_archived ==
                             archived,

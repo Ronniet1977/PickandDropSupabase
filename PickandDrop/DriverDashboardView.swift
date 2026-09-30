@@ -155,6 +155,15 @@ struct DriverDashboardView: View {
         activeShift != nil
     }
     
+    var hasPendingHourlyLoad: Bool {
+        supabaseLoads.contains { load in
+            load.driver_name == driver.name &&
+            load.billing_type == "per_hour" &&
+            load.is_archived != true &&
+            load.delivered_at == nil
+        }
+    }
+    
     var activeShiftDuration: String {
 
         guard let shift = activeShift else {
@@ -457,24 +466,41 @@ struct DriverDashboardView: View {
                             }
 
                             if activeShift != nil {
-
-                                NavigationLink {
-                                    AddLoadView(driver: driver)
-                                } label: {
-
-                                    ActionCard(
-                                        title: "Add Load",
-                                        icon: "plus.circle.fill",
-                                        color: .blue
-                                    )
+                                
+                                if hasPendingHourlyLoad {
+                                    
+                                    Button {
+                                        showPickupDeliveryView = true
+                                    } label: {
+                                        
+                                        ActionCard(
+                                            title: "Mark Dropoff",
+                                            icon: "arrow.down.circle.fill",
+                                            color: .orange
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    
+                                } else {
+                                    
+                                    NavigationLink {
+                                        AddLoadView(driver: driver)
+                                    } label: {
+                                        
+                                        ActionCard(
+                                            title: "Add Load",
+                                            icon: "plus.circle.fill",
+                                            color: .blue
+                                        )
+                                    }
                                 }
-
+                                
                             } else {
-
+                                
                                 Button {
                                     showStartDayRequired = true
                                 } label: {
-
+                                    
                                     ActionCard(
                                         title: "Add Load",
                                         icon: "plus.circle.fill",
@@ -663,9 +689,20 @@ struct DriverDashboardView: View {
                     "You have \(pendingDeliveries.count) load(s) still waiting for delivery tickets."
                 )
             }
-
-            .sheet(isPresented: $showPickupDeliveryView) {
-
+            .sheet(
+                isPresented: $showPickupDeliveryView,
+                onDismiss: {
+                    Task {
+                        let refreshedLoads =
+                        await LoadSupabaseManager.shared.fetchLoads()
+                        
+                        await MainActor.run {
+                            supabaseLoads = refreshedLoads
+                        }
+                    }
+                }
+            ) {
+                
                 NavigationStack {
                     PickupDeliveryView(driver: driver)
                 }

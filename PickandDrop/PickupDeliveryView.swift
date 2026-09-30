@@ -537,22 +537,6 @@ struct PickupDeliveryView: View {
                     }
                 } message: {
                     Text(savedDeliveryMessage)
-                }.alert(
-                    "Delivery Saved",
-                    isPresented: $showDeliverySaved
-                ) {
-                    Button("OK") {
-                        
-                        selectedLoad = nil
-                        
-                        DispatchQueue.main.asyncAfter(
-                            deadline: .now() + 0.25
-                        ) {
-                            dismiss()
-                        }
-                    }
-                } message: {
-                    Text(savedDeliveryMessage)
                 }
             }
         }
