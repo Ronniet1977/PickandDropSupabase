@@ -32,6 +32,9 @@ struct PickupDeliveryView: View {
     @State private var showDeliverySaved = false
     @State private var savedDeliveryMessage = ""
     
+    @State private var showDuplicateDeliveryAlert = false
+    @State private var duplicateDeliveryMessage = ""
+    
     var dropoffLocations: [SupabaseLocation] {
         locations.filter {
             $0.location_type == "dropoff" ||
@@ -370,6 +373,32 @@ struct PickupDeliveryView: View {
                                     .buttonStyle(.borderedProminent)
                                     .tint(.green)
                                     .disabled(isScanningTicket)
+                                    
+                                } else if dropoffName == "Silt Absorbant" {
+                                    
+                                    Button {
+                                        selectedScanMode = .siltDeliveryOnly
+                                        showTicketCamera = true
+                                    } label: {
+                                        
+                                        HStack {
+                                            Spacer()
+                                            
+                                            if isScanningTicket {
+                                                ProgressView()
+                                            } else {
+                                                Label(
+                                                    "Scan Silt Absorbant Ticket",
+                                                    systemImage: "doc.viewfinder.fill"
+                                                )
+                                            }
+                                            
+                                            Spacer()
+                                        }
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.green)
+                                    .disabled(isScanningTicket)
 
                                 } else if dropoffName == "Chase" {
 
@@ -514,6 +543,14 @@ struct PickupDeliveryView: View {
                     }
                 }
                 .alert(
+                    "Duplicate Delivery Ticket",
+                    isPresented: $showDuplicateDeliveryAlert
+                ) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(duplicateDeliveryMessage)
+                }
+                .alert(
                     "Ticket Scan Failed",
                     isPresented: $showScanError
                 ) {
@@ -568,32 +605,37 @@ struct PickupDeliveryView: View {
             
             let isChase =
                 selectedScanMode == .chaseDeliveryOnly
+
+            let isSilt =
+                selectedScanMode == .siltDeliveryOnly
             
             if isChase {
-                
+
                 // Chase is billed per load.
                 // We only need the ticket number.
                 guard !result.deliveryTicket.isEmpty else {
-                    
+
                     scanError =
                     "The Chase ticket was recognized, but the ticket number could not be read. Try taking the picture again."
-                    
+
                     showScanError = true
                     return
                 }
-                
+
             } else {
-                
-                // HoneyGo needs the delivery
-                // ticket and/or tonnage.
+
+                // HoneyGo and Silt Absorbant both need
+                // a delivery ticket and/or tonnage.
                 guard
                     !result.deliveryTicket.isEmpty ||
                     !result.deliveryTons.isEmpty
                 else {
-                    
+
                     scanError =
-                    "The HoneyGo ticket was recognized, but the ticket number and tons could not be read. Try taking the picture again."
-                    
+                    isSilt
+                    ? "The Silt Absorbant ticket was recognized, but the ticket number and tons could not be read. Try taking the picture again."
+                    : "The HoneyGo ticket was recognized, but the ticket number and tons could not be read. Try taking the picture again."
+
                     showScanError = true
                     return
                 }
@@ -683,6 +725,54 @@ struct PickupDeliveryView: View {
         
         guard !cleanTicket.isEmpty else {
             return
+        }
+        
+        let encodedTicket =
+            cleanTicket.addingPercentEncoding(
+                withAllowedCharacters: .urlQueryAllowed
+            ) ?? cleanTicket
+
+        do {
+
+            let data =
+                try await SupabaseRESTManager.shared.request(
+                    table: "pickdrop_loads",
+                    query:
+                        "?select=id,driver_name,dropoff_location&delivery_ticket_number=eq.\(encodedTicket)&limit=1"
+                )
+
+            let existing =
+                try JSONSerialization.jsonObject(
+                    with: data
+                ) as? [[String: Any]]
+
+            if let match = existing?.first {
+
+                let existingDriver =
+                    match["driver_name"] as? String
+                    ?? "another driver"
+
+                let existingDropoff =
+                    match["dropoff_location"] as? String
+                    ?? "another location"
+
+                await MainActor.run {
+
+                    duplicateDeliveryMessage =
+                        "Delivery ticket \(cleanTicket) has already been used by \(existingDriver) at \(existingDropoff). Please check the ticket before saving."
+
+                    showDuplicateDeliveryAlert = true
+                }
+
+                return
+            }
+
+        } catch {
+
+            print(
+                "⚠️ Duplicate delivery ticket lookup failed:",
+                error
+            )
         }
         
         let dropoffName =
