@@ -544,11 +544,20 @@ final class LoadSupabaseManager {
             "pickup_ticket_number": cleanTicket,
             "pickup_tons": pickupTons,
             
-            "status": "pickedUp",
+            "status":
+                billingType == "per_hour"
+                ? "delivered"
+                : "pickedUp",
+
             "picked_up_at":
                 ISO8601DateFormatter()
-                .string(from: Date()),
-            
+                    .string(from: Date()),
+
+            "delivered_at":
+                billingType == "per_hour"
+                ? ISO8601DateFormatter().string(from: Date())
+                : NSNull(),
+
             "is_archived": false,
             
             "billing_type": billingType,
