@@ -30,6 +30,9 @@ struct AddLoadView: View {
     @State private var showPickupSaved = false
     @State private var savedPickupMessage = ""
     
+    @State private var showDuplicateTicketAlert = false
+    @State private var duplicateTicketMessage = ""
+    
     var pickupLocations: [SupabaseLocation] {
         locations.filter {
             $0.location_type == "pickup" ||
@@ -424,6 +427,14 @@ struct AddLoadView: View {
             }
         }
         .alert(
+            "Duplicate Pickup Ticket",
+            isPresented: $showDuplicateTicketAlert
+        ) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(duplicateTicketMessage)
+        }
+        .alert(
             "Ticket Scan Failed",
             isPresented: $showScanError
         ) {
@@ -560,6 +571,53 @@ struct AddLoadView: View {
         pickupTicket.trimmingCharacters(
             in: .whitespacesAndNewlines
         )
+        
+        if !cleanTicket.isEmpty {
+
+            let encodedTicket =
+                cleanTicket.addingPercentEncoding(
+                    withAllowedCharacters: .urlQueryAllowed
+                ) ?? cleanTicket
+
+            do {
+
+                let data =
+                    try await SupabaseRESTManager.shared.request(
+                        table: "pickdrop_loads",
+                        query:
+                            "?select=id,driver_name&pickup_ticket_number=eq.\(encodedTicket)&limit=1"
+                    )
+
+                let existing =
+                    try JSONSerialization.jsonObject(
+                        with: data
+                    ) as? [[String: Any]]
+
+                if let match = existing?.first {
+
+                    let existingDriver =
+                        match["driver_name"] as? String
+                        ?? "another driver"
+
+                    await MainActor.run {
+
+                        duplicateTicketMessage =
+                            "Pickup ticket \(cleanTicket) has already been used by \(existingDriver). Please check the ticket number before saving."
+
+                        showDuplicateTicketAlert = true
+                    }
+
+                    return
+                }
+
+            } catch {
+
+                print(
+                    "⚠️ Duplicate ticket lookup failed:",
+                    error
+                )
+            }
+        }
         
         let displayTicket =
         cleanTicket.isEmpty ? "No pickup ticket yet" : cleanTicket

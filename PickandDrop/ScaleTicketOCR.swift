@@ -27,6 +27,7 @@ enum TicketScanMode {
     case pickupOnly
     case deliveryOnly
     case chaseDeliveryOnly
+    case siltDeliveryOnly
 }
 
 
@@ -181,6 +182,18 @@ enum ScaleTicketOCR {
             
             return result
             
+            
+        case .siltDeliveryOnly:
+            
+            let result =
+            parseSiltDeliveryOnly(
+                text: recognizedText
+            )
+            
+            debug(result)
+            
+            return result
+            
         case .combined:
             
             let result =
@@ -220,10 +233,10 @@ enum ScaleTicketOCR {
         )
         
         result.pickupTons =
-        findTons(
-            in: normalized,
-            ticketType: .brc
-        )
+            findBRCTons(
+                in: normalized,
+                ticketNumber: result.pickupTicket
+            )
         
         result.truckNumber =
         findTruckNumber(
@@ -259,10 +272,10 @@ enum ScaleTicketOCR {
         )
         
         result.deliveryTons =
-        findTons(
-            in: normalized,
-            ticketType: .honeyGo
-        )
+            findHoneyGoTons(
+                in: normalized,
+                ticketNumber: result.deliveryTicket
+            )
         
         result.truckNumber =
         findTruckNumber(
@@ -296,6 +309,58 @@ enum ScaleTicketOCR {
             in: normalized
         )
         
+        return result
+    }
+    
+    // MARK: - Silt Absorbant / Delivery
+
+    private static func parseSiltDeliveryOnly(
+        text: String
+    ) -> ScannedLoadTicketData {
+
+        var result =
+        ScannedLoadTicketData()
+
+        result.rawText = text
+
+        let normalized =
+        normalize(text)
+
+        result.deliveryTicket =
+            findBRCTicket(
+                in: normalized
+            )
+
+        // First choice:
+        // calculate tons from the scale weights.
+        if let netWeight =
+            findValidatedNetWeight(
+                in: normalized
+            ) {
+
+            let tons =
+                netWeight / 2000.0
+
+            if validTons(tons) {
+
+                result.deliveryTons =
+                    formatTons(tons)
+            }
+
+        } else {
+
+            // Fallback to the printed QTY value.
+            result.deliveryTons =
+                findSiltTons(
+                    in: normalized
+                )
+        }
+
+        result.truckNumber =
+            findTruckNumber(
+                in: normalized
+            )
+
         return result
     }
     
@@ -371,6 +436,292 @@ enum ScaleTicketOCR {
         )
         
         return result
+    }
+    
+    private static func findBRCTons(
+        in text: String,
+        ticketNumber: String
+    ) -> String {
+
+        var searchText = text
+
+        // BRC QTY is normally before the BRC
+        // ticket number in Vision's OCR order.
+        if !ticketNumber.isEmpty,
+           let ticketRange =
+            text.range(
+                of: ticketNumber,
+                options: .caseInsensitive
+            ) {
+
+            let beforeTicket =
+                String(
+                    text[..<ticketRange.lowerBound]
+                )
+
+            // Only inspect the tail end nearest
+            // the BRC ticket so HoneyGo above it
+            // cannot interfere.
+            searchText =
+                String(
+                    beforeTicket.suffix(900)
+                )
+        }
+
+        let lines =
+            searchText.components(separatedBy: .newlines)
+                .map {
+                    $0.trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    )
+                    .uppercased()
+                }
+                .filter { !$0.isEmpty }
+
+        // First choice:
+        // BRC commonly OCRs as:
+        //
+        // QTY
+        // 22.77
+        for index in lines.indices {
+
+            guard
+                lines[index] == "QTY" ||
+                lines[index] == "OTY"
+            else {
+                continue
+            }
+
+            guard index + 1 < lines.count else {
+                continue
+            }
+
+            let valueText =
+                lines[index + 1]
+                    .replacingOccurrences(
+                        of: ",",
+                        with: "."
+                    )
+
+            if let tons = Double(valueText),
+               tons >= 5,
+               tons <= 40 {
+
+                return String(
+                    format: "%.2f",
+                    tons
+                )
+            }
+        }
+
+        // Backup:
+        // use the last realistic decimal
+        // immediately before the BRC ticket.
+        guard let regex =
+            try? NSRegularExpression(
+                pattern: #"\b(\d{1,2}[.,]\d{2})\b"#,
+                options: []
+            )
+        else {
+            return ""
+        }
+
+        let range =
+            NSRange(
+                searchText.startIndex..<searchText.endIndex,
+                in: searchText
+            )
+
+        let matches =
+            regex.matches(
+                in: searchText,
+                range: range
+            )
+
+        let values: [Double] =
+            matches.compactMap { match in
+
+                guard
+                    match.numberOfRanges > 1,
+                    let swiftRange =
+                        Range(
+                            match.range(at: 1),
+                            in: searchText
+                        )
+                else {
+                    return nil
+                }
+
+                let valueText =
+                    String(searchText[swiftRange])
+                        .replacingOccurrences(
+                            of: ",",
+                            with: "."
+                        )
+
+                guard
+                    let value = Double(valueText),
+                    value >= 5,
+                    value <= 40
+                else {
+                    return nil
+                }
+
+                return value
+            }
+
+        guard let tons = values.last else {
+            return ""
+        }
+
+        return String(
+            format: "%.2f",
+            tons
+        )
+    }
+    
+    private static func findHoneyGoTons(
+        in text: String,
+        ticketNumber: String
+    ) -> String {
+
+        var searchText = text
+
+        // HoneyGo normally prints its tonnage
+        // before the ticket-number area in Vision OCR.
+        //
+        // Limiting the search here also prevents the
+        // BRC ticket underneath from interfering.
+        if !ticketNumber.isEmpty,
+           let ticketRange =
+            text.range(
+                of: ticketNumber,
+                options: .caseInsensitive
+            ) {
+
+            searchText =
+                String(
+                    text[..<ticketRange.lowerBound]
+                )
+        }
+
+        guard let regex =
+            try? NSRegularExpression(
+                pattern: #"\b(\d{1,2}[.,]\d{2})\b"#,
+                options: []
+            )
+        else {
+            return ""
+        }
+
+        let range =
+            NSRange(
+                searchText.startIndex..<searchText.endIndex,
+                in: searchText
+            )
+
+        let matches =
+            regex.matches(
+                in: searchText,
+                range: range
+            )
+
+        var candidates: [Double] = []
+
+        for match in matches {
+
+            guard
+                match.numberOfRanges > 1,
+                let swiftRange =
+                    Range(
+                        match.range(at: 1),
+                        in: searchText
+                    )
+            else {
+                continue
+            }
+
+            let valueText =
+                String(searchText[swiftRange])
+                    .replacingOccurrences(
+                        of: ",",
+                        with: "."
+                    )
+
+            guard
+                let value = Double(valueText),
+                value >= 5,
+                value <= 40
+            else {
+                continue
+            }
+
+            candidates.append(value)
+        }
+
+        // Use the last realistic decimal before
+        // the HoneyGo ticket number.
+        guard let tons = candidates.last else {
+            return ""
+        }
+
+        return String(
+            format: "%.2f",
+            tons
+        )
+    }
+    
+    private static func findSiltTons(
+        in text: String
+    ) -> String {
+
+        let lines =
+            text.components(separatedBy: .newlines)
+                .map {
+                    $0.trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    )
+                    .uppercased()
+                }
+                .filter { !$0.isEmpty }
+
+        for index in lines.indices {
+
+            let marker = lines[index]
+
+            // Vision sometimes reads QTY as OTY.
+            guard marker == "QTY" ||
+                  marker == "OTY"
+            else {
+                continue
+            }
+
+            guard index + 1 < lines.count else {
+                continue
+            }
+
+            let valueText =
+                lines[index + 1]
+                    .replacingOccurrences(
+                        of: ",",
+                        with: "."
+                    )
+
+            guard
+                let tons = Double(valueText),
+                tons >= 5,
+                tons <= 40
+            else {
+                continue
+            }
+
+            return String(
+                format: "%.2f",
+                tons
+            )
+        }
+
+        return ""
     }
     
     

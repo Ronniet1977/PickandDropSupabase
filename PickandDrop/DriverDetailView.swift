@@ -557,7 +557,7 @@ struct EditSupabaseLoadView: View {
                 
                 // Delivery ticket depends on selected dropoff
                 if selectedDropoffLocation == "Chase" {
-                    
+
                     Button {
                         selectedScanMode = .chaseDeliveryOnly
                         showTicketCamera = true
@@ -567,15 +567,27 @@ struct EditSupabaseLoadView: View {
                             systemImage: "arrow.down.doc.fill"
                         )
                     }
-                    
+
                 } else if selectedDropoffLocation == "HoneyGo" {
-                    
+
                     Button {
                         selectedScanMode = .deliveryOnly
                         showTicketCamera = true
                     } label: {
                         Label(
                             "Scan HoneyGo Ticket",
+                            systemImage: "arrow.down.doc.fill"
+                        )
+                    }
+
+                } else if selectedDropoffLocation == "Silt Absorbant" {
+
+                    Button {
+                        selectedScanMode = .siltDeliveryOnly
+                        showTicketCamera = true
+                    } label: {
+                        Label(
+                            "Scan Silt Absorbant Ticket",
                             systemImage: "arrow.down.doc.fill"
                         )
                     }
@@ -1103,6 +1115,28 @@ struct EditSupabaseLoadView: View {
                     "✅ Edit HoneyGo ticket scanned"
                 )
                 
+            case .siltDeliveryOnly:
+
+                if !result.deliveryTicket.isEmpty {
+                    deliveryTicket =
+                        result.deliveryTicket
+                }
+
+                if !result.deliveryTons.isEmpty {
+                    deliveryTons =
+                        result.deliveryTons
+                }
+
+                if !deliveryTicket.isEmpty &&
+                    (Double(deliveryTons) ?? 0) > 0 {
+
+                    status = "delivered"
+                }
+
+                print(
+                    "✅ Edit Silt Absorbant ticket scanned"
+                )
+                
             case .chaseDeliveryOnly:
                 
                 if !result.deliveryTicket.isEmpty {
@@ -1110,7 +1144,8 @@ struct EditSupabaseLoadView: View {
                         result.deliveryTicket
                 }
                 
-                print("✅ Edit Chase ticket scanned")
+                print("✅ Edit Chase ticket scanned"
+                )
                 
             case .combined:
                 break
@@ -1644,35 +1679,60 @@ struct AdminAddLoadView: View {
                 print("✅ Admin BRC ticket scanned")
                 
             case .deliveryOnly:
-                if !result.deliveryTicket.isEmpty {
-                    deliveryTicket =
-                    result.deliveryTicket
-                }
-                
-                if !result.deliveryTons.isEmpty {
-                    deliveryTons =
-                    result.deliveryTons
-                }
-                
-                if !deliveryTicket.isEmpty &&
-                    (Double(deliveryTons) ?? 0) > 0 {
-                    
-                    status = "delivered"
-                }
-                
-                print(
-                    "✅ Admin HoneyGo ticket scanned"
-                )
-                
-            case .chaseDeliveryOnly:
-                
+
                 if !result.deliveryTicket.isEmpty {
                     deliveryTicket =
                         result.deliveryTicket
                 }
-                
-                print("✅ Admin Chase ticket scanned")
-                
+
+                if !result.deliveryTons.isEmpty {
+                    deliveryTons =
+                        result.deliveryTons
+                }
+
+                if !deliveryTicket.isEmpty &&
+                    (Double(deliveryTons) ?? 0) > 0 {
+
+                    status = "delivered"
+                }
+
+                print(
+                    "✅ Admin HoneyGo ticket scanned"
+                )
+
+            case .siltDeliveryOnly:
+
+                if !result.deliveryTicket.isEmpty {
+                    deliveryTicket =
+                        result.deliveryTicket
+                }
+
+                if !result.deliveryTons.isEmpty {
+                    deliveryTons =
+                        result.deliveryTons
+                }
+
+                if !deliveryTicket.isEmpty &&
+                    (Double(deliveryTons) ?? 0) > 0 {
+
+                    status = "delivered"
+                }
+
+                print(
+                    "✅ Admin Silt Absorbant ticket scanned"
+                )
+
+            case .chaseDeliveryOnly:
+
+                if !result.deliveryTicket.isEmpty {
+                    deliveryTicket =
+                        result.deliveryTicket
+                }
+
+                print(
+                    "✅ Admin Chase ticket scanned"
+                )
+
             case .combined:
                 break
             }
