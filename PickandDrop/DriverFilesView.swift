@@ -1200,6 +1200,9 @@ struct AdminHourlyJobsView: View {
         for: Date()
     )?.start ?? Date()
     
+    @State private var shiftToDelete: SupabaseShift?
+    @State private var showingDeleteConfirmation = false
+    
     private var hourlyShifts: [SupabaseShift] {
         shifts.filter {
             $0.hourly_started_at != nil
@@ -1296,7 +1299,8 @@ struct AdminHourlyJobsView: View {
             to: selectedWeekStart
         ) ?? selectedWeekStart
         
-        return "\(selectedWeekStart.formatted(date: .abbreviated, time: .omitted)) – \(end.formatted(date: .abbreviated, time: .omitted))"
+        return
+        "\(selectedWeekStart.formatted(date: .abbreviated, time: .omitted)) – \(end.formatted(date: .abbreviated, time: .omitted))"
     }
     
     private var weeklyJobCount: Int {
@@ -1652,6 +1656,23 @@ struct AdminHourlyJobsView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        
+                        Button(
+                            role: .destructive
+                        ) {
+                            
+                            shiftToDelete = shift
+                            showingDeleteConfirmation = true
+                            
+                        } label: {
+                            
+                            Label(
+                                "Delete Hourly Job",
+                                systemImage: "trash.fill"
+                            )
+                        }
+                    }
                     }
                 }
             }
@@ -1678,6 +1699,58 @@ struct AdminHourlyJobsView: View {
                 await MainActor.run {
                     shifts = loaded
                 }
+            }
+        }
+        .alert(
+            "Delete Hourly Job?",
+            isPresented: $showingDeleteConfirmation
+        ) {
+            
+            Button(
+                "Delete",
+                role: .destructive
+            ) {
+                
+                guard let shift = shiftToDelete else {
+                    return
+                }
+                
+                Task {
+                    
+                    let deleted =
+                    await ShiftSupabaseManager.shared
+                        .deleteShift(
+                            id: shift.id
+                        )
+                    
+                    if deleted {
+                        
+                        await MainActor.run {
+                            
+                            shifts.removeAll {
+                                $0.id == shift.id
+                            }
+                            
+                            shiftToDelete = nil
+                        }
+                    }
+                }
+            }
+            
+            Button(
+                "Cancel",
+                role: .cancel
+            ) {
+                shiftToDelete = nil
+            }
+            
+        } message: {
+            
+            if let shift = shiftToDelete {
+                
+                Text(
+                    "Delete \(shift.driver_name)'s \(shift.pickup_location ?? "Pickup") → \(shift.dropoff_location ?? "Dropoff") hourly job?"
+                )
             }
         }
     }

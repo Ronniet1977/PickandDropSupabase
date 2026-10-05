@@ -49,15 +49,22 @@ final class DriverReminderManager {
         let center =
         UNUserNotificationCenter.current()
         
-        // Remove our old versions before rescheduling.
+        let weekdayIdentifiers = [
+            "driver-morning-reminder-mon",
+            "driver-morning-reminder-tue",
+            "driver-morning-reminder-wed",
+            "driver-morning-reminder-thu",
+            "driver-morning-reminder-fri"
+        ]
+        
         center.removePendingNotificationRequests(
-            withIdentifiers: [
+            withIdentifiers:
+                weekdayIdentifiers +
+            [
                 "driver-morning-reminder",
                 "driver-finish-day-reminder"
             ]
         )
-        
-        // MARK: 6:30 AM
         
         let morningContent =
         UNMutableNotificationContent()
@@ -67,39 +74,62 @@ final class DriverReminderManager {
         "Remember to check Pick & Drop for today's work."
         morningContent.sound = .default
         
-        var morningTime =
-        DateComponents()
+        // Calendar weekday values:
+        // Sunday = 1
+        // Monday = 2
+        // Tuesday = 3
+        // Wednesday = 4
+        // Thursday = 5
+        // Friday = 6
+        // Saturday = 7
         
-        morningTime.hour = 6
-        morningTime.minute = 30
+        let weekdays = [
+            (2, "driver-morning-reminder-mon"),
+            (3, "driver-morning-reminder-tue"),
+            (4, "driver-morning-reminder-wed"),
+            (5, "driver-morning-reminder-thu"),
+            (6, "driver-morning-reminder-fri")
+        ]
         
-        let morningTrigger =
-        UNCalendarNotificationTrigger(
-            dateMatching: morningTime,
-            repeats: true
-        )
-        
-        let morningRequest =
-        UNNotificationRequest(
-            identifier:
-                "driver-morning-reminder",
-            content: morningContent,
-            trigger: morningTrigger
-        )
-        
-        do {
+        for (weekday, identifier) in weekdays {
             
-            try await center.add(morningRequest)
+            var morningTime =
+            DateComponents()
             
-            print("🔔 Morning reminder scheduled: 6:30 AM")
+            morningTime.weekday = weekday
+            morningTime.hour = 6
+            morningTime.minute = 30
             
-        } catch {
-            
-            print(
-                "❌ Failed scheduling driver reminders:",
-                error
+            let morningTrigger =
+            UNCalendarNotificationTrigger(
+                dateMatching: morningTime,
+                repeats: true
             )
+            
+            let morningRequest =
+            UNNotificationRequest(
+                identifier: identifier,
+                content: morningContent,
+                trigger: morningTrigger
+            )
+            
+            do {
+                
+                try await center.add(morningRequest)
+                
+            } catch {
+                
+                print(
+                    "❌ Failed scheduling morning reminder:",
+                    identifier,
+                    error
+                )
+            }
         }
+        
+        print(
+            "🔔 Morning reminders scheduled Monday-Friday at 6:30 AM"
+        )
     }
     
     // MARK: - Schedule Finish Day Reminder
@@ -108,6 +138,31 @@ final class DriverReminderManager {
         
         let center =
         UNUserNotificationCenter.current()
+        
+        let weekday =
+        Calendar.current.component(
+            .weekday,
+            from: Date()
+        )
+        
+        // Sunday = 1
+        // Saturday = 7
+        guard weekday != 1 &&
+                weekday != 7
+        else {
+            
+            center.removePendingNotificationRequests(
+                withIdentifiers: [
+                    "driver-finish-day-reminder"
+                ]
+            )
+            
+            print(
+                "🔕 Weekend — no Finish Day reminder scheduled"
+            )
+            
+            return
+        }
         
         // Remove any existing one first.
         center.removePendingNotificationRequests(

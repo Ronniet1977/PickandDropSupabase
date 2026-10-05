@@ -445,6 +445,39 @@ final class ShiftSupabaseManager {
         }
     }
     
+    // MARK: - Delete Shift
+    
+    func deleteShift(
+        id: UUID
+    ) async -> Bool {
+        
+        do {
+            
+            _ = try await
+            SupabaseRESTManager.shared.request(
+                table: "pickdrop_shifts",
+                method: "DELETE",
+                query: "?id=eq.\(id.uuidString)"
+            )
+            
+            print(
+                "🗑️ Deleted shift:",
+                id
+            )
+            
+            return true
+            
+        } catch {
+            
+            print(
+                "❌ Failed deleting shift:",
+                error
+            )
+            
+            return false
+        }
+    }
+    
     func updateHourlyTimes(
         id: UUID,
         startDate: Date,
