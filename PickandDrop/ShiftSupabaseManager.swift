@@ -389,14 +389,12 @@ final class ShiftSupabaseManager {
             max(0, elapsedSeconds / 3600)
             
             // Company dumping allowance:
-            // +30 minutes before hourly work
-            // +30 minutes after hourly work
             // = +1.0 billable hour total.
             //
             // Then round to nearest 30 minutes.
             
             let billableHours =
-            ((actualHours + 1.0) * 2).rounded() / 2
+            (actualHours * 2).rounded() / 2
             
             body["hourly_ended_at"] = now
             body["hourly_billable_hours"] =
@@ -502,14 +500,10 @@ final class ShiftSupabaseManager {
         endDate.timeIntervalSince(startDate) / 3600
         
         // Company dumping allowance:
-        // +30 minutes before hourly work
-        // +30 minutes after hourly work
-        // = +1.0 billable hour total.
-        //
         // Then round to nearest 30 minutes.
         
         let billableHours =
-        ((actualHours + 1.0) * 2).rounded() / 2
+        (actualHours * 2).rounded() / 2
         
         let body: [String: Any] = [
             "hourly_started_at": startString,
