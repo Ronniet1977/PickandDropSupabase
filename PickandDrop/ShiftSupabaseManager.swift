@@ -374,34 +374,79 @@ final class ShiftSupabaseManager {
         if shift.hourly_ended_at == nil,
            let hourlyStartedString =
             shift.hourly_started_at,
-           
-            let hourlyStartedDate =
+           let hourlyStartedDate =
             formatter.date(
                 from: hourlyStartedString
             ) {
             
+            let allLoads =
+            await LoadSupabaseManager.shared
+                .fetchLoads()
+            
+            let hourlyLoads =
+            allLoads.filter { load in
+                
+                guard
+                    load.driver_name == shift.driver_name,
+                    load.billing_type == "per_hour",
+                    load.pickup_location == shift.pickup_location,
+                    load.dropoff_location == shift.dropoff_location,
+                    let createdText = load.created_at,
+                    let createdDate = formatter.date(
+                        from: createdText
+                    )
+                else {
+                    return false
+                }
+                
+                return createdDate >= hourlyStartedDate
+            }
+            
+            let lastLoadDate =
+            hourlyLoads
+                .compactMap { load -> Date? in
+                    
+                    guard let createdText =
+                            load.created_at
+                    else {
+                        return nil
+                    }
+                    
+                    return formatter.date(
+                        from: createdText
+                    )
+                }
+                .max()
+            
+            let hourlyFinishDate =
+            lastLoadDate ?? finishDate
+            
             let elapsedSeconds =
-            finishDate.timeIntervalSince(
+            hourlyFinishDate.timeIntervalSince(
                 hourlyStartedDate
             )
             
             let actualHours =
-            max(0, elapsedSeconds / 3600)
-            
-            // Company dumping allowance:
-            // = +1.0 billable hour total.
-            //
-            // Then round to nearest 30 minutes.
+            max(
+                0,
+                elapsedSeconds / 3600
+            )
             
             let billableHours =
             (actualHours * 2).rounded() / 2
             
-            body["hourly_ended_at"] = now
+            body["hourly_ended_at"] =
+            formatter.string(
+                from: hourlyFinishDate
+            )
+            
             body["hourly_billable_hours"] =
             billableHours
             
             print(
                 "⏱️ Hourly job finished",
+                "Last load:",
+                hourlyFinishDate,
                 "Actual:",
                 actualHours,
                 "Billable:",
