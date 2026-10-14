@@ -8,7 +8,8 @@
 import SwiftUI
 import UIKit
 import Photos
-import MessageUI
+import QuickLook
+
 
 enum AppTheme {
 
