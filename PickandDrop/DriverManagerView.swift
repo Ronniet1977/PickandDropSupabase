@@ -599,6 +599,8 @@ struct EditDriverView: View {
     @State private var truckNumber = ""
     @State private var role = "driver"
     @State private var isActive = true
+    @State private var hourlyPayPercentage = 30.0
+    @State private var loadPayAmount = 80.0
     
     @State private var isSaving = false
     @State private var errorMessage = ""
@@ -664,6 +666,51 @@ struct EditDriverView: View {
                 )
             }
             
+            Section("Driver Pay") {
+                
+                HStack {
+                    Text("Hourly Pay")
+                    
+                    Spacer()
+                    
+                    TextField(
+                        "30",
+                        value: $hourlyPayPercentage,
+                        format: .number
+                    )
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 80)
+                    
+                    Text("%")
+                        .foregroundStyle(.secondary)
+                }
+                
+                HStack {
+                    Text("Pay Per Load")
+                    
+                    Spacer()
+                    
+                    Text("$")
+                        .foregroundStyle(.secondary)
+                    
+                    TextField(
+                        "80",
+                        value: $loadPayAmount,
+                        format: .number
+                    )
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 100)
+                }
+                
+                Text(
+                    "Hourly jobs pay this percentage of truck revenue. Per-ton and per-load jobs pay the amount above for each completed load."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            
             Section {
                 
                 Button {
@@ -714,6 +761,12 @@ struct EditDriverView: View {
             truckNumber = driver.truck_number
             role = driver.role
             isActive = driver.is_active
+            
+            hourlyPayPercentage =
+            driver.hourly_pay_percentage ?? 30
+            
+            loadPayAmount =
+            driver.load_pay_amount ?? 80
 
             Task {
 
@@ -766,7 +819,9 @@ struct EditDriverView: View {
                 newName: cleanName,
                 truckNumber: cleanTruck,
                 role: role,
-                isActive: isActive
+                isActive: isActive,
+                hourlyPayPercentage: hourlyPayPercentage,
+                loadPayAmount: loadPayAmount
             )
         
         isSaving = false

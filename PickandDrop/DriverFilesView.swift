@@ -8,6 +8,7 @@
 import SwiftUI
 import UIKit
 import Photos
+import MessageUI
 
 enum AppTheme {
 
@@ -73,6 +74,15 @@ struct DriverFilesView: View {
                         Label(
                             "Hourly Jobs",
                             systemImage: "clock.fill"
+                        )
+                    }
+                    
+                    NavigationLink {
+                        PayStatementsView()
+                    } label: {
+                        Label(
+                            "Pay Statements",
+                            systemImage: "dollarsign.rectangle.fill"
                         )
                     }
 
@@ -157,6 +167,902 @@ struct DriverFilesView: View {
             print("📁 No old driver folders found")
         }
     }
+}
+
+struct PayStatementsView: View {
+    
+    @State private var drivers: [SupabaseDriver] = []
+    @State private var loads: [SupabaseLoad] = []
+    @State private var shifts: [SupabaseShift] = []
+    @State private var locations: [SupabaseLocation] = []
+    
+    @State private var selectedDriverID: UUID?
+    @State private var selectedWeek = Date()
+    @State private var payStatementURL: URL?
+    @State private var settings: SupabaseCompanySettings?
+    
+    var selectedDriver: SupabaseDriver? {
+        drivers.first {
+            $0.id == selectedDriverID
+        }
+    }
+    
+    private var payStatementData: PayStatementData? {
+        
+        guard
+            let driver = selectedDriver,
+            let interval = weekInterval
+        else {
+            return nil
+        }
+        
+        let weekEnd =
+        payCalendar.date(
+            byAdding: .day,
+            value: 6,
+            to: interval.start
+        ) ?? interval.end
+        
+        return PayStatementData(
+            companyName:
+                settings?.trucking_company_name
+            ?? "Pick & Drop LLC",
+            
+            driverName: driver.name,
+            truckNumber: driver.truck_number,
+            
+            statementNumber:
+                statementNumber,
+            
+            ytdEarnings:
+                ytdEarnings,
+            
+            weekStart: interval.start,
+            weekEnd: weekEnd,
+            hourlyPay: hourlyPay,
+            perLoadPay: perLoadPay,
+            percentageLoadPay:
+                percentageLoadPay,
+            completedLoads:
+                weeklyLoads.count,
+            hourlyJobs:
+                weeklyHourlyShifts.count,
+            grossPay: grossPay,
+            deductions: 0
+        )
+    }
+    
+    private var statementNumber: String {
+        
+        guard let driver = selectedDriver else {
+            return ""
+        }
+        
+        let year =
+        payCalendar.component(
+            .year,
+            from: selectedWeek
+        )
+        
+        let week =
+        payCalendar.component(
+            .weekOfYear,
+            from: selectedWeek
+        )
+        
+        let weekText =
+        String(
+            format: "%04d",
+            week
+        )
+        
+        let driverCode =
+        String(
+            driver.id.uuidString
+                .replacingOccurrences(
+                    of: "-",
+                    with: ""
+                )
+                .prefix(4)
+        )
+        .uppercased()
+        
+        return
+        "PAY-\(year)-\(weekText)-\(driverCode)"
+    }
+    
+    private var ytdLoads: [SupabaseLoad] {
+        
+        guard
+            let driver = selectedDriver,
+            let interval = weekInterval
+        else {
+            return []
+        }
+        
+        let year =
+        payCalendar.component(
+            .year,
+            from: interval.start
+        )
+        
+        guard
+            let yearStart =
+                payCalendar.date(
+                    from:
+                        DateComponents(
+                            year: year,
+                            month: 1,
+                            day: 1
+                        )
+                ),
+            let ytdEnd =
+                payCalendar.date(
+                    byAdding: .day,
+                    value: 7,
+                    to: interval.start
+                )
+        else {
+            return []
+        }
+        
+        return loads.filter { load in
+            
+            guard
+                load.driver_name == driver.name,
+                load.billing_type != "per_hour",
+                load.status == "delivered"
+            else {
+                return false
+            }
+            
+            guard let date =
+                    payDate(
+                        load.delivered_at
+                        ?? load.created_at
+                    )
+            else {
+                return false
+            }
+            
+            return
+            date >= yearStart &&
+            date < ytdEnd
+        }
+    }
+    
+    private var ytdHourlyShifts: [SupabaseShift] {
+        
+        guard
+            let driver = selectedDriver,
+            let interval = weekInterval
+        else {
+            return []
+        }
+        
+        let year =
+        payCalendar.component(
+            .year,
+            from: interval.start
+        )
+        
+        guard
+            let yearStart =
+                payCalendar.date(
+                    from:
+                        DateComponents(
+                            year: year,
+                            month: 1,
+                            day: 1
+                        )
+                ),
+            let ytdEnd =
+                payCalendar.date(
+                    byAdding: .day,
+                    value: 7,
+                    to: interval.start
+                )
+        else {
+            return []
+        }
+        
+        return shifts.filter { shift in
+            
+            guard
+                shift.driver_name == driver.name,
+                shift.hourly_started_at != nil
+            else {
+                return false
+            }
+            
+            guard let date =
+                    payDate(
+                        shift.hourly_ended_at
+                        ?? shift.hourly_started_at
+                    )
+            else {
+                return false
+            }
+            
+            return
+            date >= yearStart &&
+            date < ytdEnd
+        }
+    }
+    
+    private var ytdEarnings: Double {
+        
+        let loadPay =
+        ytdLoads.reduce(0.0) {
+            total,
+            load in
+            
+            guard let location =
+                    locationFor(
+                        load.dropoff_location
+                    )
+            else {
+                return total
+            }
+            
+            switch location.driver_pay_type {
+                
+            case "per_load":
+                
+                return total +
+                (location.driver_pay_value ?? 0)
+                
+            case "percentage":
+                
+                let percentage =
+                location.driver_pay_value ?? 0
+                
+                return total +
+                (
+                    loadRevenue(load)
+                    * percentage
+                    / 100
+                )
+                
+            default:
+                
+                return total
+            }
+        }
+        
+        let hourly =
+        ytdHourlyShifts.reduce(0.0) {
+            total,
+            shift in
+            
+            guard let location =
+                    locationFor(
+                        shift.dropoff_location
+                    )
+            else {
+                return total
+            }
+            
+            guard
+                location.driver_pay_type
+                    == "percentage"
+            else {
+                return total
+            }
+            
+            let percentage =
+            location.driver_pay_value ?? 0
+            
+            let truckRevenue =
+            (shift.hourly_billable_hours ?? 0)
+            * (shift.hourly_rate ?? 0)
+            
+            return total +
+            (
+                truckRevenue
+                * percentage
+                / 100
+            )
+        }
+        
+        return loadPay + hourly
+    }
+    
+    private var payCalendar: Calendar {
+        var calendar = Calendar.current
+        calendar.firstWeekday = 2
+        return calendar
+    }
+    
+    private var weekInterval: DateInterval? {
+        payCalendar.dateInterval(
+            of: .weekOfYear,
+            for: selectedWeek
+        )
+    }
+    
+    private var weeklyLoads: [SupabaseLoad] {
+        
+        guard
+            let driver = selectedDriver,
+            let interval = weekInterval
+        else {
+            return []
+        }
+        
+        return loads.filter { load in
+            
+            guard
+                load.driver_name == driver.name,
+                load.billing_type != "per_hour",
+                load.status == "delivered"
+            else {
+                return false
+            }
+            
+            let date =
+            payDate(
+                load.delivered_at
+                ?? load.created_at
+            )
+            
+            guard let date else {
+                return false
+            }
+            
+            return interval.contains(date)
+        }
+    }
+    
+    private var weeklyHourlyShifts: [SupabaseShift] {
+        
+        guard
+            let driver = selectedDriver,
+            let interval = weekInterval
+        else {
+            return []
+        }
+        
+        return shifts.filter { shift in
+            
+            guard
+                shift.driver_name == driver.name,
+                shift.hourly_started_at != nil
+            else {
+                return false
+            }
+            
+            let date =
+            payDate(
+                shift.hourly_ended_at
+                ?? shift.hourly_started_at
+            )
+            
+            guard let date else {
+                return false
+            }
+            
+            return interval.contains(date)
+        }
+    }
+    
+    private var perLoadPay: Double {
+        
+        weeklyLoads.reduce(0) { total, load in
+            
+            guard let location =
+                    locationFor(
+                        load.dropoff_location
+                    )
+            else {
+                return total
+            }
+            
+            guard
+                location.driver_pay_type
+                    == "per_load"
+            else {
+                return total
+            }
+            
+            return total +
+            (location.driver_pay_value ?? 0)
+        }
+    }
+    
+    private var percentageLoadPay: Double {
+        
+        weeklyLoads.reduce(0) { total, load in
+            
+            guard let location =
+                    locationFor(
+                        load.dropoff_location
+                    )
+            else {
+                return total
+            }
+            
+            guard
+                location.driver_pay_type
+                    == "percentage"
+            else {
+                return total
+            }
+            
+            let percentage =
+            location.driver_pay_value ?? 0
+            
+            return total +
+            (
+                loadRevenue(load)
+                * percentage
+                / 100
+            )
+        }
+    }
+    
+    private var hourlyPay: Double {
+        
+        weeklyHourlyShifts.reduce(0) {
+            total,
+            shift in
+            
+            guard let location =
+                    locationFor(
+                        shift.dropoff_location
+                    )
+            else {
+                return total
+            }
+            
+            let percentage =
+            location.driver_pay_type
+            == "percentage"
+            ? (location.driver_pay_value ?? 0)
+            : 0
+            
+            let revenue =
+            (shift.hourly_billable_hours ?? 0)
+            * (shift.hourly_rate ?? 0)
+            
+            return total +
+            (
+                revenue
+                * percentage
+                / 100
+            )
+        }
+    }
+    
+    private var grossPay: Double {
+        perLoadPay
+        + percentageLoadPay
+        + hourlyPay
+    }
+    
+    var body: some View {
+        
+        Form {
+            
+            Section("Driver") {
+                
+                Picker(
+                    "Driver",
+                    selection: $selectedDriverID
+                ) {
+                    
+                    Text("Select Driver")
+                        .tag(UUID?.none)
+                    
+                    ForEach(
+                        drivers.filter {
+                            $0.role == "driver"
+                        }
+                    ) { driver in
+                        
+                        Text(driver.name)
+                            .tag(Optional(driver.id))
+                    }
+                }
+            }
+            
+            Section("Pay Period") {
+                
+                DatePicker(
+                    "Week",
+                    selection: $selectedWeek,
+                    displayedComponents: .date
+                )
+            }
+            
+            if let driver = selectedDriver {
+                
+                Section("Driver Defaults") {
+                    
+                    HStack {
+                        Text("Hourly Default")
+                        Spacer()
+                        Text(
+                            "\(driver.hourly_pay_percentage ?? 30, specifier: "%.0f")%"
+                        )
+                    }
+                    
+                    HStack {
+                        Text("Per Load Default")
+                        Spacer()
+                        Text(
+                            "$\(driver.load_pay_amount ?? 80, specifier: "%.2f")"
+                        )
+                    }
+                }
+                
+                Section("Weekly Pay") {
+                    
+                    HStack {
+                        Text("Per Load Pay")
+                        Spacer()
+                        Text(
+                            "$\(perLoadPay, specifier: "%.2f")"
+                        )
+                    }
+                    
+                    HStack {
+                        Text("Percentage Load Pay")
+                        Spacer()
+                        Text(
+                            "$\(percentageLoadPay, specifier: "%.2f")"
+                        )
+                    }
+                    
+                    HStack {
+                        Text("Hourly Pay")
+                        Spacer()
+                        Text(
+                            "$\(hourlyPay, specifier: "%.2f")"
+                        )
+                    }
+                    
+                    Divider()
+                    
+                    HStack {
+                        
+                        Text("Gross Pay")
+                            .font(.headline)
+                        
+                        Spacer()
+                        
+                        Text(
+                            "$\(grossPay, specifier: "%.2f")"
+                        )
+                        .font(.title2.bold())
+                        .foregroundStyle(.green)
+                    }
+                    
+                    Divider()
+                    
+                    HStack {
+                        
+                        Text("YTD Earnings")
+                            .font(.headline)
+                        
+                        Spacer()
+                        
+                        Text(
+                            "$\(ytdEarnings, specifier: "%.2f")"
+                        )
+                        .font(.headline)
+                    }
+                    
+                    HStack {
+                        Text("Statement")
+                        Spacer()
+                        Text(statementNumber)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                Section {
+                    
+                    Button {
+                        
+                        guard let liveStatement =
+                                payStatementData
+                        else {
+                            return
+                        }
+                        
+                        Task {
+                            
+                            let savedStatement =
+                            await PayStatementSupabaseManager
+                                .shared
+                                .fetchStatement(
+                                    statementNumber:
+                                        liveStatement.statementNumber
+                                )
+                            
+                            let statementToOpen:
+                            PayStatementData
+                            
+                            if let savedStatement,
+                               let restored =
+                                PayStatementSupabaseManager
+                                .shared
+                                .makePayStatementData(
+                                    from: savedStatement,
+                                    companyName:
+                                        settings?
+                                        .trucking_company_name
+                                    ?? "Pick & Drop LLC"
+                                ) {
+                                
+                                statementToOpen =
+                                restored
+                                
+                                print(
+                                    "📄 Using saved pay statement:",
+                                    restored.statementNumber
+                                )
+                                
+                            } else {
+                                
+                                statementToOpen =
+                                liveStatement
+                                
+                                _ =
+                                await PayStatementSupabaseManager
+                                    .shared
+                                    .saveStatement(
+                                        liveStatement
+                                    )
+                            }
+                            
+                            await MainActor.run {
+                                
+                                payStatementURL =
+                                PayStatementPDFGenerator
+                                    .createPDF(
+                                        statement:
+                                            statementToOpen
+                                    )
+                            }
+                        }
+                        
+                    } label: {
+                        
+                        Label(
+                            "Open Pay Statement",
+                            systemImage:
+                                "doc.text.magnifyingglass"
+                        )
+                    }
+                }
+                
+                Section("Work Count") {
+                    
+                    HStack {
+                        Text("Completed Loads")
+                        Spacer()
+                        Text("\(weeklyLoads.count)")
+                    }
+                    
+                    HStack {
+                        Text("Hourly Jobs")
+                        Spacer()
+                        Text("\(weeklyHourlyShifts.count)")
+                    }
+                }
+            }
+        }
+        .navigationTitle("Pay Statements")
+        .quickLookPreview($payStatementURL)
+        .task {
+            
+            async let loadedDrivers =
+            DriverSupabaseManager.shared
+                .fetchDrivers()
+            
+            async let loadedLoads =
+            LoadSupabaseManager.shared
+                .fetchLoads()
+            
+            async let loadedShifts =
+            ShiftSupabaseManager.shared
+                .fetchShifts()
+            
+            async let loadedLocations =
+            LocationSupabaseManager.shared
+                .fetchLocations()
+            
+            async let loadedSettings =
+            CompanySupabaseManager.shared
+                .fetchCompanySettings()
+            
+            let result =
+            await (
+                loadedDrivers,
+                loadedLoads,
+                loadedShifts,
+                loadedLocations,
+                loadedSettings
+            )
+            
+            await MainActor.run {
+                drivers = result.0
+                loads = result.1
+                shifts = result.2
+                locations = result.3
+                settings = result.4
+            }
+        }
+    }
+    
+    private func locationFor(
+        _ name: String?
+    ) -> SupabaseLocation? {
+        
+        guard let name else {
+            return nil
+        }
+        
+        let clean =
+        name.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        .lowercased()
+        
+        return locations.first {
+            $0.name
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+                .lowercased()
+            == clean
+        }
+    }
+    
+    private func loadRevenue(
+        _ load: SupabaseLoad
+    ) -> Double {
+        
+        switch load.billing_type ?? "per_ton" {
+            
+        case "per_load":
+            
+            return load.rate_per_load ?? 0
+            
+        case "per_hour":
+            
+            return
+            (load.billable_hours ?? 0)
+            * (load.rate_per_hour ?? 0)
+            
+        default:
+            
+            let tons =
+            load.pickup_tons ?? 0
+            
+            return
+            tons
+            * (load.rate_per_ton ?? 0)
+        }
+    }
+    
+    private func payDate(
+        _ value: String?
+    ) -> Date? {
+        
+        guard let value else {
+            return nil
+        }
+        
+        let fractional =
+        ISO8601DateFormatter()
+        
+        fractional.formatOptions = [
+            .withInternetDateTime,
+            .withFractionalSeconds
+        ]
+        
+        if let date =
+            fractional.date(from: value) {
+            return date
+        }
+        
+        let standard =
+        ISO8601DateFormatter()
+        
+        standard.formatOptions = [
+            .withInternetDateTime
+        ]
+        
+        return standard.date(from: value)
+    }
+}
+
+struct MessageComposeView: UIViewControllerRepresentable {
+    
+    let fileURL: URL
+    
+    @Environment(\.dismiss)
+    private var dismiss
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    func makeUIViewController(
+        context: Context
+    ) -> MFMessageComposeViewController {
+        
+        let controller =
+        MFMessageComposeViewController()
+        
+        controller.messageComposeDelegate =
+        context.coordinator
+        
+        controller.body =
+        "Here is your Pick & Drop pay statement."
+        
+        if let data =
+            try? Data(contentsOf: fileURL) {
+            
+            controller.addAttachmentData(
+                data,
+                typeIdentifier: "com.adobe.pdf",
+                filename: fileURL.lastPathComponent
+            )
+        }
+        
+        return controller
+    }
+    
+    func updateUIViewController(
+        _ uiViewController: MFMessageComposeViewController,
+        context: Context
+    ) {}
+    
+    final class Coordinator:
+        NSObject,
+        MFMessageComposeViewControllerDelegate {
+        
+        let parent: MessageComposeView
+        
+        init(
+            _ parent: MessageComposeView
+        ) {
+            self.parent = parent
+        }
+        
+        func messageComposeViewController(
+            _ controller: MFMessageComposeViewController,
+            didFinishWith result: MessageComposeResult
+        ) {
+            
+            parent.dismiss()
+        }
+    }
+}
+
+struct ActivityShareSheet: UIViewControllerRepresentable {
+    
+    let items: [Any]
+    
+    func makeUIViewController(
+        context: Context
+    ) -> UIActivityViewController {
+        
+        UIActivityViewController(
+            activityItems: items,
+            applicationActivities: nil
+        )
+    }
+    
+    func updateUIViewController(
+        _ uiViewController: UIActivityViewController,
+        context: Context
+    ) {}
 }
 
 struct DriverFolderDetailView: View {
@@ -2629,6 +3535,8 @@ struct EditLocationRatesView: View {
     @State private var fuelSurchargePerTon = ""
     @State private var ratePerLoad = ""
     @State private var ratePerHour = ""
+    @State private var driverPayType = "per_load"
+    @State private var driverPayValue = ""
     
     @State private var isSaving = false
     @State private var showingDeleteConfirmation = false
@@ -2732,6 +3640,49 @@ struct EditLocationRatesView: View {
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 120)
+                    }
+                }
+                
+                Section("Driver Pay") {
+                    
+                    Picker(
+                        "Pay Method",
+                        selection: $driverPayType
+                    ) {
+                        
+                        Text("Per Load")
+                            .tag("per_load")
+                        
+                        Text("Percentage")
+                            .tag("percentage")
+                    }
+                    
+                    HStack {
+                        
+                        Text(
+                            driverPayType == "percentage"
+                            ? "Driver Percentage"
+                            : "Driver Pay Per Load"
+                        )
+                        
+                        Spacer()
+                        
+                        TextField(
+                            driverPayType == "percentage"
+                            ? "30"
+                            : "80",
+                            text: $driverPayValue
+                        )
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 100)
+                        
+                        Text(
+                            driverPayType == "percentage"
+                            ? "%"
+                            : "$"
+                        )
+                        .foregroundStyle(.secondary)
                     }
                 }
                 
@@ -2861,6 +3812,16 @@ struct EditLocationRatesView: View {
         location.billing_type
         ?? "per_ton"
         
+        driverPayType =
+        location.driver_pay_type
+        ?? "per_load"
+        
+        driverPayValue =
+        String(
+            format: "%.2f",
+            location.driver_pay_value ?? 80
+        )
+        
         ratePerTon =
         String(
             format: "%.2f",
@@ -2909,7 +3870,10 @@ struct EditLocationRatesView: View {
                 ratePerLoad:
                     Double(ratePerLoad) ?? 0,
                 ratePerHour:
-                    Double(ratePerHour) ?? 0
+                    Double(ratePerHour) ?? 0,
+                driverPayType: driverPayType,
+                driverPayValue:
+                    Double(driverPayValue) ?? 0
             )
         
         if success {

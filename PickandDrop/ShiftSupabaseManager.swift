@@ -610,6 +610,9 @@ struct SupabaseLocation: Codable, Identifiable {
     let rate_per_load: Double?
     let rate_per_hour: Double?
     
+    let driver_pay_type: String?
+    let driver_pay_value: Double?
+    
     let created_at: String?
 }
 
@@ -700,7 +703,9 @@ final class LocationSupabaseManager {
         ratePerTon: Double,
         fuelSurchargePerTon: Double,
         ratePerLoad: Double,
-        ratePerHour: Double
+        ratePerHour: Double,
+        driverPayType: String,
+        driverPayValue: Double
     ) async -> Bool {
         
         let body: [String: Any] = [
@@ -708,7 +713,9 @@ final class LocationSupabaseManager {
             "rate_per_ton": ratePerTon,
             "fuel_surcharge_per_ton": fuelSurchargePerTon,
             "rate_per_load": ratePerLoad,
-            "rate_per_hour": ratePerHour
+            "rate_per_hour": ratePerHour,
+            "driver_pay_type": driverPayType,
+            "driver_pay_value": driverPayValue
         ]
         
         do {

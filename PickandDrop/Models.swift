@@ -25,20 +25,23 @@ struct SupabaseAppConfig: Codable {
 }
 
 struct SupabaseDriver: Codable, Identifiable {
-
+    
     let id: UUID
-
+    
     let name: String
     let username: String
     let must_change_password: Bool?
     let truck_number: String
-
+    
     let role: String
     let is_active: Bool
-
+    
     let duty_status: String?
-
+    
     let auth_user_id: UUID?
+    
+    let hourly_pay_percentage: Double?
+    let load_pay_amount: Double?
 }
 
 struct SupabaseLoad: Codable, Identifiable {

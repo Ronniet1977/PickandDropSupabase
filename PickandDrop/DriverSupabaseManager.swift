@@ -77,7 +77,9 @@ final class DriverSupabaseManager {
         newName: String,
         truckNumber: String,
         role: String,
-        isActive: Bool
+        isActive: Bool,
+        hourlyPayPercentage: Double,
+        loadPayAmount: Double
     ) async -> Bool {
         
         do {
@@ -86,7 +88,9 @@ final class DriverSupabaseManager {
                 "name": newName,
                 "truck_number": truckNumber,
                 "role": role,
-                "is_active": isActive
+                "is_active": isActive,
+                "hourly_pay_percentage": hourlyPayPercentage,
+                "load_pay_amount": loadPayAmount
             ]
             
             let driverData =
