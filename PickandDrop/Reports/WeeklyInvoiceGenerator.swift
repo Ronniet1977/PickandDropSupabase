@@ -440,7 +440,7 @@ enum WeeklyInvoiceGenerator {
                 continue
             }
 
-            guard let deliveredDate = iso.date(from: deliveredAt) else {
+            guard let deliveredDate = parseDate(deliveredAt) else {
                 continue
             }
 

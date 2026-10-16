@@ -349,6 +349,63 @@ final class ShiftSupabaseManager {
         let formatter =
         ISO8601DateFormatter()
         
+        func parseDate(
+            _ value: String?
+        ) -> Date? {
+            
+            guard let value else {
+                return nil
+            }
+            
+            let iso =
+            ISO8601DateFormatter()
+            
+            if let date =
+                iso.date(from: value) {
+                
+                return date
+            }
+            
+            let formatter =
+            DateFormatter()
+            
+            formatter.locale =
+            Locale(
+                identifier:
+                    "en_US_POSIX"
+            )
+            
+            formatter.timeZone =
+            TimeZone(
+                secondsFromGMT: 0
+            )
+            
+            formatter.dateFormat =
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXXXX"
+            
+            if let date =
+                formatter.date(from: value) {
+                
+                return date
+            }
+            
+            formatter.dateFormat =
+            "yyyy-MM-dd HH:mm:ss.SSSSSSXXXXX"
+            
+            if let date =
+                formatter.date(from: value) {
+                
+                return date
+            }
+            
+            formatter.dateFormat =
+            "yyyy-MM-dd HH:mm:ssXXXXX"
+            
+            return formatter.date(
+                from: value
+            )
+        }
+        
         let now =
         formatter.string(from: finishDate)
         
@@ -375,8 +432,8 @@ final class ShiftSupabaseManager {
            let hourlyStartedString =
             shift.hourly_started_at,
            let hourlyStartedDate =
-            formatter.date(
-                from: hourlyStartedString
+            parseDate(
+                hourlyStartedString
             ) {
             
             let allLoads =
@@ -392,9 +449,10 @@ final class ShiftSupabaseManager {
                     load.pickup_location == shift.pickup_location,
                     load.dropoff_location == shift.dropoff_location,
                     let createdText = load.created_at,
-                    let createdDate = formatter.date(
-                        from: createdText
-                    )
+                    let createdDate =
+                        parseDate(
+                            createdText
+                        )
                 else {
                     return false
                 }
@@ -412,8 +470,8 @@ final class ShiftSupabaseManager {
                         return nil
                     }
                     
-                    return formatter.date(
-                        from: createdText
+                    return parseDate(
+                        createdText
                     )
                 }
                 .max()
