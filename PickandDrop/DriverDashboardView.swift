@@ -155,6 +155,15 @@ struct DriverDashboardView: View {
         activeShift != nil
     }
     
+    var hasPendingHourlyLoad: Bool {
+        supabaseLoads.contains { load in
+            load.driver_name == driver.name &&
+            load.billing_type == "per_hour" &&
+            load.is_archived != true &&
+            load.delivered_at == nil
+        }
+    }
+    
     var activeShiftDuration: String {
 
         guard let shift = activeShift else {
@@ -295,6 +304,10 @@ struct DriverDashboardView: View {
                             let tonLoads = todayLoads.filter {
                                 ($0.billing_type ?? "per_ton") == "per_ton"
                             }
+                            
+                            let hourlyLoads = todayLoads.filter {
+                                $0.billing_type == "per_hour"
+                            }
 
                             let perLoadLoads = todayLoads.filter {
                                 $0.billing_type == "per_load"
@@ -307,9 +320,45 @@ struct DriverDashboardView: View {
 
                             let pendingPerLoad =
                                 perLoadLoads.count - deliveredPerLoad.count
-
-                            if !tonLoads.isEmpty &&
-                               !perLoadLoads.isEmpty {
+                            
+                            if !hourlyLoads.isEmpty {
+                                
+                                // HOURLY DAY
+                                
+                                let pickupTons =
+                                hourlyLoads.reduce(0.0) {
+                                    $0 + ($1.pickup_tons ?? 0)
+                                }
+                                
+                                HStack {
+                                    
+                                    dashboardStat(
+                                        title: "Loads",
+                                        value: "\(hourlyLoads.count)"
+                                    )
+                                    
+                                    Spacer()
+                                    
+                                    dashboardStat(
+                                        title: "\(currentPickupName) Tons",
+                                        value: String(
+                                            format: "%.0f",
+                                            pickupTons
+                                        )
+                                    )
+                                    
+                                    Spacer()
+                                    
+                                    dashboardStat(
+                                        title: "Hourly Loads",
+                                        value: "\(hourlyLoads.count)"
+                                    )
+                                }
+                                
+                            } else if !tonLoads.isEmpty &&
+                                        !perLoadLoads.isEmpty {
+                                
+                                // existing mixed-day code
 
                                 // MIXED DAY
 
@@ -457,22 +506,41 @@ struct DriverDashboardView: View {
                             }
 
                             if activeShift != nil {
-
-                                NavigationLink {
-                                    AddLoadView(driver: driver)
-                                } label: {
-                                    ActionCard(
-                                        title: "Add Load",
-                                        icon: "plus.circle.fill",
-                                        color: .blue
-                                    )
+                                
+                                if hasPendingHourlyLoad {
+                                    
+                                    Button {
+                                        showPickupDeliveryView = true
+                                    } label: {
+                                        
+                                        ActionCard(
+                                            title: "Mark Dropoff",
+                                            icon: "arrow.down.circle.fill",
+                                            color: .orange
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    
+                                } else {
+                                    
+                                    NavigationLink {
+                                        AddLoadView(driver: driver)
+                                    } label: {
+                                        
+                                        ActionCard(
+                                            title: "Add Load",
+                                            icon: "plus.circle.fill",
+                                            color: .blue
+                                        )
+                                    }
                                 }
-
+                                
                             } else {
-
+                                
                                 Button {
                                     showStartDayRequired = true
                                 } label: {
+                                    
                                     ActionCard(
                                         title: "Add Load",
                                         icon: "plus.circle.fill",
