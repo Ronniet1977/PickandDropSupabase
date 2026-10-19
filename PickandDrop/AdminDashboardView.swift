@@ -301,15 +301,23 @@ struct AdminDashboardView: View {
 
         var driverNames = Set(groupedLoads.keys)
 
-        // Always include every enabled Supabase driver,
-        // even when they have no loads today.
-        for driver in supabaseDrivers {
+        // Add real drivers with an active Supabase shift TODAY.
+        for shift in supabaseShifts {
 
-            guard driver.is_active else {
+            guard shift.status == "active",
+                  isShiftToday(shift)
+            else {
                 continue
             }
 
-            driverNames.insert(driver.name)
+            let isRealDriver = supabaseDrivers.contains {
+                $0.name == shift.driver_name &&
+                $0.is_active
+            }
+
+            if isRealDriver {
+                driverNames.insert(shift.driver_name)
+            }
         }
 
         return driverNames.map { driverName in
@@ -322,30 +330,22 @@ struct AdminDashboardView: View {
 
             // Shifts are newest-first.
             // Only consider today's shift for current status.
-            let dutyStatus =
-                driverProfile?.duty_status?
-                    .trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    )
-                    .lowercased()
-                ?? "off_duty"
+            let latestShift = supabaseShifts.first {
+                $0.driver_name == driverName &&
+                isShiftToday($0)
+            }
 
             let status: String
 
-            switch dutyStatus {
-
-            case "active":
-                status = "active"
-
-            case "off_duty":
-                status = "off_duty"
-
-            default:
-                status = dutyStatus
+            if let latestShift {
+                status = latestShift.status == "active"
+                    ? "active"
+                    : "finished"
+            } else {
+                status = "offline"
             }
 
-            let isFinished =
-                status == "off_duty"
+            let isFinished = status == "finished"
 
             return DriverSummary(
                 name: driverName,
@@ -480,6 +480,19 @@ struct AdminDashboardView: View {
                 Label(
                     "Files",
                     systemImage: "folder.fill"
+                )
+            }
+            
+            NavigationStack {
+                
+                ExpensesView()
+                
+            }
+            .tabItem {
+                
+                Label(
+                    "Expenses",
+                    systemImage: "creditcard.fill"
                 )
             }
             
