@@ -33,6 +33,9 @@ struct AddLoadView: View {
     @State private var showDuplicateTicketAlert = false
     @State private var duplicateTicketMessage = ""
     
+    @State private var showScanResult = false
+    @State private var scanResultMessage = ""
+    
     var pickupLocations: [SupabaseLocation] {
         locations.filter {
             $0.location_type == "pickup" ||
@@ -452,6 +455,14 @@ struct AddLoadView: View {
         } message: {
             Text(savedPickupMessage)
         }
+        .alert(
+            "Pickup Ticket Scan",
+            isPresented: $showScanResult
+        ) {
+            Button("Looks Good", role: .cancel) { }
+        } message: {
+            Text(scanResultMessage)
+        }
     }
     
     private func isShiftToday(_ shift: SupabaseShift) -> Bool {
@@ -510,6 +521,15 @@ struct AddLoadView: View {
                 pickupTons =
                 result.pickupTons
             }
+            
+            scanResultMessage =
+            """
+            Ticket: \(result.pickupTicket.isEmpty ? "Not Read" : result.pickupTicket)
+            Tons: \(result.pickupTons.isEmpty ? "Not Read" : result.pickupTons)
+            Truck: \(result.truckNumber.isEmpty ? currentTruckNumber : result.truckNumber)
+            """
+
+            showScanResult = true
             
             print("✅ BRC ticket scanned")
             print(

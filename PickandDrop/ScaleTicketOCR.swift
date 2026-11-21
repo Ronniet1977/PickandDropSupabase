@@ -233,9 +233,9 @@ enum ScaleTicketOCR {
         )
         
         result.pickupTons =
-            findBRCTons(
+            findTons(
                 in: normalized,
-                ticketNumber: result.pickupTicket
+                ticketType: .brc
             )
         
         result.truckNumber =
@@ -272,9 +272,9 @@ enum ScaleTicketOCR {
         )
         
         result.deliveryTons =
-            findHoneyGoTons(
+            findTons(
                 in: normalized,
-                ticketNumber: result.deliveryTicket
+                ticketType: .honeyGo
             )
         
         result.truckNumber =
@@ -740,6 +740,24 @@ enum ScaleTicketOCR {
         in text: String,
         ticketType: ScaleTicketType
     ) -> String {
+        // BRC prints the actual load tons as QTY.
+        // Prefer this before trying to calculate from
+        // nearby scale-weight numbers.
+        if ticketType == .brc {
+
+            if let qtyTons =
+                numberNearMarker(
+                    "QTY",
+                    in: text,
+                    minimum: 5,
+                    maximum: 40
+                ) {
+
+                return formatTons(
+                    qtyTons
+                )
+            }
+        }
         
         // HoneyGo literally prints:
         //
@@ -892,8 +910,8 @@ enum ScaleTicketOCR {
         
         return values.first {
             value in
-            
-            value >= 1_000 &&
+
+            value >= 10_000 &&
             value <= 200_000
         }
     }

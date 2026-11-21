@@ -304,6 +304,146 @@ final class SupabaseAuthManager {
 
         print("✅ Supabase Auth account created")
     }
+    
+    // MARK: - Password Recovery
+
+    func sendPasswordRecovery(
+        email: String
+    ) async throws {
+
+        guard let url = URL(
+            string:
+                "\(SupabaseConfig.projectURL)/auth/v1/recover"
+        ) else {
+            throw SupabaseAuthError.invalidURL
+        }
+
+        let body: [String: Any] = [
+            "email": email,
+            "redirect_to":
+                "pickanddrop://reset-password"
+        ]
+
+        let data =
+            try JSONSerialization.data(
+                withJSONObject: body
+            )
+
+        var request =
+            URLRequest(url: url)
+
+        request.httpMethod = "POST"
+
+        request.setValue(
+            SupabaseConfig.anonKey,
+            forHTTPHeaderField: "apikey"
+        )
+
+        request.setValue(
+            "application/json",
+            forHTTPHeaderField: "Content-Type"
+        )
+
+        request.httpBody = data
+
+        let (
+            responseData,
+            response
+        ) =
+            try await URLSession.shared.data(
+                for: request
+            )
+
+        guard let http =
+            response as? HTTPURLResponse
+        else {
+            throw SupabaseAuthError.invalidResponse
+        }
+
+        guard (200...299).contains(
+            http.statusCode
+        ) else {
+
+            throw authError(
+                from: responseData,
+                fallback:
+                    "Unable to send password reset email."
+            )
+        }
+
+        print(
+            "✅ Password recovery email sent"
+        )
+    }
+    
+    func handlePasswordRecoveryURL(
+        _ url: URL
+    ) async throws -> Bool {
+
+        guard
+            url.scheme == "pickanddrop",
+            url.host == "reset-password"
+        else {
+            return false
+        }
+
+        guard
+            let fragment =
+                url.fragment
+        else {
+            throw SupabaseAuthError.server(
+                "Missing recovery information."
+            )
+        }
+
+        let parts =
+            fragment
+                .split(separator: "&")
+                .map(String.init)
+
+        var values: [String: String] = [:]
+
+        for part in parts {
+
+            let pieces =
+                part.split(
+                    separator: "=",
+                    maxSplits: 1
+                )
+
+            guard pieces.count == 2 else {
+                continue
+            }
+
+            values[String(pieces[0])] =
+                String(pieces[1])
+                    .removingPercentEncoding
+                    ?? String(pieces[1])
+        }
+
+        guard
+            let recoveryAccessToken =
+                values["access_token"],
+            let recoveryRefreshToken =
+                values["refresh_token"]
+        else {
+            throw SupabaseAuthError.server(
+                "Invalid password recovery link."
+            )
+        }
+
+        accessToken =
+            recoveryAccessToken
+
+        refreshToken =
+            recoveryRefreshToken
+
+        AuthKeychain.saveRefreshToken(
+            recoveryRefreshToken
+        )
+
+        return true
+    }
 
     // MARK: - Change Password
 

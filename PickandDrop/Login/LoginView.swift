@@ -36,6 +36,10 @@ struct LoginView: View {
     @AppStorage("mustChangePassword")
     var mustChangePassword = false
     
+    @State private var showRecoveryAlert = false
+    @State private var recoveryMessage = ""
+    @State private var showResetPassword = false
+    
     var body: some View {
 
         ZStack {
@@ -135,6 +139,105 @@ struct LoginView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.blue)
                     
+                    Button {
+
+                        Task {
+
+                            let cleanUsername =
+                                username
+                                    .trimmingCharacters(
+                                        in: .whitespacesAndNewlines
+                                    )
+                                    .lowercased()
+
+                            guard !cleanUsername.isEmpty else {
+
+                                await MainActor.run {
+                                    recoveryMessage =
+                                        "Enter your username first."
+                                    showRecoveryAlert = true
+                                }
+
+                                return
+                            }
+
+                            // ADMIN:
+                            // Send real recovery email.
+                            if cleanUsername == "admin" {
+
+                                do {
+
+                                    try await
+                                        SupabaseAuthManager.shared
+                                            .sendPasswordRecovery(
+                                                email:
+                                                    "ronnie.fvfd@gmail.com"
+                                            )
+
+                                    await MainActor.run {
+                                        recoveryMessage =
+                                            "Password reset email sent. Check your email."
+                                        showRecoveryAlert = true
+                                    }
+
+                                } catch {
+
+                                    await MainActor.run {
+                                        recoveryMessage =
+                                            error.localizedDescription
+                                        showRecoveryAlert = true
+                                    }
+                                }
+
+                                return
+                            }
+
+                            // DRIVER:
+                            // Notify admin that a reset is needed.
+
+                            guard let driver =
+                                await DriverSupabaseManager.shared
+                                    .fetchDriver(
+                                        username: cleanUsername
+                                    )
+                            else {
+
+                                await MainActor.run {
+                                    recoveryMessage =
+                                        "Username not found."
+                                    showRecoveryAlert = true
+                                }
+
+                                return
+                            }
+
+                            await NotificationSupabaseManager.shared
+                                .sendNotification(
+                                    type:
+                                        "password_reset_request",
+                                    driverName:
+                                        driver.name,
+                                    truckNumber:
+                                        driver.truck_number,
+                                    message:
+                                        "\(driver.name) requested a password reset."
+                                )
+
+                            await MainActor.run {
+
+                                recoveryMessage =
+                                    "Password reset request sent to the administrator."
+
+                                showRecoveryAlert = true
+                            }
+                        }
+
+                    } label: {
+
+                        Text("Forgot Password?")
+                    }
+                    .foregroundStyle(.white)
+                    
                     if rememberLogin &&
                        useBiometricLogin &&
                        !rememberedUsername.isEmpty &&
@@ -230,6 +333,51 @@ struct LoginView: View {
         .sheet(isPresented: $showJoinCompany) {
             JoinCompanyView()
         }
+        .sheet(
+            isPresented:
+                $showResetPassword
+        ) {
+            PasswordRecoveryView()
+        }
+        .alert(
+            "Password Recovery",
+            isPresented:
+                $showRecoveryAlert
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(recoveryMessage)
+        }
+        .onOpenURL { url in
+            
+            Task {
+                
+                do {
+                    
+                    let handled =
+                    try await
+                    SupabaseAuthManager.shared
+                        .handlePasswordRecoveryURL(
+                            url
+                        )
+                    
+                    if handled {
+                        
+                        await MainActor.run {
+                            showResetPassword = true
+                        }
+                    }
+                    
+                } catch {
+                    
+                    await MainActor.run {
+                        recoveryMessage =
+                        error.localizedDescription
+                        showRecoveryAlert = true
+                    }
+                }
+            }
+        }
     }
     
 
@@ -257,8 +405,13 @@ struct LoginView: View {
             return
         }
 
-        let authEmail =
-            "\(cleanUsername)@pickanddrop.local"
+        let authEmail: String
+
+        if cleanUsername == "admin" {
+            authEmail = "ronnie.fvfd@gmail.com"
+        } else {
+            authEmail = "\(cleanUsername)@pickanddrop.local"
+        }
 
         do {
 

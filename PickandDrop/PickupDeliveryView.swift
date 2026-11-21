@@ -35,6 +35,9 @@ struct PickupDeliveryView: View {
     @State private var showDuplicateDeliveryAlert = false
     @State private var duplicateDeliveryMessage = ""
     
+    @State private var showScanResult = false
+    @State private var scanResultMessage = ""
+    
     var dropoffLocations: [SupabaseLocation] {
         locations.filter {
             $0.location_type == "dropoff" ||
@@ -575,6 +578,14 @@ struct PickupDeliveryView: View {
                 } message: {
                     Text(savedDeliveryMessage)
                 }
+                .alert(
+                    "Delivery Ticket Scan",
+                    isPresented: $showScanResult
+                ) {
+                    Button("Looks Good", role: .cancel) { }
+                } message: {
+                    Text(scanResultMessage)
+                }
             }
         }
     }
@@ -653,6 +664,24 @@ struct PickupDeliveryView: View {
                 deliveryTons =
                     result.deliveryTons
             }
+            
+            let displayTons =
+                isChase
+                ? "Not Required"
+                : (
+                    result.deliveryTons.isEmpty
+                    ? "Not Read"
+                    : result.deliveryTons
+                )
+
+            scanResultMessage =
+            """
+            Ticket: \(result.deliveryTicket.isEmpty ? "Not Read" : result.deliveryTicket)
+            Tons: \(displayTons)
+            Truck: \(result.truckNumber.isEmpty ? currentTruckNumber : result.truckNumber)
+            """
+
+            showScanResult = true
             
             if isChase {
                 
